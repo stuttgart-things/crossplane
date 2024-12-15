@@ -5,9 +5,11 @@ vars:
     sh: echo ${PROJECT}
   BRANCH:
     sh: if [ $(git rev-parse --abbrev-ref HEAD) != "main" ]; then echo $(git rev-parse --abbrev-ref HEAD); else echo main ; fi
+  CROSSPLANE_PACKAGE_REGISTRY: ghcr.io
+  DAGGER_CROSSPLANE_MODULE: github.com/stuttgart-things/dagger/crossplane
+  DAGGER_CROSSPLANE_MODULE_VERSION: v0.0.2
 
 tasks:
-
   xplane-push:
     desc: Push crossplane package
     cmds:
@@ -17,8 +19,14 @@ tasks:
         echo "Enter to be pushed tag version:"
         read TAG;
 
-        dagger call -m {{ .DAGGER_CROSSPLANE_MODULE }} push --src crossplane/packages/${PACKAGE_NAME} --progress plain --username={{ .USER }} --password=env:GITHUB_TOKEN --registry={{ .CROSSPLANE_PACKAGE_REGISTRY }} --destination={{ .DESTINATION }}/${PACKAGE_NAME}:${TAG}
+        dagger call -m {{ .DAGGER_CROSSPLANE_MODULE }} push \
+        --src {{ .SOURCE_FOLDER }}/${PACKAGE_NAME} \
+        --progress plain --username={{ .USER }} \
+        --password=env:GITHUB_TOKEN \
+        --registry={{ .CROSSPLANE_PACKAGE_REGISTRY }} \
+        --destination={{ .DESTINATION }}/${PACKAGE_NAME}:${TAG}
     vars:
+      SOURCE_FOLDER: "./configurations"
       DESTINATION: "{{ .CROSSPLANE_PACKAGE_REGISTRY }}/stuttgart-things/crossplane"
       USER: stuttgart-things
 
@@ -47,27 +55,23 @@ tasks:
     desc: "Run the pre-commit hook script to replace .example.com with .example.com"
     cmds:
       - |
-        # Replace all instances of ".example.com" with ".example.com" in tracked files
-        # Collect all staged files
-        files=$(find . -type f -name "*.yaml" -o -name "*.yml")
+        # Find all YAML files in the repository recursively, excluding Taskfile.yaml
+        files=$(find . -type f \( -name "*.yaml" -o -name "*.yml" \) ! -name "Taskfile.yaml")
+
         # Loop through each file
         for file in $files; do
-          # Skip binary files and deleted files
+          # Skip binary files
           if file "$file" | grep -q "text"; then
             # Replace the string and update the file
             sed -i 's/\.sva\.de/\.example\.com/g' "$file"
-
-            # Add the modified file back to staging
-            git add "$file"
           fi
         done
 
-        # Exit with success
-        exit 0
-    sources:
-      - "**/*.yaml" # Adjust the file pattern to match files in your repo
-    silent: false
+        # Add all modified YAML files back to staging
+        git add $(git ls-files --modified | grep -E '\.ya?ml$')
 
+        exit 0
+    silent: false
 
   commit:
     desc: Commit + push code into branch
