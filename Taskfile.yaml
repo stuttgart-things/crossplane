@@ -26,6 +26,34 @@ tasks:
     cmds:
       - pre-commit run -a
 
+  run-pre-commit-hook:
+    deps:
+      - check
+    desc: "Run the pre-commit hook script to replace .example.com with .example.com"
+    cmds:
+      - |
+        # Replace all instances of ".example.com" with ".example.com" in tracked files
+        # Collect all staged files
+        files=$(find . -type f -name "*.yaml" -o -name "*.yml")
+        # Loop through each file
+        for file in $files; do
+          # Skip binary files and deleted files
+          if file "$file" | grep -q "text"; then
+            # Replace the string and update the file
+            sed -i 's/\.sva\.de/\.example\.com/g' "$file"
+
+            # Add the modified file back to staging
+            git add "$file"
+          fi
+        done
+
+        # Exit with success
+        exit 0
+    sources:
+      - "**/*.yaml" # Adjust the file pattern to match files in your repo
+    silent: false
+
+
   commit:
     desc: Commit + push code into branch
     deps:
