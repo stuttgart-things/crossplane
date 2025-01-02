@@ -11,7 +11,7 @@ spec:
     - "all+[\"{{ .ip }}\"]"
   playbooks:
     - "plays/prepare-env.yaml"
-    - "plays/base-os.yaml"
+    - "sthings.base_os.setup"
   ansibleVarsFile:
     - manage_filesystem+-true
     - update_packages+-true
@@ -23,6 +23,7 @@ spec:
     - lvm_var_sizing+-'50%'
     - send_to_msteams+-true
     - reboot_all+-false
+    - send_to_homerun+-true
   gitRepoUrl: https://github.com/stuttgart-things/ansible.git
   gitRevision: main
   providerRef:
