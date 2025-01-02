@@ -1,0 +1,21 @@
+---
+name: Verify
+on:
+  workflow_dispatch:
+  push:
+    branches:
+        - "*"
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  yaml-lint:
+    name: Lint yaml files
+    uses: stuttgart-things/github-workflow-templates/.github/workflows/call-yaml-lint.yaml@feature/add-homerun-task-go
+    with:
+      runs-on: ghr-crossplane-skyami-cicd
+      environment-name: k8s
+      continue-error: false
+      yamllint-version: 1
+      lintprofile-path: .yamllint
+      artifact-name: yaml-lint
