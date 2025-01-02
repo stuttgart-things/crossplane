@@ -34,7 +34,7 @@ spec:
                   description: Namespace of pipelineRun resource
                 workingImage:
                   type: string
-                  default: ghcr.io/stuttgart-things/sthings-ansible:11.0.0
+                  default: ghcr.io/stuttgart-things/sthings-ansible:11.1.0
                   description: Name of pipelineRun resource
                 vaultSecretName:
                   type: string
@@ -66,7 +66,12 @@ spec:
                   default: "true"
                 inventoryFile:
                   type: string
+                  default: ""
                   description: inventory file (b64 encoded)
+                varsFile:
+                  type: string
+                  default: ""
+                  description: (additional) varsFile (b64 encoded)
                 roles:
                   type: array
                   description: Ansible roles
@@ -95,7 +100,11 @@ spec:
             status:
               description: A Status represents the observed state
               properties:
-                share:
+                tekton:
+                  description: Freeform field containing status information
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                ergebnis:
                   description: Freeform field containing status information
                   type: object
                   x-kubernetes-preserve-unknown-fields: true

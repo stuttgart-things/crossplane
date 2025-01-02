@@ -1,15 +1,14 @@
 ---
-# BASE-OS
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: baseos-k3s-sprechstunde133
+  name: {{ .targets }}-{{ .provisioning }}
   namespace: crossplane-system
 spec:
-  pipelineRunName: baseos-k3s-sprechstunde133
-  createInventory: "false"
-  varsFile: bmFtZToga29sbGUK
-  inventoryFile: W2luaXRpYWxfbWFzdGVyX25vZGVdCmszcy1zcHJlY2hzdHVuZGUubGFidWwuc3ZhLmRlCgpbYWRkaXRpb25hbF9tYXN0ZXJfbm9kZXNdCg== # pragma: allowlist secret
+  pipelineRunName: {{ .targets }}-{{ .provisioning }}
+  createInventory: "true"
+  inventory:
+    - "all+[\"{{ .ip }}\"]"
   playbooks:
     - "plays/prepare-env.yaml"
     - "plays/base-os.yaml"
@@ -30,7 +29,7 @@ spec:
     name: in-cluster
   vaultSecretName: vault # pragma: allowlist secret
   pipelineNamespace: tekton-pipelines
-  workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.1.0
+  workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.0.0
   roles:
     - "https://github.com/stuttgart-things/install-requirements.git,2024.05.11"
     - "https://github.com/stuttgart-things/manage-filesystem.git,2024.05.15"
@@ -44,7 +43,3 @@ spec:
     - awx.awx:24.6.1
     - community.hashi_vault:6.2.0
     - ansible.netcommon:7.1.0
-    # - https://artifacts.homerun-dev.sthings-vsphere.labul.example.com/ansible-collections/sthings-container-24.612.59.tar.gz
-    # - https://artifacts.homerun-dev.sthings-vsphere.labul.example.com/ansible-collections/sthings-deploy_rke-24.2843.39.tar.gz
-    # - https://github.com/stuttgart-things/stuttgart-things/releases/download/0.0.86/sthings-awx-0.0.86.tar.gz
-    # - https://artifacts.homerun-dev.sthings-vsphere.labul.example.com/ansible-collections/sthings-base_os-24.21.29.tar.gz
