@@ -16,9 +16,8 @@ preQuestions:
 questions:
   - /home/sthings/projects/crossplane/surveys/ansiblerun.yaml
 
-
 templates:
-  - /home/sthings/projects/crossplane/templates/ansiblerun.yaml.tpl:{{ .targets }}-{{ .provisioning }}.yaml
+  - /home/sthings/projects/crossplane/templates/ansiblerun-{{ .provisioning }}.yaml.tpl:{{ .targets }}-{{ .provisioning }}.yaml
 
 # GENERAL
 technology: crossplane
