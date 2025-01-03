@@ -11,7 +11,7 @@ preQuestions:
     name: provisioning
     options:
       - "baseos"
-      - "docker"
+      - "devmachine"
 
 questions:
   - /home/sthings/projects/crossplane/surveys/ansiblerun.yaml
