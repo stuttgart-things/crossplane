@@ -3,13 +3,13 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: install-docker
+  name: install-docker-dagger
   namespace: crossplane-system
 spec:
-  pipelineRunName: install-docker2
+  pipelineRunName: install-docker-dagger
   createInventory: "false"
   varsFile: bmFtZToga29sbGUK # pragma: allowlist secret
-  inventoryFile: W2luaXRpYWxfbWFzdGVyX25vZGVdCmszcy1zcHJlY2hzdHVuZGUubGFidWwuc3ZhLmRlCgpbYWRkaXRpb25hbF9tYXN0ZXJfbm9kZXNdCg== # pragma: allowlist secret
+  inventoryFile: MTAuMzEuMTAxLjEyNwo= # pragma: allowlist secret
   playbooks:
     - "plays/prepare-env.yaml"
     - "plays/base-os.yaml"
@@ -45,7 +45,8 @@ spec:
     - awx.awx:24.6.1
     - community.hashi_vault:6.2.0
     - ansible.netcommon:7.1.0
-    - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-container-24.612.59.tar.gz
+    # - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-container-24.612.59.tar.gz
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-container/sthings-container-25.0.701.tar.gz
     # - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-deploy_rke-24.2843.39.tar.gz
     # - https://github.com/stuttgart-things/stuttgart-things/releases/download/0.0.86/sthings-awx-0.0.86.tar.gz
     # - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-base_os-24.21.29.tar.gz
