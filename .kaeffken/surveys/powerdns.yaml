@@ -1,0 +1,24 @@
+---
+- prompt: "PowerDNS instance?"
+  name: powerDNSInstance
+  options:
+    - "https://pdns-vsphere.labul.sva.de:8443"
+
+- prompt: "PowerDNS Entry zone?"
+  name: entryZone
+  options:
+    - "sthings-vsphere.labul.sva.de."
+
+- prompt: "Cluster name?"
+  kind: ask
+  name: clusterName
+  type: string
+  minLength: 3
+  maxLength: 20
+
+- prompt: "IP (e.g. INGRESS-CONTROLLER)?"
+  kind: ask
+  name: ipAddress
+  type: string
+  minLength: 3
+  maxLength: 20

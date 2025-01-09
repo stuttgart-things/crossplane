@@ -1,0 +1,36 @@
+---
+preQuestions:
+  - prompt: "Provisioning?"
+    name: provisioning
+    options:
+      - "baseos"
+      - "devmachine"
+      - "powerdns"
+
+questions:
+  - .kaeffken/surveys/{{ .provisioning }}.yaml
+
+templates:
+  - .kaeffken/templates/ansiblerun-{{ .provisioning }}.yaml.tpl:{{ .targets }}-{{ .provisioning }}.yaml
+
+values:
+  - .kaeffken/values/ansiblerun-defaults.yaml
+  - .kaeffken/values/ansiblerun-{{ .provisioning }}.yaml
+
+# GENERAL
+technology: crossplane
+
+
+# GITHUB / BRANCH
+gitRepo: stuttgart-things
+gitOwner: stuttgart-things
+gitBranch: "{{ .technology }}-{{ .targets }}"
+rootFolder: crossplane
+subFolder: "ansibleruns/{{ .provisioning }}-{{ .targets }}"
+commitMessage: "Created {{ .technology }}-{{ .provisioning }}-{{ .targets }}"
+
+# GITHUB / PULL REQUEST
+prTitle: "Merge {{ .technology }}-{{ .provisioning }}-{{ .targets }}"
+prDescription: "Merge {{ .technology }}-{{ .provisioning }}-{{ .targets }} {{ .technology }} definition into main"
+prTags:
+  - crossplane
