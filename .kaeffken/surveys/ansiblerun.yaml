@@ -1,0 +1,19 @@
+---
+- prompt: "Target (hosts/group) name?"
+  kind: ask
+  name: targets
+  type: string
+  minLength: 3
+  maxLength: 20
+
+- prompt: "Pipelinerun namespace?"
+  name: pipelineRunNamespace
+  options:
+    - "tekton-pipelines"
+
+- prompt: "IP/FQDN?"
+  kind: ask
+  name: ip
+  type: string
+  minLength: 3
+  maxLength: 20
