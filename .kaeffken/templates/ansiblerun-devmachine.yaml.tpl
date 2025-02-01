@@ -10,12 +10,12 @@ spec:
   inventory:
     - "all+[\"{{ .ip }}\"]"
   playbooks:
-    - "plays/prepare-env.yaml"
-    - "sthings.base_os.setup"
-    - "sthings.container.tools"
-    - "sthings.container.docker"
-    - "sthings.container.nerdctl"
-    - "sthings.base_os.binaries"
+    - "sthings.baseos.prepare_env"
+    - "sthings.baseos.setup"
+    #- "sthings.container.tools"
+    #- "sthings.container.docker"
+    #- "sthings.container.nerdctl"
+    #- "sthings.base_os.binaries"
   ansibleVarsFile:
     - manage_filesystem+-true
     - update_packages+-true
@@ -48,3 +48,5 @@ spec:
     - awx.awx:24.6.1
     - community.hashi_vault:6.2.0
     - ansible.netcommon:7.1.0
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.4.1154/sthings-container-25.4.1154.tar.gz
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.4.1100/sthings-baseos-25.4.1100.tar.gz

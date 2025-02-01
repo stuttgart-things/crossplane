@@ -1,0 +1,14 @@
+---
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: vsphere-vm
+spec:
+  configuration: |
+    terraform {
+      backend "kubernetes" {
+        secret_suffix     = "vsphere-vm-tfstate"
+        namespace         = "crossplane-system"
+        in_cluster_config = true
+      }
+    }

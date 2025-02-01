@@ -7,7 +7,15 @@ preQuestions:
       - "devmachine"
       - "powerdns"
 
+  - prompt: "Hosts or Group name? (e.g. $HOSTNAME, localhost or all)"
+    kind: ask
+    name: targets
+    type: string
+    minLength: 3
+    maxLength: 20
+
 questions:
+  - .kaeffken/surveys/ansiblerun-general.yaml
   - .kaeffken/surveys/{{ .provisioning }}.yaml
 
 templates:
