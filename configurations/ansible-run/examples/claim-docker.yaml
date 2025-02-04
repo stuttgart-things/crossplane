@@ -3,13 +3,13 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: install-docker-dagger
+  name: install-docker-dev8
   namespace: crossplane-system
 spec:
-  pipelineRunName: install-docker-dagger
+  pipelineRunName: install-docker-dev8
   createInventory: "false"
   varsFile: bmFtZToga29sbGUK # pragma: allowlist secret
-  inventoryFile: MTAuMzEuMTAxLjEyNwo= # pragma: allowlist secret
+  inventoryFile: MTAuMzEuMTAzLjQxCg== # pragma: allowlist secret
   playbooks:
     - "plays/prepare-env.yaml"
     - "plays/base-os.yaml"

@@ -71,12 +71,11 @@ spec:
                     value: ""
       readinessChecks:
         - type: MatchString
-          fieldPath: "status.atProvider.manifest.status.conditions[?(@.type=='Succeeded')].status"
-          matchString: "True"
-        - type: MatchString
           fieldPath: "status.atProvider.manifest.status.conditions[0].type"
           matchString: "Succeeded"
-
+        - type: MatchString
+          fieldPath: "status.atProvider.manifest.status.conditions[0].reason"
+          matchString: "Succeeded"
       patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.pipelineRunName
@@ -126,10 +125,5 @@ spec:
         - type: ToCompositeFieldPath
           fromFieldPath: status.atProvider.manifest.status
           toFieldPath: status.tekton
-          policy:
-            fromFieldPath: Optional
-        - type: ToCompositeFieldPath
-          fromFieldPath: status.atProvider.manifest.status.conditions.message
-          toFieldPath: status.ergebnis
           policy:
             fromFieldPath: Optional
