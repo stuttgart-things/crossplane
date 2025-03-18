@@ -1,9 +1,58 @@
 # stuttgart-things/crossplane/ansible-run
 
+## CONFIGURATION
 
-## ANSIBLERUN EXAMPLES
+<details><summary><b>CONFIGURE IN-CLUSTER PROVIDER</b></summary>
 
-<details><summary>PRE-DEFINED INVENTORY</summary>
+```bash
+kubectl apply -f - <<EOF
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: kubernetes-incluster
+spec:
+  credentials:
+    source: InjectedIdentity
+EOF
+```
+
+```bash
+SA=$(kubectl -n crossplane-system get sa -o name | grep provider-kubernetes | sed -e 's|serviceaccount\/|crossplane-system:|g')
+kubectl create clusterrolebinding provider-kubernetes-admin-binding --clusterrole cluster-admin --serviceaccount="${SA}"
+```
+
+</details>
+
+<details><summary><b>CONFIGURE EXTERNAL-CLUSTER PROVIDER</b></summary>
+
+```bash
+kubectl -n crossplane-system create secret generic kind-helm-dev --from-file=/home/sthings/.kube/kind-helm-dev
+```
+
+```bash
+kubectl apply -f - <<EOF
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: kind-helm-dev
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: kind-helm-dev
+      key: kind-helm-dev
+EOF
+```
+
+</details>
+
+
+## ANSIBLERUN CLAIM EXAMPLE
+
+<details><summary><b>PRE-DEFINED INVENTORY</b></summary>
 
 ```bash
 kubectl apply -f - <<EOF
@@ -60,7 +109,7 @@ EOT
 </details>
 
 
-<details><summary>TO BE CREATED INVENTORY</summary>
+<details><summary><b>TO BE CREATED INVENTORY</b></summary>
 
 ```bash
 kubectl apply -f - <<EOF

@@ -3,17 +3,21 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: baseos2
+  name: dev-machine-setup
   namespace: crossplane-system
 spec:
-  pipelineRunName: baseos2
+  pipelineRunName: dev-machine-setup5
   createInventory: "false"
-  varsFile: bmFtZToga29sbGUK
-  inventoryFile: W2luaXRpYWxfbWFzdGVyX25vZGVdCjEwLjMxLjEwMy40MwoKW2FkZGl0aW9uYWxfbWFzdGVyX25vZGVzXQo= # pragma: allowlist secret
+  varsFile: bmFtZToga29sbGUK # pragma: allowlist secret
+  inventoryFile: MTAuMzEuMTAzLjQxCg== # pragma: allowlist secret
   playbooks:
-    - plays/prepare-env.yaml
-    - sthings.baseos.setup
+    - "sthings.baseos.prepare_env"
+    - "sthings.baseos.golang"
+    - "sthings.baseos.binaries"
+    - "sthings.container.docker"
+    - "sthings.container.tools"
   ansibleVarsFile:
+    - golang_version+-1.23.6
     - manage_filesystem+-true
     - update_packages+-true
     - install_requirements+-true
@@ -28,11 +32,12 @@ spec:
   gitRevision: main
   providerRef:
     name: kubernetes-incluster
-  vaultSecretName: vault2 # pragma: allowlist secret
+  vaultSecretName: vault # pragma: allowlist secret
   pipelineNamespace: tekton-pipelines
-  workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
+  workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.0.0
   roles:
     - "https://github.com/stuttgart-things/install-requirements.git,2024.05.11"
+    - "https://github.com/stuttgart-things/install-configure-docker,2024.12.30"
   collections:
     - community.crypto:2.22.3
     - community.general:10.1.0
@@ -45,3 +50,6 @@ spec:
     - ansible.netcommon:7.1.0
     - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.1202.tar.gz/sthings-baseos-25.3.1202.tar.gz
     - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.6.1311.tar.gz/sthings-container-25.6.1311.tar.gz
+    # - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-deploy_rke-24.2843.39.tar.gz
+    # - https://github.com/stuttgart-things/stuttgart-things/releases/download/0.0.86/sthings-awx-0.0.86.tar.gz
+    # - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-base_os-24.21.29.tar.gz

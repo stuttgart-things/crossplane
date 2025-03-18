@@ -1,0 +1,13 @@
+# kubectl -n crossplane-system create secret generic kind-helm-dev --from-file=/home/sthings/.kube/kind-helm-dev
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: kind-helm-dev
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: kind-helm-dev
+      key: kind-helm-dev
