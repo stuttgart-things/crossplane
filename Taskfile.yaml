@@ -17,6 +17,11 @@ tasks:
         task=$(yq e '.tasks | keys' Taskfile.yaml | sed 's/^- //' | gum choose)
         task ${task}
 
+  check:
+    desc: "Run pre-commit hooks"
+    cmds:
+      - pre-commit run -a
+
   xplane-push:
     desc: Push crossplane package
     cmds:
@@ -50,11 +55,6 @@ tasks:
         git push origin ${BRANCH_NAME}
       - git branch
       - git branch --set-upstream-to=origin/main ${BRANCH_NAME}
-
-  check:
-    desc: "Run pre-commit hooks"
-    cmds:
-      - pre-commit run -a
 
   run-pre-commit-hook:
     deps:
