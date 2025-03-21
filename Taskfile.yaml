@@ -6,8 +6,8 @@ vars:
   BRANCH:
     sh: if [ $(git rev-parse --abbrev-ref HEAD) != "main" ]; then echo $(git rev-parse --abbrev-ref HEAD); else echo main ; fi
   CROSSPLANE_PACKAGE_REGISTRY: ghcr.io
-  DAGGER_CROSSPLANE_MODULE: github.com/stuttgart-things/dagger/crossplane
-  DAGGER_CROSSPLANE_MODULE_VERSION: v0.0.2
+  DAGGER_CROSSPLANE_MODULE: github.com/stuttgart-things/dagger/crossplane #../dagger/crossplane #github.com/stuttgart-things/dagger/crossplane
+  DAGGER_CROSSPLANE_MODULE_VERSION: v0.6.3
 
 tasks:
   do:
@@ -16,31 +16,6 @@ tasks:
       - |
         task=$(yq e '.tasks | keys' Taskfile.yaml | sed 's/^- //' | gum choose)
         task ${task}
-
-  check:
-    desc: "Run pre-commit hooks"
-    cmds:
-      - pre-commit run -a
-
-  xplane-push:
-    desc: Push crossplane package
-    cmds:
-      - |
-        echo "Enter to be pushed crossplane package:"
-        read PACKAGE_NAME;
-        echo "Enter to be pushed tag version:"
-        read TAG;
-
-        dagger call -m {{ .DAGGER_CROSSPLANE_MODULE }} push \
-        --src {{ .SOURCE_FOLDER }}/${PACKAGE_NAME} \
-        --progress plain --username={{ .USER }} \
-        --password=env:GITHUB_TOKEN \
-        --registry={{ .CROSSPLANE_PACKAGE_REGISTRY }} \
-        --destination={{ .DESTINATION }}/${PACKAGE_NAME}:${TAG}
-    vars:
-      SOURCE_FOLDER: "./configurations"
-      DESTINATION: "{{ .CROSSPLANE_PACKAGE_REGISTRY }}/stuttgart-things/crossplane"
-      USER: stuttgart-things
 
   branch:
     desc: Create branch from main
@@ -55,6 +30,32 @@ tasks:
         git push origin ${BRANCH_NAME}
       - git branch
       - git branch --set-upstream-to=origin/main ${BRANCH_NAME}
+
+  push-configuration-package:
+    desc: Push crossplane configuration package
+    cmds:
+      - |
+        echo "CHOOSE TO BE PUSHED CONFIGURATION:"
+        CONFIGURATION_PACKAGE=$(gum choose {{ .ALL_CONFIGURATION_PACKAGES }})
+        TAG=$(gum input --placeholder "Tag" --value "v1.0.0")
+
+        dagger call -m {{ .DAGGER_CROSSPLANE_MODULE }}@{{ .DAGGER_CROSSPLANE_MODULE_VERSION }} push \
+        --src {{ .SOURCE_FOLDER }}/${CONFIGURATION_PACKAGE} \
+        --progress plain --username={{ .USER }} \
+        --password=env:GITHUB_TOKEN \
+        --registry={{ .CROSSPLANE_PACKAGE_REGISTRY }} \
+        --destination={{ .DESTINATION }}/${CONFIGURATION_PACKAGE}:${TAG}
+    vars:
+      SOURCE_FOLDER: "./configurations"
+      DESTINATION: "{{ .CROSSPLANE_PACKAGE_REGISTRY }}/stuttgart-things/crossplane"
+      USER: stuttgart-things
+      ALL_CONFIGURATION_PACKAGES:
+        sh: ls {{ .SOURCE_FOLDER }} | xargs -n1 printf '"%s" '
+
+  check:
+    desc: "Run pre-commit hooks"
+    cmds:
+      - pre-commit run -a
 
   run-pre-commit-hook:
     deps:

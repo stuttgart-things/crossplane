@@ -1,14 +1,15 @@
+---
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: VsphereVM
 metadata:
-  name: xplane-new
+  name: xplane-kind
   namespace: crossplane-system
 spec:
   providerRef:
     name: vsphere-vm
   vm:
     count: "1"
-    name: xplane-new
+    name: xplane-kind
     cpu: "8"
     ram: "4096"
     disk: "64"
@@ -27,7 +28,7 @@ spec:
     secretNamespace: crossplane-system # pragma: allowlist secret
     secretKey: terraform.tfvars # pragma: allowlist secret
   connectionSecret:
-    name: xplane-new
+    name: xplane-kind
     namespace: crossplane-system
   compositionRef:
     name: vsphere-vm
