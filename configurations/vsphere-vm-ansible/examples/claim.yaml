@@ -2,7 +2,7 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: VsphereVmAnsible
 metadata:
-  name: backstage-dev
+  name: back-kind
   namespace: crossplane-system
 spec:
   compositionRef:
@@ -11,10 +11,10 @@ spec:
     name: default
   vm:
     count: "1"
-    name: backstage-dev
-    cpu: "12"
-    ram: "16384"
-    disk: "198"
+    name: back-kind
+    cpu: "8"
+    ram: "8192"
+    disk: "128"
     firmware: bios
     folderPath: stuttgart-things/testing
     datacenter: /LabUL
@@ -30,10 +30,10 @@ spec:
     secretNamespace: crossplane-system  # pragma: allowlist secret
     secretKey: terraform.tfvars  # pragma: allowlist secret
   connectionSecret:
-    name: backstage-dev
+    name: back-kind
     namespace: crossplane-system
   ansible:
-    pipelineRunName: backstage-dev-provisioning
+    pipelineRunName: back-kind-provisioning
     playbooks:
       - "sthings.baseos.prepare_env"
       - "sthings.baseos.setup"
