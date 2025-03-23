@@ -2,16 +2,16 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: VsphereVmAnsible
 metadata:
-  name: back-kind
+  name: back-kind-2
   namespace: crossplane-system
 spec:
   compositionRef:
     name: vsphere-vm-ansible
   providerRef:
-    name: default
+    name: vsphere-vm
   vm:
     count: "1"
-    name: back-kind
+    name: back-kind-2
     cpu: "8"
     ram: "8192"
     disk: "128"
@@ -20,7 +20,7 @@ spec:
     datacenter: /LabUL
     datastore: /LabUL/datastore/UL-ESX-SAS-01
     resourcePool: /LabUL/host/Cluster-V6.5/Resources
-    network: /LabUL/network/LAB-10.31.104
+    network: /LabUL/network/LAB-10.31.103
     template: sthings-u24
     bootstrap: '["echo STUTTGART-THINGS"]'
     annotation: VSPHERE-VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS
@@ -30,10 +30,10 @@ spec:
     secretNamespace: crossplane-system  # pragma: allowlist secret
     secretKey: terraform.tfvars  # pragma: allowlist secret
   connectionSecret:
-    name: back-kind
+    name: back-kind-2
     namespace: crossplane-system
   ansible:
-    pipelineRunName: back-kind-provisioning
+    pipelineRunName: back-kind-2-provisioning
     playbooks:
       - "sthings.baseos.prepare_env"
       - "sthings.baseos.setup"
@@ -63,7 +63,7 @@ spec:
     gitRepoUrl: https://github.com/stuttgart-things/ansible.git
     gitRevision: main
     providerRef:
-      name: in-cluster
+      name: kubernetes-incluster
     vaultSecretName: vault  # pragma: allowlist secret
     pipelineNamespace: tekton-pipelines
     workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
