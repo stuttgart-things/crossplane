@@ -7,7 +7,7 @@ vars:
     sh: if [ $(git rev-parse --abbrev-ref HEAD) != "main" ]; then echo $(git rev-parse --abbrev-ref HEAD); else echo main ; fi
   CROSSPLANE_PACKAGE_REGISTRY: ghcr.io
   DAGGER_CROSSPLANE_MODULE: github.com/stuttgart-things/dagger/crossplane #../dagger/crossplane #github.com/stuttgart-things/dagger/crossplane
-  DAGGER_CROSSPLANE_MODULE_VERSION: v0.6.3
+  DAGGER_CROSSPLANE_MODULE_VERSION: v0.6.4
 
 tasks:
   do:
@@ -35,22 +35,29 @@ tasks:
     desc: Push crossplane configuration package
     cmds:
       - |
-        echo "CHOOSE TO BE PUSHED CONFIGURATION:"
-        CONFIGURATION_PACKAGE=$(gum choose {{ .ALL_CONFIGURATION_PACKAGES }})
+        CONFIGURATION_PACKAGE_PATH={{ .ALL_CONFIGURATION_PACKAGES }}
+        CONFIGURATION_PACKAGE=$(basename ${CONFIGURATION_PACKAGE_PATH})
+
         TAG=$(gum input --placeholder "Tag" --value "v1.0.0")
 
+        echo "Pushing configuration package: ${CONFIGURATION_PACKAGE_PATH} with tag: ${TAG}"
+
         dagger call -m {{ .DAGGER_CROSSPLANE_MODULE }}@{{ .DAGGER_CROSSPLANE_MODULE_VERSION }} push \
-        --src {{ .SOURCE_FOLDER }}/${CONFIGURATION_PACKAGE} \
+        --src {{ .SOURCE_FOLDER }}/${CONFIGURATION_PACKAGE_PATH} \
         --progress plain --username={{ .USER }} \
         --password=env:GITHUB_TOKEN \
         --registry={{ .CROSSPLANE_PACKAGE_REGISTRY }} \
         --destination={{ .DESTINATION }}/${CONFIGURATION_PACKAGE}:${TAG}
     vars:
-      SOURCE_FOLDER: "./configurations"
       DESTINATION: "{{ .CROSSPLANE_PACKAGE_REGISTRY }}/stuttgart-things/crossplane"
       USER: stuttgart-things
+      SOURCE_FOLDER: "./configurations"
       ALL_CONFIGURATION_PACKAGES:
-        sh: ls {{ .SOURCE_FOLDER }} | xargs -n1 printf '"%s" '
+        sh: |
+          find {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps -mindepth 1 -maxdepth 1 -type d | \
+          sed "s|^\./configurations/||" | \
+          sort | \
+          gum choose
 
   check:
     desc: "Run pre-commit hooks"
