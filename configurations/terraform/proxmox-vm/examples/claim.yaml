@@ -1,0 +1,30 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: ProxmoxVM
+metadata:
+  name: test-vm
+spec:
+  providerRef:
+    name: proxmox-vm
+  vm:
+    count: "1"
+    name: "test-vm-pve"
+    cpu: "4"
+    ram: "8192"
+    disk: "64G"
+    template: "ubuntu24"
+    annotation: "Test Proxmox VM via Crossplane"
+  proxmox:
+    node: sthings-pve1
+    datastore: v3700
+    folderPath: stuttgart-things
+    network: vmbr101
+  tfvars:
+    secretName: proxmox-tfvars
+    secretNamespace: default
+    secretKey: terraform.tfvars
+  connectionSecret:
+    name: proxmox-vm-connection
+    namespace: default
+  compositionRef:
+    name: proxmox-vm

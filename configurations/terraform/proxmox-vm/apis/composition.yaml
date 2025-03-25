@@ -1,0 +1,112 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  labels:
+    crossplane.io/xrd: xproxmoxvms.resources.stuttgart-things.com
+  name: proxmox-vm
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XProxmoxVM
+  mode: Pipeline
+  pipeline:
+  - step: patch-and-transform-resources  # Required step name
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: proxmox-vm
+        base:
+          apiVersion: tf.upbound.io/v1beta1
+          kind: Workspace
+          metadata:
+            annotations:
+              crossplane.io/external-name: proxmoxvm
+          spec:
+            forProvider:
+              module: git::https://github.com/stuttgart-things/proxmox-vm.git?ref=v2.9.14-1.5.5
+              source: Remote
+              varFiles:
+              - secretKeyRef:
+                  key: terraform.tfvars
+                  name: proxmox-tfvars
+                  namespace: default
+                source: SecretKey
+              vars:
+                - key: vm_count
+                  value: "1"
+                - key: vm_name
+                  value: ""
+                - key: vm_num_cpus
+                  value: "4"
+                - key: vm_memory
+                  value: "4096"
+                - key: vm_disk_size
+                  value: "32G"
+                - key: vm_notes
+                  value: ""
+                - key: vm_template
+                  value: ""
+                - key: pve_cluster_node
+                  value: ""
+                - key: pve_datastore
+                  value: ""
+                - key: pve_folder_path
+                  value: ""
+                - key: pve_network
+                  value: ""
+            providerConfigRef:
+              name: terraform-default
+            writeConnectionSecretToRef:
+              name: proxmox-vm-test
+              namespace: crossplane-system
+        patches:
+        - type: CombineFromComposite
+          combine:
+            strategy: string
+            string:
+              fmt: proxmoxvm-%s
+            variables:
+            - fromFieldPath: spec.vm.name
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+        # VM Configuration
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vm.count
+          toFieldPath: spec.forProvider.vars[0].value  # vm_count
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vm.name
+          toFieldPath: spec.forProvider.vars[1].value  # vm_name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vm.cpu
+          toFieldPath: spec.forProvider.vars[2].value  # vm_num_cpus
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vm.ram
+          toFieldPath: spec.forProvider.vars[3].value  # vm_memory
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vm.disk
+          toFieldPath: spec.forProvider.vars[4].value  # vm_disk_size
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vm.annotation
+          toFieldPath: spec.forProvider.vars[5].value  # vm_notes
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vm.template
+          toFieldPath: spec.forProvider.vars[6].value  # vm_template
+        # Infrastructure Configuration
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.proxmox.node
+          toFieldPath: spec.forProvider.vars[7].value  # pve_cluster_node
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.proxmox.datastore
+          toFieldPath: spec.forProvider.vars[8].value  # pve_datastore
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.proxmox.folderPath
+          toFieldPath: spec.forProvider.vars[9].value  # pve_folder_path
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.proxmox.network
+          toFieldPath: spec.forProvider.vars[10].value  # pve_network
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.providerRef.name
+          toFieldPath: spec.providerConfigRef.name

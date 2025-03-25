@@ -17,7 +17,7 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.deploymentNamespace
           toFieldPath: spec.forProvider.manifest.metadata.namespace
-  writeConnectionSecretsToNamespace: crossplane-system
+  writeConnectionSecretsToNamespace: crossplane-system # pragma: allowlist secret
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
     kind: XTekton

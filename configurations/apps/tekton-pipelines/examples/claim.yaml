@@ -12,5 +12,5 @@ spec:
     vaultAddr: https://vault-vsphere.example.com:8200
     approleID: 1d42d7e7-8c14-e5f9-801d-b3ecef416616
     vaultNamespace: root
-    secretName: tekton-vault
-    secretNamespace: crossplane-system
+    secretName: tekton-vault # pragma: allowlist secret
+    secretNamespace: crossplane-system # pragma: allowlist secret
