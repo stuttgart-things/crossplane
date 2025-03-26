@@ -54,8 +54,8 @@ spec:
                         type: string
                       default: []
                     createInventory:
-                      type: boolean
-                      default: false
+                      type: string
+                      default: "false"
                       description: Whether to create an inventory
                     roles:
                       type: array
@@ -93,19 +93,19 @@ spec:
                   type: object
                   properties:
                     count:
-                      type: integer
-                      default: 1
+                      type: string
+                      default: "1"
                       description: Number of VMs to create
                     name:
                       type: string
                       description: VM name prefix
                     cpu:
-                      type: integer
-                      default: 4
+                      type: string
+                      default: "4"
                       description: CPU cores
                     ram:
-                      type: integer
-                      default: 4096
+                      type: string
+                      default: "4096"
                       description: RAM in MB
                     disk:
                       type: string
