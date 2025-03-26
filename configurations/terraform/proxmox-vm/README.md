@@ -1,5 +1,26 @@
 # stuttgart-things/crossplane/proxmox-vm
 
+## USAGE
+
+<details><summary><b>RESOURCE</b></summary>
+
+```bash
+# GET ALL VMS
+kubectl get proxmoxvm -A
+
+# TRACE RESORUCE CREATION
+crossplane beta trace proxmoxvm test-vm
+
+# EXAMPLE - ID VIA TRACE
+kubectl describe Workspace/test-vm-hg4c8-tbqvw
+
+# DELETE VM
+kubectl delete proxmoxvm test-vm -n default
+```
+
+</details>
+
+
 ## CONFIGURATION
 
 <details><summary><b>CONFIGURE IN-CLUSTER PROVIDER</b></summary>
