@@ -1,0 +1,21 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: vsphere-vm
+  annotations:
+    meta.crossplane.io/maintainer: patrick.hermann@sva.de
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      creates vsphere-vm with crossplane based on terraform (provider)
+    meta.crossplane.io/readme: |
+      creates vsphere-vm with crossplane based on terraform (provider)
+spec:
+  crossplane:
+    version: ">=v1.14.1-0"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-helm
+      version: ">=v0.19.0"
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.14.1"
