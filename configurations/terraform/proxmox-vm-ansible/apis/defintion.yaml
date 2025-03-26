@@ -1,0 +1,202 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xproxmoxvmansibles.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  names:
+    kind: XProxmoxVMAnsible
+    plural: xproxmoxvmansibles
+  claimNames:
+    kind: ProxmoxVMAnsible
+    plural: proxmoxvmsansibles
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                ansible:
+                  type: object
+                  properties:
+                    pipelineRunName:
+                      type: string
+                      description: Name of pipelineRun resource
+                    pipelineNamespace:
+                      type: string
+                      default: tektoncd
+                      description: Namespace of pipelineRun resource
+                    workingImage:
+                      type: string
+                      default: ghcr.io/stuttgart-things/sthings-ansible:11.0.0
+                      description: Image for Ansible execution
+                    vaultSecretName:
+                      type: string
+                      default: vault
+                      description: Name of vault secret
+                    gitRepoUrl:
+                      type: string
+                      default: https://github.com/stuttgart-things/ansible.git
+                      description: Git repo URL
+                    gitRevision:
+                      type: string
+                      default: main
+                      description: Git revision
+                    ansibleVarsFile:
+                      type: array
+                      description: Ansible vars files
+                      items:
+                        type: string
+                      default: []
+                    createInventory:
+                      type: boolean
+                      default: false
+                      description: Whether to create an inventory
+                    roles:
+                      type: array
+                      description: Ansible roles to execute
+                      items:
+                        type: string
+                      default: []
+                    provisioningName:
+                      type: string
+                      default: initial
+                      description: Provisioning phase name
+                    collections:
+                      type: array
+                      description: Ansible collections
+                      items:
+                        type: string
+                      default: []
+                    playbooks:
+                      type: array
+                      description: Ansible playbooks
+                      items:
+                        type: string
+                      default: []
+                    providerRef:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                      required:
+                        - name
+                  required:
+                    - pipelineRunName
+                    - providerRef
+                vm:
+                  type: object
+                  properties:
+                    count:
+                      type: integer
+                      default: 1
+                      description: Number of VMs to create
+                    name:
+                      type: string
+                      description: VM name prefix
+                    cpu:
+                      type: integer
+                      default: 4
+                      description: CPU cores
+                    ram:
+                      type: integer
+                      default: 4096
+                      description: RAM in MB
+                    disk:
+                      type: string
+                      default: "64G"
+                      description: Disk size
+                    firmware:
+                      type: string
+                      default: "bios"
+                      description: Firmware type
+                    folderPath:
+                      type: string
+                      description: Proxmox folder path
+                    datastore:
+                      type: string
+                      description: Target datastore
+                    network:
+                      type: string
+                      description: Network bridge
+                    template:
+                      type: string
+                      description: Source template
+                    annotation:
+                      type: string
+                      default: "PROXMOX-VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS"
+                  required:
+                    - name
+                proxmox:
+                  type: object
+                  properties:
+                    node:
+                      type: string
+                      description: Proxmox node name
+                    datastore:
+                      type: string
+                      description: Default datastore
+                    folderPath:
+                      type: string
+                      description: Default folder
+                    network:
+                      type: string
+                      description: Default network
+                  required:
+                    - node
+                tfvars:
+                  type: object
+                  properties:
+                    secretName:
+                      type: string
+                      description: Terraform vars secret
+                    secretNamespace:
+                      type: string
+                      default: "default"
+                      description: Secret namespace
+                    secretKey:
+                      type: string
+                      default: "terraform.tfvars"
+                      description: Secret key
+                  required:
+                    - secretName
+                connectionSecret:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: Secret name for connection details
+                    namespace:
+                      type: string
+                      default: "default"
+                      description: Secret namespace
+                  required:
+                    - name
+                providerRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: Provider reference
+                  required:
+                    - name
+              required:
+                - ansible
+                - vm
+                - proxmox
+                - tfvars
+                - connectionSecret
+                - providerRef
+            status:
+              type: object
+              description: Observed state
+              properties:
+                share:
+                  type: object
+                  description: Freeform status data
+                  x-kubernetes-preserve-unknown-fields: true

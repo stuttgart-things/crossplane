@@ -76,7 +76,6 @@ spec:
         - type: MatchString
           fieldPath: "status.atProvider.manifest.status.conditions[0].type"
           matchString: "Succeeded"
-
       patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.pipelineRunName
