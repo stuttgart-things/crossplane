@@ -3,21 +3,18 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: dev-machine-setup
+  name: install-golang
   namespace: crossplane-system
 spec:
-  pipelineRunName: dev-machine-setup5
+  pipelineRunName: install-golang-6
   createInventory: "false"
   varsFile: bmFtZToga29sbGUK # pragma: allowlist secret
-  inventoryFile: MTAuMzEuMTAzLjQxCg== # pragma: allowlist secret
+  inventoryFile: MTAuMzEuMTAxLjE1OAo= # pragma: allowlist secret
   playbooks:
     - "sthings.baseos.prepare_env"
     - "sthings.baseos.golang"
-    - "sthings.baseos.binaries"
-    - "sthings.container.docker"
-    - "sthings.container.tools"
   ansibleVarsFile:
-    - golang_version+-1.23.6
+    - golang_version+-1.24.0
     - manage_filesystem+-true
     - update_packages+-true
     - install_requirements+-true
@@ -34,18 +31,9 @@ spec:
     name: kubernetes-incluster
   vaultSecretName: vault # pragma: allowlist secret
   pipelineNamespace: tekton-pipelines
-  workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.0.0
-  roles:
-    - "https://github.com/stuttgart-things/install-requirements.git,2024.05.11"
-    - "https://github.com/stuttgart-things/install-configure-docker,2024.12.30"
+  workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
   collections:
     - community.crypto:2.22.3
-    - community.general:10.1.0
-    - ansible.posix:2.0.0
-    - kubernetes.core:5.0.0
-    - community.docker:4.1.0
-    - community.vmware:5.2.0
-    - awx.awx:24.6.1
     - community.hashi_vault:6.2.0
     - ansible.netcommon:7.1.0
     - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.1202.tar.gz/sthings-baseos-25.3.1202.tar.gz

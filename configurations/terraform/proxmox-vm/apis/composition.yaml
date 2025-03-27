@@ -94,6 +94,16 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.vm.template
           toFieldPath: spec.forProvider.vars[6].value  # vm_template
+        # Terraform Configuration
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.tfvars.secretName
+          toFieldPath: spec.forProvider.varFiles[0].secretKeyRef.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.tfvars.secretNamespace
+          toFieldPath: spec.forProvider.varFiles[0].secretKeyRef.namespace
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.tfvars.secretKey
+          toFieldPath: spec.forProvider.varFiles[0].secretKeyRef.key
         # Infrastructure Configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.proxmox.node
