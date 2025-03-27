@@ -94,6 +94,12 @@ spec:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.vm.template
           toFieldPath: spec.forProvider.vars[6].value  # vm_template
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.connectionSecret.name
+          toFieldPath: spec.writeConnectionSecretToRef.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.connectionSecret.namespace
+          toFieldPath: spec.writeConnectionSecretToRef.namespace
         # Terraform Configuration
         - type: FromCompositeFieldPath
           fromFieldPath: spec.tfvars.secretName
