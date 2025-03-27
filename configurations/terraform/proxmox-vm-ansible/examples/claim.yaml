@@ -2,12 +2,12 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: ProxmoxVMAnsible
 metadata:
-  name: bibi7
-  namespace: crossplane-system
+  name: bibi8
+  namespace: proxmox
 spec:
   vm:
     count: "1"
-    name: bibi7
+    name: bibi8
     cpu: "4"
     ram: "8192"
     disk: 64G
@@ -20,10 +20,10 @@ spec:
     network: vmbr101
   tfvars:
     secretName: proxmox-tfvars # pragma: allowlist secret`
-    secretNamespace: default # pragma: allowlist secret`
+    secretNamespace: proxmox # pragma: allowlist secret`
     secretKey: terraform.tfvars # pragma: allowlist secret`
   connectionSecret:
-    name: bibi7
+    name: bibi8
     namespace: default
   compositionRef:
     name: proxmox-vm-ansible

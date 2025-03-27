@@ -18,6 +18,10 @@ spec:
           providerConfigRef:
             name: kubernetes-labul-bootstrap
           forProvider:
+            readinessChecks:
+              - type: MatchString
+                fieldPath: "status.conditions[?(@.type=='Succeeded')].status"
+                matchString: "True"
             manifest:
               apiVersion: tekton.dev/v1
               kind: PipelineRun
@@ -67,15 +71,6 @@ spec:
                     value: "true"
                   - name: inventory
                     value: ""
-                  - name: varsFile
-                    value: ""
-      readinessChecks:
-        - type: MatchString
-          fieldPath: "status.atProvider.manifest.status.conditions[?(@.type=='Succeeded')].status"
-          matchString: "True"
-        - type: MatchString
-          fieldPath: "status.atProvider.manifest.status.conditions[0].type"
-          matchString: "Succeeded"
       patches:
         - type: FromCompositeFieldPath
           fromFieldPath: spec.pipelineRunName
@@ -117,18 +112,5 @@ spec:
           fromFieldPath: spec.inventoryFile
           toFieldPath: spec.forProvider.manifest.spec.params[13].value
         - type: FromCompositeFieldPath
-          fromFieldPath: spec.varsFile
-          toFieldPath: spec.forProvider.manifest.spec.params[14].value
-        - type: FromCompositeFieldPath
           fromFieldPath: spec.providerRef.name
           toFieldPath: spec.providerConfigRef.name
-        - type: ToCompositeFieldPath
-          fromFieldPath: status.atProvider.manifest.status
-          toFieldPath: status.tekton
-          policy:
-            fromFieldPath: Optional
-        - type: ToCompositeFieldPath
-          fromFieldPath: status.atProvider.manifest.status.conditions.message
-          toFieldPath: status.ergebnis
-          policy:
-            fromFieldPath: Optional
