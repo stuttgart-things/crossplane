@@ -54,7 +54,7 @@ tasks:
       SOURCE_FOLDER: "./configurations"
       ALL_CONFIGURATION_PACKAGES:
         sh: |
-          find {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps -mindepth 1 -maxdepth 1 -type d | \
+          find {{ .SOURCE_FOLDER }}/k8s  {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps -mindepth 1 -maxdepth 1 -type d | \
           sed "s|^\./configurations/||" | \
           sort | \
           gum choose

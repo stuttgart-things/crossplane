@@ -24,9 +24,6 @@ spec:
                 ansible:
                   type: object
                   properties:
-                    pipelineRunName:
-                      type: string
-                      description: Name of pipelineRun resource
                     pipelineNamespace:
                       type: string
                       default: tektoncd
@@ -87,7 +84,6 @@ spec:
                       required:
                         - name
                   required:
-                    - pipelineRunName
                     - providerRef
                 vm:
                   type: object

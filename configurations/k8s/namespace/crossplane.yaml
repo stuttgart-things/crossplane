@@ -1,0 +1,19 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: namespace
+  annotations:
+    meta.crossplane.io/maintainer: patrick.hermann@sva.de
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      deploys namespace cni w/ config
+    meta.crossplane.io/readme: |
+      deploys namespace cni w/ config
+spec:
+  crossplane:
+    version: ">=v1.18.1-0"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.16.1"
