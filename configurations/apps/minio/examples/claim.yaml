@@ -1,0 +1,19 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: Minio
+metadata:
+  name: my-minio
+spec:
+  deploymentNamespace: artifacts
+  clusterName: fluxdev3
+  version: 16.0.8
+  instance:
+    hostnameConsole: minio-console
+    hostnameApi: minio-api
+    domain: fluxdev-3.sthings-vsphere.labul.sva.de
+    issuerKind: cluster-issuer
+    issuerName: cluster-issuer-approle
+    storageClass: nfs4-csi
+    credentialsSecretRef:
+      name: minio-root-secret
+      namespace: artifacts

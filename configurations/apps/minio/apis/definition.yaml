@@ -1,0 +1,77 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xminios.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  names:
+    kind: XMinIO
+    plural: xminios
+  claimNames:
+    kind: Minio
+    plural: minios
+  defaultCompositionRef:
+    name: minio
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                deploymentNamespace:
+                  type: string
+                  default: minio
+                  description: Namespace for deployment
+                clusterName:
+                  type: string
+                  default: in-cluster
+                  description: Helm provider name / cluster
+                version:
+                  type: string
+                  default: 16.0.8
+                  description: Helm chart version
+                instance:
+                  type: object
+                  properties:
+                    issuerKind:
+                      type: string
+                    issuerName:  # renamed to match usage in template
+                      type: string
+                    hostnameConsole:
+                      type: string
+                    hostnameApi:
+                      type: string
+                    domain:
+                      type: string
+                    persistence:
+                      type: string
+                      default: "true"
+                    storageClass:
+                      type: string
+                    credentialsSecretRef:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                        userKey:
+                          type: string
+                          default: user
+                        passwordKey:
+                          type: string
+                          default: password
+                      required:
+                        - name
+                        - namespace
+                  required:
+                    - hostnameConsole
+                    - hostnameApi
+                    - domain
+                    - issuerKind
+                    - issuerName
