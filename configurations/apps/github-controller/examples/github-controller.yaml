@@ -1,0 +1,9 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: GithubController
+metadata:
+  name: gha-controller
+  namespace: crossplane-system
+spec:
+  clusterName: in-cluster
+  version: 0.11.0
