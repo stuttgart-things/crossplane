@@ -1,0 +1,16 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: GithubRunner
+metadata:
+  name: ansible-in-cluster
+  namespace: crossplane-system
+spec:
+  group: stuttgart-things
+  repository: ansible
+  clusterConfig: in-cluster
+  version: 0.11.0
+  runnerImageTag: 2.323.0
+  githubTokenSecret:
+    name: github
+    namespace: crossplane-system
+    key: GITHUB_TOKEN

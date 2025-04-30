@@ -1,0 +1,63 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  labels:
+    crossplane.io/xrd: xgithubcontrollers.resources.stuttgart-things.com
+  name: github-controller
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XGithubController
+  mode: Pipeline
+  pipeline:
+  - functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - base:
+          apiVersion: helm.crossplane.io/v1beta1
+          kind: Release
+          metadata:
+            annotations:
+              crossplane.io/external-name: github-controller
+            name: github-controller
+          spec:
+            forProvider:
+              chart:
+                name: gha-runner-scale-set-controller
+                pullSecretRef:
+                  name: ghcr
+                  namespace: crossplane-system
+                repository: oci://ghcr.io/actions/actions-runner-controller-charts
+                version: 0.11.0
+              insecureSkipTLSVerify: false
+              namespace: arc-systems
+              skipCRDs: false
+              skipCreateNamespace: false
+              wait: true
+            providerConfigRef:
+              name: in-cluster
+        name: resource-0
+        patches:
+        - combine:
+            strategy: string
+            string:
+              fmt: github-controller-%s
+            variables:
+            - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          type: CombineFromComposite
+        - fromFieldPath: spec.deploymentNamespace
+          toFieldPath: spec.forProvider.namespace
+          type: FromCompositeFieldPath
+        - fromFieldPath: spec.clusterName
+          toFieldPath: spec.providerConfigRef.name
+          type: FromCompositeFieldPath
+        - fromFieldPath: spec.version
+          toFieldPath: spec.forProvider.chart.version
+          type: FromCompositeFieldPath
+    step: patch-and-transform
+  writeConnectionSecretsToNamespace: crossplane-system

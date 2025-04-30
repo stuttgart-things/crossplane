@@ -1,0 +1,7 @@
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: github-controller
+spec:
+  package: docker pull ghcr.io/stuttgart-things/crossplane/github-controller:v0.11.0
