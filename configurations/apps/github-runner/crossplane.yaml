@@ -2,15 +2,15 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: tekton-pipelines
+  name: github-runner
   annotations:
     meta.crossplane.io/maintainer: patrick.hermann@sva.de
     meta.crossplane.io/source: github.com/stuttgart-things/stuttgart-things
     meta.crossplane.io/license: Apache-2.0
     meta.crossplane.io/description: |
-      deploys tekton-pipelines with crossplane based on the official tekton-pipelines helm chart
+      deploys github-runner with crossplane
     meta.crossplane.io/readme: |
-      deploys tekton-pipelines with crossplane based on the official tekton-pipelines helm chart
+      deploys github-runner with crossplane
 spec:
   crossplane:
     version: ">=v1.14.1-0"
