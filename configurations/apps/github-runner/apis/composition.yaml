@@ -149,4 +149,4 @@ spec:
             - fromFieldPath: spec.runnerImageTag
           toFieldPath: spec.forProvider.values.template.spec.initContainers[0].image
     step: patch-and-transform
-  writeConnectionSecretsToNamespace: crossplane-system
+  writeConnectionSecretsToNamespace: crossplane-system # pragma: allowlist secret

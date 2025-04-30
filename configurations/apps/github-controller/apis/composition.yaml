@@ -60,4 +60,4 @@ spec:
           toFieldPath: spec.forProvider.chart.version
           type: FromCompositeFieldPath
     step: patch-and-transform
-  writeConnectionSecretsToNamespace: crossplane-system
+  writeConnectionSecretsToNamespace: crossplane-system # pragma: allowlist secret
