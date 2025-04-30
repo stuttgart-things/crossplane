@@ -1,18 +1,17 @@
----
 # BASE-OS
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: baseos-setup
+  name: dev-vm-bins
   namespace: crossplane-system
 spec:
-  pipelineRunName: baseos-setup
+  pipelineRunName: dev-vm-bins2
   inventory:
     - "all+[\"10.31.102.188\"]"
   createInventory: "true"
   playbooks:
     - plays/prepare-env.yaml
-    - sthings.baseos.setup
+    - sthings.baseos.binaries
   ansibleVarsFile:
     - manage_filesystem+-true
     - update_packages+-true
@@ -43,5 +42,5 @@ spec:
     - awx.awx:24.6.1
     - community.hashi_vault:6.2.0
     - ansible.netcommon:7.1.0
-    - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.424.tar.gz/sthings-baseos-25.3.424.tar.gz
-    - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.6.1311.tar.gz/sthings-container-25.6.1311.tar.gz
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.496.tar.gz/sthings-baseos-25.3.496.tar.gz
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.3.497.tar.gz/sthings-container-25.3.497.tar.gz

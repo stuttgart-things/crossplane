@@ -1,0 +1,112 @@
+
+# NAMESPACE NEEDS TO BE CREATED UPFRONT
+# CERTS NEEDS TO BE CREATED UPFRONT
+# SECRET FOR ADMIN NEEDS TO BE CREATED UPFRONT
+
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: minio
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XMinIO
+  mode: Pipeline
+  pipeline:
+    - step: deploy-minio
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: helm.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: minio
+                gotemplating.fn.crossplane.io/ready: "True"
+                crossplane.io/external-name: minio
+              name: minio-{{ .observed.composite.resource.spec.clusterName }}
+            spec:
+              providerConfigRef:
+                name: {{ .observed.composite.resource.spec.clusterName }}
+              forProvider:
+                chart:
+                  name: minio
+                  repository: oci://registry-1.docker.io/bitnamicharts/
+                  version: {{ .observed.composite.resource.spec.version }}
+                insecureSkipTLSVerify: true
+                namespace: {{ .observed.composite.resource.spec.deploymentNamespace }}
+                skipCRDs: false
+                skipCreateNamespace: false
+                wait: true
+                values:
+                  networkPolicy:
+                    enabled: true
+                    allowExternal: true
+
+                  auth:
+                    existingSecret: {{ .observed.composite.resource.spec.instance.credentialsSecretRef.name }}
+                    rootUserSecretKey: {{ .observed.composite.resource.spec.instance.credentialsSecretRef.userKey }}
+                    rootPasswordSecretKey: {{ .observed.composite.resource.spec.instance.credentialsSecretRef.passwordKey }}
+
+                  persistence:
+                    enabled: {{ .observed.composite.resource.spec.instance.persistence }}
+                    storageClass: {{ .observed.composite.resource.spec.instance.storageClass }}
+
+                  ingress:
+                    enabled: true
+                    ingressClassName: nginx
+                    tls: true
+                    annotations:
+                      nginx.ingress.kubernetes.io/proxy-body-size: 500m
+                      cert-manager.io/{{ .observed.composite.resource.spec.instance.issuerKind }}: "{{ .observed.composite.resource.spec.instance.issuerName }}"
+                    extraTls:
+                      - hosts:
+                          - {{ .observed.composite.resource.spec.instance.hostnameConsole }}.{{ .observed.composite.resource.spec.instance.domain }}
+                        secretName: {{ .observed.composite.resource.spec.instance.hostnameConsole }}-ingress-tls
+                      - hosts:
+                          - {{ .observed.composite.resource.spec.instance.hostnameApi }}.{{ .observed.composite.resource.spec.instance.domain }}
+                        secretName: {{ .observed.composite.resource.spec.instance.hostnameApi }}-ingress-tls
+                    hostname: {{ .observed.composite.resource.spec.instance.hostnameConsole }}.{{ .observed.composite.resource.spec.instance.domain }}
+
+                  apiIngress:
+                    enabled: true
+                    ingressClassName: nginx
+                    annotations:
+                      nginx.ingress.kubernetes.io/proxy-body-size: 500m
+                      cert-manager.io/{{ .observed.composite.resource.spec.instance.issuerKind }}: "{{ .observed.composite.resource.spec.instance.issuerName }}"
+                    tls: true
+                    hostname: {{ .observed.composite.resource.spec.instance.hostnameApi }}.{{ .observed.composite.resource.spec.instance.domain }}
+
+                  extraEnvVars:
+                    - name: MINIO_SERVER_URL
+                      value: https://{{ .observed.composite.resource.spec.instance.hostnameApi }}.{{ .observed.composite.resource.spec.instance.domain }}
+                    - name: MINIO_BROWSER_REDIRECT_URL
+                      value: https://{{ .observed.composite.resource.spec.instance.hostnameConsole }}.{{ .observed.composite.resource.spec.instance.domain }}:9001
+                    - name: MINIO_SERVER_TLS_KEY_FILE
+                      value: /etc/minio/certs/private.key
+                    - name: MINIO_SERVER_TLS_CERT_FILE
+                      value: /etc/minio/certs/public.crt
+                    - name: MINIO_SERVER_TLS_CA_FILE
+                      value: /etc/minio/certs/ca.crt
+
+                  extraVolumes:
+                    - name: {{ .observed.composite.resource.spec.instance.hostnameConsole }}
+                      secret:
+                        secretName: {{ .observed.composite.resource.spec.instance.hostnameConsole }}.{{ .observed.composite.resource.spec.instance.domain }}-tls
+                        defaultMode: 0440
+                        items:
+                          - key: tls.key
+                            path: private.key
+                          - key: tls.crt
+                            path: public.crt
+                          - key: ca.crt
+                            path: ca.crt
+
+                  extraVolumeMounts:
+                    - name: {{ .observed.composite.resource.spec.instance.hostnameConsole }}
+                      mountPath: /etc/minio/certs
