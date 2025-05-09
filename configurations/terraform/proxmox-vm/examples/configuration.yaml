@@ -4,4 +4,4 @@ kind: Configuration
 metadata:
   name: promxox-vm
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/proxmox-vm:v0.3.0
+  package: ghcr.io/stuttgart-things/crossplane/proxmox-vm:v0.3.1

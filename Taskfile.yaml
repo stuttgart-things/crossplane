@@ -7,7 +7,7 @@ vars:
     sh: if [ $(git rev-parse --abbrev-ref HEAD) != "main" ]; then echo $(git rev-parse --abbrev-ref HEAD); else echo main ; fi
   CROSSPLANE_PACKAGE_REGISTRY: ghcr.io
   DAGGER_CROSSPLANE_MODULE: github.com/stuttgart-things/dagger/crossplane #../dagger/crossplane #github.com/stuttgart-things/dagger/crossplane
-  DAGGER_CROSSPLANE_MODULE_VERSION: v0.6.4
+  DAGGER_CROSSPLANE_MODULE_VERSION: v0.10.0
 
 tasks:
   do:
