@@ -2,7 +2,7 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: VsphereVmAnsible
 metadata:
-  name: dev-again
+  name: dev-may2
   namespace: crossplane-system
 spec:
   compositionRef:
@@ -11,8 +11,8 @@ spec:
     name: vsphere-vm
   vm:
     count: "1"
-    name: dev-again
-    cpu: "8"
+    name: dev-may2
+    cpu: "6"
     ram: "8192"
     disk: "128"
     firmware: bios
@@ -20,7 +20,7 @@ spec:
     datacenter: /LabUL
     datastore: /LabUL/datastore/UL-ESX-SAS-01
     resourcePool: /LabUL/host/Cluster-V6.5/Resources
-    network: /LabUL/network/LAB-10.31.102
+    network: /LabUL/network/LAB-10.31.103
     template: sthings-u24
     bootstrap: '["echo STUTTGART-THINGS"]'
     annotation: VSPHERE-VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS
@@ -30,14 +30,17 @@ spec:
     secretNamespace: crossplane-system  # pragma: allowlist secret
     secretKey: terraform.tfvars  # pragma: allowlist secret
   connectionSecret:
-    name: dev-again
+    name: dev-may2
     namespace: crossplane-system
   ansible:
-    pipelineRunName: dev-again-provisioning
+    pipelineRunName: dev-may2-provisioning-1
     playbooks:
       - "sthings.baseos.prepare_env"
       - "sthings.baseos.dev"
     ansibleVarsFile:
+      - tmp_dir+-'/home/nonroot/.ansible/tmp'
+      - become_local_user+-true
+      - local_user+-nonroot
       - "manage_filesystem+-true"
       - "update_packages+-true"
       - "install_requirements+-true"
@@ -54,7 +57,7 @@ spec:
     gitRepoUrl: https://github.com/stuttgart-things/ansible.git
     gitRevision: main
     providerRef:
-      name: kubernetes-incluster
+      name: in-cluster
     vaultSecretName: vault  # pragma: allowlist secret
     pipelineNamespace: tekton-pipelines
     workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
@@ -70,7 +73,7 @@ spec:
       - awx.awx:24.6.1
       - community.hashi_vault:6.2.0
       - ansible.netcommon:7.1.0
-      - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.6.147.tar.gz/sthings-container-25.6.147.tar.gz
-      - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.5.1244.tar.gz/sthings-baseos-25.5.1244.tar.gz
+      - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.629.tar.gz/sthings-baseos-25.3.629.tar.gz
+      - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.3.635.tar.gz/sthings-container-25.3.635.tar.gz
       - https://github.com/stuttgart-things/ansible/releases/download/sthings-awx-25.3.762.tar.gz/sthings-awx-25.3.762.tar.gz
       - https://github.com/stuttgart-things/ansible/releases/download/sthings-rke-25.6.1057.tar.gz/sthings-rke-25.6.1057.tar.gz

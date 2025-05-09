@@ -2,12 +2,12 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: ProxmoxVMAnsible
 metadata:
-  name: bibi8
+  name: test-vm-ansible
   namespace: proxmox
 spec:
   vm:
     count: "1"
-    name: bibi8
+    name: test-vm-ansible
     cpu: "4"
     ram: "8192"
     disk: 64G
@@ -23,14 +23,14 @@ spec:
     secretNamespace: proxmox # pragma: allowlist secret`
     secretKey: terraform.tfvars # pragma: allowlist secret`
   connectionSecret:
-    name: bibi8
+    name: test-vm-ansible
     namespace: default
   compositionRef:
     name: proxmox-vm-ansible
   providerRef:
     name: proxmox-vm
   ansible:
-    pipelineRunName: back-kind-2-provisioning
+    # pipelineRunName: back-kind-2-provisioning
     playbooks:
       - "sthings.baseos.prepare_env"
       - "sthings.baseos.setup"
@@ -60,7 +60,7 @@ spec:
     gitRepoUrl: https://github.com/stuttgart-things/ansible.git
     gitRevision: main
     providerRef:
-      name: kubernetes-incluster
+      name: in-cluster
     vaultSecretName: vault  # pragma: allowlist secret
     pipelineNamespace: tekton-pipelines
     workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
