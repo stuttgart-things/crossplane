@@ -21,7 +21,7 @@ spec:
         kind: GoTemplate
         source: Inline
         inline:
-          template: |
+          template: | # pragma: allowlist secret
             apiVersion: helm.crossplane.io/v1beta1
             kind: Release
             metadata:

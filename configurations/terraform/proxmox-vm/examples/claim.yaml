@@ -3,10 +3,11 @@ apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: ProxmoxVM
 metadata:
   name: test-vm
+  namespace: proxmox
 spec:
   vm:
     count: "1"
-    name: bibi4
+    name: test-vm2
     cpu: "4"
     ram: "8192"
     disk: 64G
@@ -19,10 +20,10 @@ spec:
     network: vmbr101
   tfvars:
     secretName: proxmox-tfvars # pragma: allowlist secret`
-    secretNamespace: default # pragma: allowlist secret`
+    secretNamespace: proxmox # pragma: allowlist secret`
     secretKey: terraform.tfvars # pragma: allowlist secret`
   connectionSecret:
-    name: bibi4
+    name: test-vm2
     namespace: default
   providerRef:
     name: proxmox-vm
