@@ -1,0 +1,7 @@
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: promxox-vm-ansible
+spec:
+  package: ghcr.io/stuttgart-things/crossplane/proxmox-vm-ansible:v0.1.1
