@@ -6,4 +6,4 @@ metadata:
   namespace: crossplane-system
 spec:
   clusterName: in-cluster
-  version: 0.11.0
+  version: 0.12.0
