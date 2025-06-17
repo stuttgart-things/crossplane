@@ -32,7 +32,7 @@ spec:
                   name: ghcr
                   namespace: crossplane-system
                 repository: oci://ghcr.io/actions/actions-runner-controller-charts
-                version: 0.9.1
+                version: 0.12.0
               insecureSkipTLSVerify: false
               namespace: arc-systems
               set:

@@ -8,8 +8,8 @@ spec:
   group: stuttgart-things
   repository: ansible
   clusterConfig: in-cluster
-  version: 0.11.0
-  runnerImageTag: 2.323.0
+  version: 0.12.0
+  runnerImageTag: 2.324.0
   githubTokenSecret:
     name: github
     namespace: crossplane-system
