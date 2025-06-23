@@ -1,0 +1,39 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresdbs.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  names:
+    kind: XPostgresDB
+    plural: xpostgresdbs
+  claimNames:
+    kind: PostgresDB
+    plural: postgresdbs
+  defaultCompositionRef:
+    name: postgresdb
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                dbName:
+                  type: string
+                  description: Database name
+                roleName:
+                  type: string
+                  description: Role name
+                deletionPolicy:
+                  type: string
+                  default: Orphan
+                  description: db deletion policy
+              required:
+                - dbName
+                - roleName
