@@ -1,0 +1,65 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: postgresdb
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XPostgresDB
+  mode: Pipeline
+  pipeline:
+    - step: create-db
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: | # pragma: allowlist secret
+            apiVersion: postgresql.sql.crossplane.io/v1alpha1
+            kind: Role
+            metadata:
+              name: {{ .observed.composite.resource.spec.roleName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: role
+                gotemplating.fn.crossplane.io/ready: "True"
+            spec:
+              deletionPolicy: {{ .observed.composite.resource.spec.deletionPolicy }}
+              writeConnectionSecretToRef:
+                name: {{ .observed.composite.resource.spec.roleName }}-secret
+                namespace: default
+              forProvider:
+                privileges:
+                  createDb: true
+                  login: true
+                  createRole: true
+                  inherit: true
+            ---
+            apiVersion: postgresql.sql.crossplane.io/v1alpha1
+            kind: Grant
+            metadata:
+              name: {{ .observed.composite.resource.spec.roleName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: grant
+                gotemplating.fn.crossplane.io/ready: "True"
+            spec:
+              deletionPolicy: {{ .observed.composite.resource.spec.deletionPolicy }}
+              forProvider:
+                role: "postgres"
+                memberOfRef:
+                  name: "{{ .observed.composite.resource.spec.roleName }}"
+            ---
+            apiVersion: postgresql.sql.crossplane.io/v1alpha1
+            kind: Database
+            metadata:
+              name: {{ .observed.composite.resource.spec.dbName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: db
+                gotemplating.fn.crossplane.io/ready: "True"
+            spec:
+              deletionPolicy: {{ .observed.composite.resource.spec.deletionPolicy }}
+              forProvider:
+                allowConnections: true
+                owner: "{{ .observed.composite.resource.spec.roleName }}"
