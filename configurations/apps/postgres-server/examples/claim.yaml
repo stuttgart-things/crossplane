@@ -1,0 +1,9 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: PostgresServer
+metadata:
+  name: postgres
+spec:
+  deploymentNamespace: test2
+  clusterName: in-cluster
+  version: 16.7.18

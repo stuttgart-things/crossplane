@@ -1,0 +1,37 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresservers.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  names:
+    kind: XPostgresServer
+    plural: xpostgresservers
+  claimNames:
+    kind: PostgresServer
+    plural: postgresservers
+  defaultCompositionRef:
+    name: postgresserver
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                deploymentNamespace:
+                  type: string
+                  default: postgressql
+                  description: Namespace for deployment
+                clusterName:
+                  type: string
+                  default: in-cluster
+                  description: Helm provider name / cluster
+                version:
+                  type: string
+                  default: 16.7.18
+                  description: Helm chart version
