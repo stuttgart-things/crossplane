@@ -10,13 +10,6 @@ vars:
   DAGGER_CROSSPLANE_MODULE_VERSION: v0.10.0
 
 tasks:
-  do:
-    desc: Select a task to run
-    cmds:
-      - |
-        task=$(yq e '.tasks | keys' Taskfile.yaml | sed 's/^- //' | gum choose)
-        task ${task}
-
   branch:
     desc: Create branch from main
     cmds:
@@ -58,6 +51,16 @@ tasks:
           sed "s|^\./configurations/||" | \
           sort | \
           gum choose
+
+  pr:
+    desc: Create pull request into main
+    cmds:
+      - task: commit
+      - gh pr create -t "{{ .BRANCH }}" -b "{{ .BRANCH }} branch into main"
+      - sleep 2s
+      # - gh pr checks $(gh pr list | grep "^[^#;]" | awk '{print $1}') --watch
+      - gh pr merge $(gh pr list | grep "^[^#;]" | grep '{{ .BRANCH }}' | awk '{print $1}') --auto --rebase --delete-branch
+      - git checkout main && git pull
 
   check:
     desc: "Run pre-commit hooks"
@@ -117,12 +120,11 @@ tasks:
         fi
       - git push origin -u {{ .BRANCH }}
 
-  pr:
-    desc: Create pull request into main
+
+
+  do:
+    desc: Select a task to run
     cmds:
-      - task: commit
-      - gh pr create -t "{{ .BRANCH }}" -b "{{ .BRANCH }} branch into main"
-      - sleep 2s
-      # - gh pr checks $(gh pr list | grep "^[^#;]" | awk '{print $1}') --watch
-      - gh pr merge $(gh pr list | grep "^[^#;]" | grep '{{ .BRANCH }}' | awk '{print $1}') --auto --rebase --delete-branch
-      - git checkout main && git pull
+      - |
+        task=$(yq e '.tasks | keys' Taskfile.yaml | sed 's/^- //' | gum choose)
+        task ${task}
