@@ -1,0 +1,66 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-vcluster
+  annotations:
+    meta.crossplane.io/maintainer: Stuttgart-Things
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      This configuration provides VCluster deployment capabilities through Crossplane
+      using KCL functions and the stuttgart-things/xplane-vcluster KCL module.
+    meta.crossplane.io/readme: |
+      # VCluster Configuration
+
+      This Crossplane configuration provides VCluster deployment with:
+      - Production-ready VCluster instances
+      - Automatic connection secret management
+      - ProviderConfig generation for Kubernetes and Helm
+      - Integration with stuttgart-things/xplane-vcluster KCL module
+
+      ## Usage
+
+      Apply a VCluster claim:
+
+      ```yaml
+      apiVersion: apps.stuttgart-things.com/v1alpha1
+      kind: VCluster
+      metadata:
+        name: my-vcluster
+        namespace: default
+      spec:
+        name: my-vcluster
+        version: "0.29.0"
+        clusterName: target-cluster
+        targetNamespace: vcluster-ns
+        storageClass: local-path
+        nodePort: 32443
+        extraSANs:
+          - my-vcluster.example.com
+          - localhost
+        serverUrl: https://my-vcluster.example.com:32443
+        connectionSecret:
+          enabled: true
+          name: my-vcluster-connection
+          namespace: crossplane-system
+      ```
+
+      ## Features
+
+      - **VCluster Deployment**: Creates VCluster instances via Crossplane Helm Provider
+      - **Connection Secret Management**: Automatic kubeconfig extraction via Crossplane connection secrets
+      - **ProviderConfig Generation**: Creates ready-to-use Kubernetes and Helm ProviderConfigs
+      - **Production Ready**: Pre-configured with persistence, NodePort service, and custom SANs
+      - **KCL Integration**: Uses stuttgart-things/xplane-vcluster KCL module from OCI registry
+
+spec:
+  crossplane:
+    version: ">=v1.14.0"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/function-kcl
+      version: ">=v0.9.0"
+    - provider: ghcr.io/stuttgart-things/crossplane-provider-helm
+      version: ">=v0.1.1"
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.18.0"
