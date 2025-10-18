@@ -1,0 +1,55 @@
+---
+apiVersion: apps.stuttgart-things.com/v1alpha1
+kind: VCluster
+metadata:
+  name: dev-vcluster
+  namespace: development
+spec:
+  # Development VCluster Configuration
+  name: dev-vcluster
+  version: "0.29.0"
+  clusterName: dev-k8s-cluster
+  targetNamespace: vcluster-dev
+  
+  # Development-optimized settings
+  storageClass: local-path
+  bindAddress: "0.0.0.0"
+  proxyPort: 8443
+  nodePort: 31443
+  extraSANs:
+    - dev-vcluster.local
+    - localhost
+    - 127.0.0.1
+  serverUrl: https://dev-vcluster.local:31443
+  
+  # Custom Helm values for development
+  values:
+    controlPlane:
+      coredns:
+        enabled: true
+      distro:
+        k8s:
+          enabled: true
+          version: "1.29"
+      statefulSet:
+        persistence:
+          size: 5Gi
+    networking:
+      replicateService:
+        services:
+          - fromNamespace: kube-system
+    telemetry:
+      disabled: true
+  
+  # Connection Secret Configuration
+  connectionSecret:
+    enabled: true
+    name: dev-vcluster-connection
+    namespace: crossplane-system
+    vclusterSecretName: vc-dev-vcluster
+    vclusterSecretNamespace: vcluster-dev
+
+  # Output kubeconfig to development namespace
+  writeConnectionSecretToRef:
+    name: dev-vcluster-kubeconfig
+    namespace: development
