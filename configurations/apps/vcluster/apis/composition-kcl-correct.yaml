@@ -1,0 +1,95 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xvcluster-kcl-working
+  labels:
+    provider: kcl
+    service: vcluster
+spec:
+  compositeTypeRef:
+    apiVersion: apps.stuttgart-things.com/v1alpha1
+    kind: XVCluster
+
+  mode: Pipeline
+  pipeline:
+    - step: vcluster-resources
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        metadata:
+          name: vcluster-kcl-function
+        spec:
+          source: oci://ghcr.io/stuttgart-things/xplane-vcluster
+          # Pass parameters in the EXACT format that works with direct kcl run
+          params:
+            oxr:
+              spec:
+                # These will be patched from the composite resource
+                name: vlcuster-k3s-tink1
+                version: "0.29.0"
+                clusterName: k3s-tink1
+                targetNamespace: vcluster-k3s-tink2
+                storageClass: local-path
+                bindAddress: "0.0.0.0"
+                proxyPort: 8443
+                nodePort: 32445
+                extraSANs:
+                  - test-k3s1.labul.sva.de
+                  - "10.31.103.23"
+                  - localhost
+                serverUrl: https://10.31.103.23:32445
+                additionalSecrets:
+                  - name: vc-vlcuster-k3s-tink1-crossplane
+                    namespace: vcluster-k3s-tink2
+                    context: vcluster-crossplane-context
+                    server: https://10.31.103.23:32445
+                connectionSecret:
+                  name: vcluster-k3s-tink2-connection
+                  namespace: crossplane-system
+                  vclusterSecretName: vc-vlcuster-k3s-tink1
+                  vclusterSecretNamespace: vcluster-k3s-tink2
+      # Apply patches to replace static values with dynamic ones from XVCluster
+      input:
+        patches:
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.name
+            toFieldPath: spec.params.oxr.spec.name
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.version
+            toFieldPath: spec.params.oxr.spec.version
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.clusterName
+            toFieldPath: spec.params.oxr.spec.clusterName
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.targetNamespace
+            toFieldPath: spec.params.oxr.spec.targetNamespace
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.storageClass
+            toFieldPath: spec.params.oxr.spec.storageClass
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.bindAddress
+            toFieldPath: spec.params.oxr.spec.bindAddress
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.proxyPort
+            toFieldPath: spec.params.oxr.spec.proxyPort
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.nodePort
+            toFieldPath: spec.params.oxr.spec.nodePort
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.extraSANs
+            toFieldPath: spec.params.oxr.spec.extraSANs
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.serverUrl
+            toFieldPath: spec.params.oxr.spec.serverUrl
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.additionalSecrets
+            toFieldPath: spec.params.oxr.spec.additionalSecrets
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.connectionSecret
+            toFieldPath: spec.params.oxr.spec.connectionSecret
+          
+  # Connection secret management
+  writeConnectionSecretsToNamespace: crossplane-system
