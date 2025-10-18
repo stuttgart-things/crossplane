@@ -1,0 +1,28 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xvcluster-kcl
+  labels:
+    provider: kcl
+    service: vcluster
+spec:
+  compositeTypeRef:
+    apiVersion: apps.stuttgart-things.com/v1alpha1
+    kind: XVCluster
+
+  mode: Pipeline
+  pipeline:
+    - step: vcluster-resources
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        metadata:
+          name: vcluster-kcl-function
+        spec:
+          source: oci://ghcr.io/stuttgart-things/xplane-vcluster
+          
+  # Connection secret management
+  writeConnectionSecretsToNamespace: crossplane-system
