@@ -1,0 +1,43 @@
+---
+apiVersion: apps.stuttgart-things.com/v1alpha1
+kind: VCluster
+metadata:
+  name: vcluster-k3s-tink1
+  namespace: default
+spec:
+  # Basic VCluster Configuration
+  name: vlcuster-k3s-tink1
+  version: "0.29.0"
+  clusterName: k3s-tink1
+  targetNamespace: vcluster-k3s-tink2
+  
+  # VCluster Specific Configuration
+  storageClass: local-path
+  bindAddress: "0.0.0.0"
+  proxyPort: 8443
+  nodePort: 32445
+  extraSANs:
+    - test-k3s1.labul.sva.de
+    - "10.31.103.23"
+    - localhost
+  serverUrl: https://10.31.103.23:32445
+  
+  # Additional Secrets Configuration
+  additionalSecrets:
+    - name: vc-vlcuster-k3s-tink1-crossplane
+      namespace: vcluster-k3s-tink2
+      context: vcluster-crossplane-context
+      server: https://10.31.103.23:32445
+  
+  # Connection Secret Configuration
+  connectionSecret:
+    enabled: true
+    name: vcluster-k3s-tink2-connection
+    namespace: crossplane-system
+    vclusterSecretName: vc-vlcuster-k3s-tink1
+    vclusterSecretNamespace: vcluster-k3s-tink2
+
+  # Write connection secret for kubectl access
+  writeConnectionSecretToRef:
+    name: vcluster-k3s-tink1-connection
+    namespace: default
