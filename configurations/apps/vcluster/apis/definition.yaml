@@ -1,0 +1,154 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xvclusters.apps.stuttgart-things.com
+spec:
+  group: apps.stuttgart-things.com
+  names:
+    kind: XVCluster
+    plural: xvclusters
+  claimNames:
+    kind: VCluster
+    plural: vclusters
+  connectionSecretKeys:
+    - kubeconfig
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: XVCluster represents a VCluster deployment with connection secret management through Crossplane.
+          properties:
+            spec:
+              type: object
+              properties:
+                # Basic VCluster Configuration
+                name:
+                  type: string
+                  description: VCluster release name
+                version:
+                  type: string
+                  default: "0.29.0"
+                  description: VCluster chart version
+                chartName:
+                  type: string
+                  default: "vcluster"
+                  description: Helm chart name
+                repository:
+                  type: string
+                  default: "https://charts.loft.sh"
+                  description: Helm repository URL
+                clusterName:
+                  type: string
+                  default: "kind"
+                  description: Crossplane provider config reference
+                targetNamespace:
+                  type: string
+                  default: "vcluster"
+                  description: Target namespace for VCluster deployment
+                
+                # VCluster Specific Configuration
+                storageClass:
+                  type: string
+                  default: "standard"
+                  description: Storage class for persistence
+                bindAddress:
+                  type: string
+                  default: "0.0.0.0"
+                  description: Proxy bind address
+                proxyPort:
+                  type: integer
+                  default: 8443
+                  description: Internal proxy port
+                nodePort:
+                  type: integer
+                  default: 32443
+                  description: External NodePort
+                extraSANs:
+                  type: array
+                  items:
+                    type: string
+                  default: ["localhost"]
+                  description: Additional Subject Alternative Names
+                serverUrl:
+                  type: string
+                  default: "https://localhost:32443"
+                  description: External server URL for kubeconfig
+                values:
+                  type: object
+                  description: Additional custom Helm values
+                  x-kubernetes-preserve-unknown-fields: true
+                
+                # Additional Secrets Configuration
+                additionalSecrets:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the additional secret
+                      namespace:
+                        type: string
+                        description: Namespace for the secret
+                      context:
+                        type: string
+                        description: Custom context name for the kubeconfig
+                      server:
+                        type: string
+                        description: Custom server URL for the kubeconfig
+                    required:
+                      - name
+                  description: List of additional kubeconfig secrets to create
+                
+                # Connection Secret Configuration
+                connectionSecret:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                      description: Enable connection secret creation
+                    name:
+                      type: string
+                      description: Name of the connection secret (defaults to {name}-connection)
+                    namespace:
+                      type: string
+                      default: "crossplane-system"
+                      description: Namespace for connection secret
+                    vclusterSecretName:
+                      type: string
+                      description: VCluster secret name to observe (defaults to vc-{name})
+                    vclusterSecretNamespace:
+                      type: string
+                      description: VCluster secret namespace (defaults to targetNamespace)
+                  description: Connection secret configuration
+              required:
+                - name
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  description: Current observed conditions of the XVCluster resource.
+                phase:
+                  type: string
+                  description: Current phase of the deployment
+                helmRelease:
+                  type: string
+                  description: Helm release name
+                connectionSecretName:
+                  type: string
+                  description: Name of the created connection secret
+                providerConfigs:
+                  type: array
+                  items:
+                    type: string
+                  description: Names of created ProviderConfigs
+              x-kubernetes-preserve-unknown-fields: true
