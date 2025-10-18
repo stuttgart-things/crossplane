@@ -1,121 +1,99 @@
 ---
+# apis/definition.yaml
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xciliums.resources.stuttgart-things.com
+  name: xciliums.github.stuttgart-things.com
 spec:
-  group: resources.stuttgart-things.com
+  group: github.stuttgart-things.com
   names:
     kind: XCilium
     plural: xciliums
   claimNames:
     kind: Cilium
     plural: ciliums
-  connectionSecretKeys:
-    - kubeconfig
   versions:
-    - name: v1alpha1
-      served: true
-      referenceable: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          description: XCilium represents a Cilium Helm release deployed through Crossplane.
-          properties:
-            spec:
-              type: object
-              properties:
-                deploymentNamespace:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Name of the Cilium release
+              targetNamespace:
+                type: string
+                description: Target namespace for Cilium installation
+                default: kube-system
+              version:
+                type: string
+                description: Cilium Helm chart version
+                default: "1.19.0"
+              config:
+                type: string
+                description: Cilium configuration profile
+                default: kind
+              clusterName:
+                type: string
+                description: Kubernetes cluster name
+              kubeProxyReplacement:
+                type: boolean
+                description: Enable kube-proxy replacement
+                default: true
+              routingMode:
+                type: string
+                description: Routing mode (native or tunnel)
+                default: native
+              ipv4NativeRoutingCIDR:
+                type: string
+                description: IPv4 native routing CIDR
+                default: "10.244.0.0/16"
+              k8sServiceHost:
+                type: string
+                description: Kubernetes API server host
+              k8sServicePort:
+                type: integer
+                description: Kubernetes API server port
+                default: 6443
+              l2announcements_enabled:
+                type: boolean
+                description: Enable L2 announcements
+                default: true
+              l2announcements_leaseDuration:
+                type: string
+                description: L2 announcements lease duration
+                default: "3s"
+              l2announcements_leaseRenewDeadline:
+                type: string
+                description: L2 announcements lease renew deadline
+                default: "1s"
+              l2announcements_leaseRetryPeriod:
+                type: string
+                description: L2 announcements lease retry period
+                default: "500ms"
+              devices:
+                type: array
+                description: Network devices for L2 announcements
+                items:
                   type: string
-                  default: cilium-system
-                  description: Namespace where Cilium will be deployed
-                clusterName:
-                  type: string
-                  default: in-cluster
-                  description: Cluster name or provider configuration reference
-                version:
-                  type: string
-                  default: "1.17.2"
-                  description: Cilium Helm chart version
-                values:
-                  type: object
-                  description: Helm values for configuring the Cilium deployment
-                  properties:
-                    kubeProxyReplacement:
-                      type: boolean
-                      default: true
-                      description: Enable or disable kube-proxy replacement
-                    routingMode:
-                      type: string
-                      default: "native"
-                      description: Routing mode for Cilium
-                    ipv4NativeRoutingCIDR:
-                      type: string
-                      default: "10.244.0.0/16"
-                      description: CIDR block for IPv4 native routing
-                    k8sServiceHost:
-                      type: string
-                      default: "control-plane"
-                      description: Kubernetes API server hostname
-                    k8sServicePort:
-                      type: integer
-                      default: 6443
-                      description: Kubernetes API server port
-                    l2announcements:
-                      type: object
-                      description: Configuration for L2 announcements
-                      properties:
-                        enabled:
-                          type: boolean
-                          default: true
-                        leaseDuration:
-                          type: string
-                          default: "3s"
-                        leaseRenewDeadline:
-                          type: string
-                          default: "1s"
-                        leaseRetryPeriod:
-                          type: string
-                          default: "500ms"
-                    devices:
-                      type: array
-                      items:
-                        type: string
-                      description: List of network devices to use
-                      default: ["eth0", "net0"]
-                    externalIPs:
-                      type: object
-                      properties:
-                        enabled:
-                          type: boolean
-                          default: true
-                      description: Enable external IPs
-                    autoDirectNodeRoutes:
-                      type: boolean
-                      default: true
-                      description: Enable auto direct node routes
-                    operator:
-                      type: object
-                      properties:
-                        replicas:
-                          type: integer
-                          default: 2
-                          description: Number of operator replicas
-              required:
-                - clusterName
-            status:
-              type: object
-              properties:
-                conditions:
-                  type: array
-                  items:
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                  description: Current observed conditions of the XCilium resource.
-                phase:
-                  type: string
-                  description: Current phase of the deployment
-                helmRelease:
-                  type: string
-                  description: Helm release name
-              x-kubernetes-preserve-unknown-fields: true
+                default: ["eth0", "net0"]
+              externalIPs_enabled:
+                type: boolean
+                description: Enable external IPs
+                default: true
+              autoDirectNodeRoutes:
+                type: boolean
+                description: Enable auto direct node routes
+                default: true
+              operator_replicas:
+                type: integer
+                description: Number of Cilium operator replicas
+                default: 2
+            required:
+            - name
+            - clusterName

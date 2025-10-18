@@ -1,9 +1,8 @@
-# examples/claim.yaml - For actual deployment in cluster
+#examples/xr.yaml - For testing with crossplane render
 apiVersion: github.stuttgart-things.com/v1alpha1
 kind: XCilium
 metadata:
   name: my-cilium
-  namespace: default
 spec:
   name: my-cilium
   targetNamespace: production
@@ -25,4 +24,3 @@ spec:
   externalIPs_enabled: true
   autoDirectNodeRoutes: true
   operator_replicas: 3
----

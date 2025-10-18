@@ -1,104 +1,83 @@
----
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
+  name: cilium-kcl
   labels:
-    crossplane.io/xrd: xciliums.resources.stuttgart-things.com
-  name: cilium
+    provider: helm
+    type: kcl
 spec:
   compositeTypeRef:
-    apiVersion: resources.stuttgart-things.com/v1alpha1
+    apiVersion: github.stuttgart-things.com/v1alpha1
     kind: XCilium
   mode: Pipeline
   pipeline:
-  - functionRef:
-      name: function-patch-and-transform
+  - step: render-cilium-helm-release
+    functionRef:
+      name: function-kcl
     input:
-      apiVersion: pt.fn.crossplane.io/v1beta1
-      kind: Resources
-      resources:
-      - base:
-          apiVersion: helm.crossplane.io/v1beta1
-          kind: Release
-          metadata:
-            annotations:
-              crossplane.io/external-name: cilium
-            name: cilium
-          spec:
-            forProvider:
-              chart:
-                name: cilium
-                repository: https://helm.cilium.io
-              insecureSkipTLSVerify: false
-              namespace: cilium-system
-              skipCRDs: false
-              skipCreateNamespace: false
-              wait: true
-              values: {}
-            providerConfigRef:
-              name: in-cluster
-        connectionDetails:
-        - fromConnectionSecretKey: config # pragma: allowlist secret
-          name: config
-          type: FromConnectionSecretKey
-        name: cilium-release
-        patches:
-        - combine:
-            strategy: string
-            string:
-              fmt: cilium-%s
-            variables:
-            - fromFieldPath: spec.clusterName
-          toFieldPath: metadata.name
-          type: CombineFromComposite
-        - fromFieldPath: spec.deploymentNamespace
-          toFieldPath: spec.forProvider.namespace
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.clusterName
-          toFieldPath: spec.providerConfigRef.name
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.version
-          toFieldPath: spec.forProvider.chart.version
-          type: FromCompositeFieldPath
-        # Patches for Helm values
-        - fromFieldPath: spec.values.kubeProxyReplacement
-          toFieldPath: spec.forProvider.values.kubeProxyReplacement
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.routingMode
-          toFieldPath: spec.forProvider.values.routingMode
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.ipv4NativeRoutingCIDR
-          toFieldPath: spec.forProvider.values.ipv4NativeRoutingCIDR
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.k8sServiceHost
-          toFieldPath: spec.forProvider.values.k8sServiceHost
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.k8sServicePort
-          toFieldPath: spec.forProvider.values.k8sServicePort
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.l2announcements.enabled
-          toFieldPath: spec.forProvider.values.l2announcements.enabled
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.l2announcements.leaseDuration
-          toFieldPath: spec.forProvider.values.l2announcements.leaseDuration
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.l2announcements.leaseRenewDeadline
-          toFieldPath: spec.forProvider.values.l2announcements.leaseRenewDeadline
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.l2announcements.leaseRetryPeriod
-          toFieldPath: spec.forProvider.values.l2announcements.leaseRetryPeriod
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.devices
-          toFieldPath: spec.forProvider.values.devices
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.externalIPs.enabled
-          toFieldPath: spec.forProvider.values.externalIPs.enabled
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.autoDirectNodeRoutes
-          toFieldPath: spec.forProvider.values.autoDirectNodeRoutes
-          type: FromCompositeFieldPath
-        - fromFieldPath: spec.values.operator.replicas
-          toFieldPath: spec.forProvider.values.operator.replicas
-          type: FromCompositeFieldPath
-    step: patch-and-transform
-  writeConnectionSecretsToNamespace: crossplane-system # pragma: allowlist secret
+      apiVersion: krm.kcl.dev/v1alpha1
+      kind: KCLRun
+      metadata:
+        name: cilium-render
+      spec:
+        source: |
+          import crossplane_provider_helm.models.v1beta1.helm_crossplane_io_v1beta1_release as helm
+
+          # Get XR spec fields with defaults
+          name = option("params")?.oxr?.spec.name or "cilium"
+          targetNamespace = option("params")?.oxr?.spec.targetNamespace or "kube-system"
+          version = option("params")?.oxr?.spec.version or "1.18.0"
+          config = option("params")?.oxr?.spec.config or "kind"
+          clusterName = option("params")?.oxr?.spec.clusterName or "kind"
+          kubeProxyReplacement = option("params")?.oxr?.spec.kubeProxyReplacement or True
+          routingMode = option("params")?.oxr?.spec.routingMode or "native"
+          ipv4NativeRoutingCIDR = option("params")?.oxr?.spec.ipv4NativeRoutingCIDR or "10.244.0.0/16"
+          k8sServiceHost = option("params")?.oxr?.spec.k8sServiceHost or (clusterName + "-control-plane")
+          k8sServicePort = option("params")?.oxr?.spec.k8sServicePort or 6443
+          l2announcements_enabled = option("params")?.oxr?.spec.l2announcements_enabled or True
+          l2announcements_leaseDuration = option("params")?.oxr?.spec.l2announcements_leaseDuration or "3s"
+          l2announcements_leaseRenewDeadline = option("params")?.oxr?.spec.l2announcements_leaseRenewDeadline or "1s"
+          l2announcements_leaseRetryPeriod = option("params")?.oxr?.spec.l2announcements_leaseRetryPeriod or "500ms"
+          devices = option("params")?.oxr?.spec.devices or ["eth0", "net0"]
+          externalIPs_enabled = option("params")?.oxr?.spec.externalIPs_enabled or True
+          autoDirectNodeRoutes = option("params")?.oxr?.spec.autoDirectNodeRoutes or True
+          operator_replicas = option("params")?.oxr?.spec.operator_replicas or 2
+
+          # Cilium Release
+          cilium_release = helm.Release {
+              apiVersion = "helm.crossplane.io/v1beta1"
+              kind = "Release"
+              metadata = { name = name }
+              spec = {
+                  providerConfigRef: { name = clusterName }
+                  forProvider: {
+                      chart: {
+                          name = "cilium/cilium"
+                          repository: "https://helm.cilium.io"
+                          version = version
+                      }
+                      namespace = targetNamespace
+                      values: {
+                          config = config
+                          kubeProxyReplacement = kubeProxyReplacement
+                          routingMode = routingMode
+                          ipv4NativeRoutingCIDR = ipv4NativeRoutingCIDR
+                          k8sServiceHost = k8sServiceHost
+                          k8sServicePort = k8sServicePort
+                          l2announcements = {
+                              enabled = l2announcements_enabled
+                              leaseDuration = l2announcements_leaseDuration
+                              leaseRenewDeadline = l2announcements_leaseRenewDeadline
+                              leaseRetryPeriod = l2announcements_leaseRetryPeriod
+                          }
+                          devices = devices
+                          externalIPs = { enabled = externalIPs_enabled }
+                          autoDirectNodeRoutes = autoDirectNodeRoutes
+                          operator = { replicas = operator_replicas }
+                      }
+                  }
+              }
+          }
+  # - step: automatically-detect-ready-composed-resources
+  #   functionRef:
+  #     name: function-auto-ready

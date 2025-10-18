@@ -219,15 +219,17 @@ kcl run oci://ghcr.io/stuttgart-things/xplane-vcluster -D params='{
 configurations/apps/vcluster/
 ├── apis/
 │   ├── definition.yaml         # XRD
-│   └── composition.yaml        # Composition with KCL function
+│   └── composition.yaml        # Working KCL composition
 ├── examples/
 │   ├── functions.yaml          # Required functions
-│   ├── claim.yaml             # Basic claim example
+│   ├── claim.yaml              # Basic claim example
 │   ├── development-claim.yaml  # Development environment
 │   ├── production-claim.yaml   # Production environment
-│   ├── xr.yaml                # XR for rendering
-│   └── render-test.yaml       # Minimal XR for testing
-└── TESTING.md                 # This file
+│   └── xr.yaml                 # XR for rendering
+├── crossplane.yaml             # Package configuration
+├── README.md                   # Main documentation
+├── TESTING.md                  # This testing guide
+└── test-render.sh              # Automated test script
 ```
 
 ## Common Render Commands
