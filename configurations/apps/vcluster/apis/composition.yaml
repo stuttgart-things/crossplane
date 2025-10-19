@@ -2,98 +2,23 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: xvcluster-kcl
+  name: xplane-vcluster
   labels:
-    provider: kcl
-    service: vcluster
+    provider: xplane
 spec:
   compositeTypeRef:
-    apiVersion: apps.stuttgart-things.com/v1alpha1
-    kind: XVCluster
-
+    apiVersion: github.stuttgart-things.com/v1alpha1
+    kind: Xvcluster
   mode: Pipeline
   pipeline:
-    - step: vcluster-resources
-      functionRef:
+    - functionRef:
         name: function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
-        kind: KCLInput
+        kind: KCLRun
         metadata:
-          name: vcluster-kcl-function
+          name: kcl-input
         spec:
-          source: oci://ghcr.io/stuttgart-things/xplane-vcluster
-          # CRITICAL: Pass parameters to KCL module in the exact format expected
-          params:
-            oxr:
-              spec:
-                name: "placeholder"
-                version: "0.29.0"
-                clusterName: "placeholder"
-                targetNamespace: "placeholder"
-                storageClass: "standard"
-                bindAddress: "0.0.0.0"
-                proxyPort: 8443
-                nodePort: 32443
-                extraSANs: ["localhost"]
-                serverUrl: "https://localhost:32443"
-                additionalSecrets: []
-                connectionSecret:
-                  enabled: true
-                  name: "placeholder"
-                  namespace: "crossplane-system"
-                  vclusterSecretName: "placeholder"
-                  vclusterSecretNamespace: "placeholder"
-      # Patch parameters from composite resource to KCL input
-      patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.name
-          toFieldPath: spec.params.oxr.spec.name
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.version
-          toFieldPath: spec.params.oxr.spec.version
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.clusterName
-          toFieldPath: spec.params.oxr.spec.clusterName
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.targetNamespace
-          toFieldPath: spec.params.oxr.spec.targetNamespace
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.storageClass
-          toFieldPath: spec.params.oxr.spec.storageClass
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.bindAddress
-          toFieldPath: spec.params.oxr.spec.bindAddress
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.proxyPort
-          toFieldPath: spec.params.oxr.spec.proxyPort
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.nodePort
-          toFieldPath: spec.params.oxr.spec.nodePort
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.extraSANs
-          toFieldPath: spec.params.oxr.spec.extraSANs
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.serverUrl
-          toFieldPath: spec.params.oxr.spec.serverUrl
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.additionalSecrets
-          toFieldPath: spec.params.oxr.spec.additionalSecrets
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.connectionSecret.enabled
-          toFieldPath: spec.params.oxr.spec.connectionSecret.enabled
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.connectionSecret.name
-          toFieldPath: spec.params.oxr.spec.connectionSecret.name
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.connectionSecret.namespace
-          toFieldPath: spec.params.oxr.spec.connectionSecret.namespace
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.connectionSecret.vclusterSecretName
-          toFieldPath: spec.params.oxr.spec.connectionSecret.vclusterSecretName
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.connectionSecret.vclusterSecretNamespace
-          toFieldPath: spec.params.oxr.spec.connectionSecret.vclusterSecretNamespace
-          
-  # Connection secret management
-  writeConnectionSecretsToNamespace: crossplane-system
+          source: oci://ghcr.io/stuttgart-things/xplane-vcluster:0.29.1
+          target: Resources
+      step: create-vcluster

@@ -10,7 +10,7 @@ metadata:
     meta.crossplane.io/description: |
       This configuration provides VCluster deployment capabilities through Crossplane
       using KCL functions and the stuttgart-things/xplane-vcluster KCL module.
-    meta.crossplane.io/readme: |
+    meta.crossplane.io/readme: | # pragma: allowlist secret
       # VCluster Configuration
 
       This Crossplane configuration provides VCluster deployment with:

@@ -25,4 +25,3 @@ spec:
   externalIPs_enabled: true
   autoDirectNodeRoutes: true
   operator_replicas: 3
----
