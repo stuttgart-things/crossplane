@@ -10,6 +10,15 @@ metadata:
     meta.crossplane.io/description: |
       This configuration provides VCluster deployment capabilities through Crossplane
       using KCL functions and the stuttgart-things/xplane-vcluster KCL module.
+      
+      Features:
+      - Production-ready VCluster instances with persistence and custom SANs
+      - Automatic connection secret management and kubeconfig extraction  
+      - ProviderConfig generation for Kubernetes and Helm providers
+      - KCL integration using OCI registry oci://ghcr.io/stuttgart-things/xplane-vcluster
+      - Comprehensive testing with crossplane render support
+      
+      For testing instructions, see TESTING.md in this directory.
     meta.crossplane.io/readme: | # pragma: allowlist secret
       # VCluster Configuration
 
