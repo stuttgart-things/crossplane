@@ -380,10 +380,23 @@ KUBECONFIG=test-kubeconfig.yaml kubectl get nodes
 ## Dependencies
 
 - **Crossplane**: `>=v1.14.0`
+- **Crossplane CLI**: `>=v1.20.0` (for local testing)
 - **KCL Function**: `xpkg.upbound.io/crossplane-contrib/function-kcl:>=v0.9.0`
 - **Stuttgart-Things Helm Provider**: `ghcr.io/stuttgart-things/crossplane-provider-helm:>=v0.1.1`
 - **Kubernetes Provider**: `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:>=v0.18.0`
 - **KCL Module**: `oci://ghcr.io/stuttgart-things/xplane-vcluster`
+- **Docker**: Required for KCL function runtime during testing
+
+## Testing
+
+This configuration includes comprehensive testing capabilities:
+
+- **Local Rendering**: Use `crossplane render` to test without a cluster
+- **Integration Tests**: Full cluster deployment testing  
+- **Validation Scripts**: Automated testing for CI/CD pipelines
+- **Performance Metrics**: Resource count and render time validation
+
+See [TESTING.md](TESTING.md) for detailed testing instructions and troubleshooting guides.
 
 ## Contributing
 
