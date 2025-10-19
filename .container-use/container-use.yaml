@@ -1,0 +1,276 @@
+---
+apiVersion: container-use/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: crossplane-development
+  description: "Development environment for Stuttgart-Things Crossplane configurations"
+  labels:
+    project: "stuttgart-things"
+    category: "crossplane"
+    type: "development"
+spec:
+  # Base container image for development
+  baseImage: "ubuntu:24.04"
+
+  # Working directory inside the container
+  workdir: "/workdir"
+
+  # Environment variables
+  environment:
+    - name: "DEBIAN_FRONTEND"
+      value: "noninteractive"
+    - name: "KUBECONFIG"
+      value: "/workdir/.kube/config"
+    - name: "CROSSPLANE_CLI_VERSION"
+      value: "v1.20.0"
+    - name: "KUBECTL_VERSION"
+      value: "v1.31.0"
+    - name: "HELM_VERSION"
+      value: "v3.16.0"
+    - name: "YQ_VERSION"
+      value: "v4.44.3"
+    - name: "KCL_VERSION"
+      value: "v0.11.3"
+
+  # Setup commands executed during container initialization
+  setupCommands:
+    # System packages
+    - "apt-get update && apt-get install -y curl git wget jq vim nano ca-certificates gnupg lsb-release unzip"
+
+    # Install Docker for Crossplane function runtime
+    - "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg"
+    - "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | tee /etc/apt/sources.list.d/docker.list > /dev/null"
+    - "apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io"
+
+    # Install Crossplane CLI
+    - "curl -sL \"https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh\" | sh && mv crossplane /usr/local/bin/"
+
+    # Install kubectl
+    - "curl -LO \"https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl\""
+    - "chmod +x kubectl && mv kubectl /usr/local/bin/"
+
+    # Install Helm
+    - "curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3"
+    - "chmod 700 get_helm.sh && ./get_helm.sh --version ${HELM_VERSION} && rm get_helm.sh"
+
+    # Install yq
+    - "wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 && chmod +x /usr/local/bin/yq"
+
+    # Install KCL
+    - "curl -fsSL https://kcl-lang.io/script/install-kcl.sh | bash"
+    - "ln -sf /root/.kcl/bin/kcl /usr/local/bin/kcl"
+
+    # Create directories
+    - "mkdir -p /workdir/.kube"
+    - "mkdir -p /workdir/tmp"
+
+    # Git configuration
+    - "git config --global user.name 'Container User'"
+    - "git config --global user.email 'container@stuttgart-things.com'"
+    - "git config --global init.defaultBranch main"
+    - "git config --global pull.rebase false"
+
+  # Services to run alongside the development environment
+  services:
+    # Docker-in-Docker for Crossplane function runtime
+    - name: "docker"
+      image: "docker:dind"
+      environment:
+        - "DOCKER_TLS_CERTDIR="
+      volumes:
+        - "/var/run/docker.sock:/var/run/docker.sock"
+      privileged: true
+
+  # Development tools and aliases
+  aliases:
+    # Crossplane shortcuts
+    - name: "xp"
+      command: "crossplane"
+    - name: "xp-render"
+      command: "crossplane render"
+    - name: "xp-build"
+      command: "crossplane xpkg build"
+    - name: "xp-push"
+      command: "crossplane xpkg push"
+
+    # Kubectl shortcuts
+    - name: "k"
+      command: "kubectl"
+    - name: "kg"
+      command: "kubectl get"
+    - name: "kd"
+      command: "kubectl describe"
+    - name: "ka"
+      command: "kubectl apply"
+
+    # Common development tasks
+    - name: "test-vcluster"
+      command: "cd /workdir/configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+    - name: "test-ansible-run"
+      command: "cd /workdir/configurations/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+
+  # Files to be created/copied during initialization
+  files:
+    - path: "/workdir/.bashrc_custom"
+      content: |
+        # Custom bash configuration for Crossplane development
+
+        # Aliases
+        alias ll='ls -la'
+        alias la='ls -la'
+        alias l='ls -CF'
+        alias ..='cd ..'
+        alias ...='cd ../..'
+
+        # Crossplane specific aliases
+        alias xp='crossplane'
+        alias xp-render='crossplane render'
+        alias xp-build='crossplane xpkg build'
+        alias xp-push='crossplane xpkg push'
+
+        # Kubectl aliases
+        alias k='kubectl'
+        alias kg='kubectl get'
+        alias kd='kubectl describe'
+        alias ka='kubectl apply'
+
+        # Git aliases
+        alias gs='git status'
+        alias ga='git add'
+        alias gc='git commit'
+        alias gp='git push'
+        alias gl='git log --oneline'
+
+        # Development shortcuts
+        alias test-vcluster='cd /workdir/configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml'
+        alias test-ansible-run='cd /workdir/configurations/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml'
+
+        # Specification shortcuts
+        alias show-spec='echo "📋 Available specifications in .container-use/specs/:" && ls -1 /workdir/.container-use/specs/'
+        alias dev-spec='less /workdir/.container-use/specs/crossplane-configuration-development.md'
+        alias config-template='less /workdir/.container-use/specs/configuration-template.md'
+        alias spec-index='less /workdir/.container-use/specs/README.md'
+
+        # Prompt customization
+        export PS1='\[\033[01;32m\]crossplane-dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+        # Load custom bashrc
+        if [ -f /workdir/.bashrc_custom ]; then
+            source /workdir/.bashrc_custom
+        fi  # Documentation and help
+  documentation:
+    description: |
+      This environment is configured for Stuttgart-Things Crossplane development with:
+
+      - Crossplane CLI for testing and building configurations
+      - Docker support for KCL function runtime
+      - kubectl for Kubernetes cluster interaction
+      - Helm for chart management
+      - yq for YAML processing
+      - KCL for configuration language development
+
+      ## Quick Start Commands:
+
+      ```bash
+      # View development specifications
+      show-spec                 # List available specifications
+      dev-spec                  # View main development specification
+      config-template           # View configuration template
+      spec-index               # View specifications index
+
+      # Test configurations
+      test-vcluster            # Test VCluster configuration
+      test-ansible-run         # Test Ansible-Run configuration
+
+      # Build packages
+      xp-build --package-root=configurations/apps/vcluster
+
+      # Render configurations
+      xp-render examples/claim.yaml apis/composition.yaml examples/functions.yaml
+      ```      ## Directory Structure:
+
+      - `/workdir/configurations/` - Crossplane configurations
+      - `/workdir/tests/` - Test files and examples
+      - `/workdir/.kube/` - Kubernetes configuration
+      - `/workdir/tmp/` - Temporary files
+
+      ## Installed Tools:
+
+      - Crossplane CLI: $CROSSPLANE_CLI_VERSION
+      - kubectl: $KUBECTL_VERSION
+      - Helm: $HELM_VERSION
+      - yq: $YQ_VERSION
+      - KCL: $KCL_VERSION
+      - Docker CE (for function runtime)
+
+    examples:
+      - title: "Test VCluster Configuration"
+        description: "Render and validate the VCluster configuration"
+        command: "cd configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+
+      - title: "Test Ansible-Run Configuration"
+        description: "Render and validate the Ansible-Run configuration"
+        command: "cd configurations/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+
+      - title: "Build Crossplane Package"
+        description: "Build a crossplane package from configuration"
+        command: "crossplane xpkg build --package-root=configurations/apps/vcluster --examples-root=configurations/apps/vcluster/examples"
+
+      - title: "Validate YAML Files"
+        description: "Check YAML syntax and structure"
+        command: "find configurations -name '*.yaml' -exec yq e . {} \\;"
+
+      - title: "Check KCL Module"
+        description: "Test KCL module compilation"
+        command: "kcl run oci://ghcr.io/stuttgart-things/xplane-vcluster"
+
+  # Health checks and validation
+  healthChecks:
+    - name: "crossplane-cli"
+      command: "crossplane version"
+      expectedOutput: "v1.20.0"
+
+    - name: "kubectl"
+      command: "kubectl version --client"
+      expectedOutput: "v1.31.0"
+
+    - name: "helm"
+      command: "helm version"
+      expectedOutput: "v3.16.0"
+
+    - name: "yq"
+      command: "yq --version"
+      expectedOutput: "v4.44.3"
+
+    - name: "kcl"
+      command: "kcl version"
+      expectedOutput: "v0.11.3"
+
+    - name: "docker"
+      command: "docker --version"
+      expectedOutput: "Docker version"
+
+  # Resource limits
+  resources:
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+
+  # Ports to expose for development
+  ports:
+    - containerPort: 8080
+      description: "Development server"
+    - containerPort: 9443
+      description: "Crossplane webhook"
+
+  # Volume mounts for persistent development
+  volumes:
+    - name: "kube-config"
+      mountPath: "/workdir/.kube"
+      description: "Kubernetes configuration directory"
+    - name: "docker-socket"
+      mountPath: "/var/run/docker.sock"
+      description: "Docker socket for container builds"

@@ -24,7 +24,45 @@ EOF
 </details>
 
 
-## DEV
+## DEVELOPMENT
+
+### Quick Start
+
+```bash
+# Setup standardized development environment
+source .container-use/container-use.sh
+cu-setup
+
+# Access development environment
+container-use checkout crossplane-development
+
+# Test existing configurations
+cu-test-vcluster
+cu-test-ansible-run
+cu-test-all
+```
+
+### Development Standards
+
+This repository follows structured development specifications:
+
+- 📋 **[Development Specification](.container-use/specs/crossplane-configuration-development.md)** - Complete development workflow
+- 🛠️ **[Configuration Template](.container-use/specs/configuration-template.md)** - Standardized template for new configurations
+- 📚 **[Specifications Index](.container-use/specs/README.md)** - Overview of all specifications
+- 🚀 **[Container-Use Setup](.container-use/README.md)** - Standardized development environment
+
+### Quick Specification Access
+
+```bash
+# Load helper functions
+source .container-use/container-use.sh
+
+# View specifications
+cu-spec                           # Show available specs
+cu-new my-config apps            # Create new config with guidance
+```
+
+### Available Tasks
 
 ```bash
 task: Available tasks for this project:

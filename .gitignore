@@ -34,4 +34,11 @@ Session.vim
 # Chart dependencies
 **/charts/*.tgz
 
+# Container-use runtime files (keep configuration files in git)
+.container-use/environments/
+.container-use/logs/
+.container-use/cache/
+*.container-use
+.cu-*
+
 .history
