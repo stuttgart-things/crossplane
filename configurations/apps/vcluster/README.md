@@ -74,12 +74,36 @@ EOF
 ### 2. Install VCluster Configuration
 
 ```bash
-# Install the configuration
+# Install the configuration package
 kubectl apply -f crossplane.yaml
 
 # Apply XRD and Composition
 kubectl apply -f apis/
+
+# Verify installation
+kubectl get xrd xvclusters.apps.stuttgart-things.com
+kubectl get composition xvcluster-kcl
 ```
+
+## Local Testing
+
+Before deploying to a cluster, you can test the configuration locally using the Crossplane CLI:
+
+```bash
+# Test basic rendering
+crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml
+
+# Test with different claims
+crossplane render examples/development.yaml apis/composition.yaml examples/functions.yaml
+crossplane render examples/production.yaml apis/composition.yaml examples/functions.yaml
+```
+
+**Expected Output**: Each render should produce exactly 4 resources:
+- 1 Helm Release (VCluster deployment)  
+- 1 Object (VCluster secret observer)
+- 2 ProviderConfigs (Kubernetes + Helm)
+
+For comprehensive testing instructions, see [TESTING.md](TESTING.md).
 
 ## Usage
 
