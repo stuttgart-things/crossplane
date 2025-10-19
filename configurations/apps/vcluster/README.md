@@ -30,6 +30,13 @@ VCluster Claim → XVCluster XRD → Composition (KCL Function) → VCluster Res
 
 ## Installation
 
+### Prerequisites
+
+- **Crossplane**: `>=v1.14.0` installed in your Kubernetes cluster
+- **Crossplane CLI**: v1.20.0+ for local testing - [Installation Guide](https://docs.crossplane.io/latest/cli/)
+- **Docker**: Required for KCL function runtime during testing
+- **kubectl**: Kubernetes command-line tool
+
 ### 1. Install Dependencies
 
 ```bash
