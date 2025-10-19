@@ -28,6 +28,29 @@ metadata:
       - ProviderConfig generation for Kubernetes and Helm
       - Integration with stuttgart-things/xplane-vcluster KCL module
 
+      ## Quick Start
+
+      ```bash
+      # Install the configuration
+      kubectl apply -f crossplane.yaml
+
+      # Apply XRD and Composition  
+      kubectl apply -f apis/
+
+      # Deploy VCluster
+      kubectl apply -f examples/claim.yaml
+      ```
+
+      ## Testing
+
+      Use the crossplane CLI to test rendering locally:
+
+      ```bash
+      crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml
+      ```
+
+      See TESTING.md for comprehensive testing instructions.
+
       ## Usage
 
       Apply a VCluster claim:
