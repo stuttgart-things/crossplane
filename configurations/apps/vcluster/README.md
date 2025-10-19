@@ -291,6 +291,49 @@ spec:
 
 ## Troubleshooting
 
+### Debug Commands
+
+```bash
+# Check VCluster claim status
+kubectl get vcluster -o wide
+kubectl describe vcluster VCLUSTER_NAME
+
+# Check XVCluster composite resource  
+kubectl get xvcluster -o wide
+kubectl describe xvcluster
+
+# Check generated resources
+kubectl get releases
+kubectl get object  
+kubectl get secret -n crossplane-system | grep connection
+kubectl get providerconfig
+
+# Check function status
+kubectl get function function-kcl
+kubectl logs -n crossplane-system deployment/function-kcl
+
+# Check composition events
+kubectl describe composition xvcluster-kcl
+```
+
+### Local Testing Issues
+
+```bash
+# Check crossplane CLI version (should be v1.20.0+)
+crossplane version
+
+# Verify Docker is running (required for KCL function)
+docker ps
+
+# Test render with verbose output
+crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml --verbose
+
+# Validate individual files
+yq e . examples/claim.yaml
+yq e . apis/composition.yaml  
+yq e . examples/functions.yaml
+```
+
 ### Check Resource Status
 
 ```bash
