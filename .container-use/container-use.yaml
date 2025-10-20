@@ -3,14 +3,15 @@ apiVersion: container-use/v1alpha1
 kind: EnvironmentConfig
 metadata:
   name: crossplane-development
-  description: "Development environment for Stuttgart-Things Crossplane configurations"
+  description: "Stuttgart-Things Crossplane Configuration Development Environment"
   labels:
     project: "stuttgart-things"
     category: "crossplane"
     type: "development"
+    unified-standards: "v1.0.0"
 spec:
-  # Base container image for development
-  baseImage: "ubuntu:24.04"
+  # Base container image aligned with Stuttgart-Things standards
+  baseImage: "ghcr.io/stuttgart-things/sthings-alpine:1.2024.10"
 
   # Working directory inside the container
   workdir: "/workdir"
@@ -34,13 +35,8 @@ spec:
 
   # Setup commands executed during container initialization
   setupCommands:
-    # System packages
-    - "apt-get update && apt-get install -y curl git wget jq vim nano ca-certificates gnupg lsb-release unzip"
-
-    # Install Docker for Crossplane function runtime
-    - "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg"
-    - "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | tee /etc/apt/sources.list.d/docker.list > /dev/null"
-    - "apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io"
+    # Alpine packages
+    - "apk add --no-cache curl git wget jq vim nano ca-certificates gnupg unzip bash docker-cli yq"
 
     # Install Crossplane CLI
     - "curl -sL \"https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh\" | sh && mv crossplane /usr/local/bin/"
@@ -53,9 +49,6 @@ spec:
     - "curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3"
     - "chmod 700 get_helm.sh && ./get_helm.sh --version ${HELM_VERSION} && rm get_helm.sh"
 
-    # Install yq
-    - "wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 && chmod +x /usr/local/bin/yq"
-
     # Install KCL
     - "curl -fsSL https://kcl-lang.io/script/install-kcl.sh | bash"
     - "ln -sf /root/.kcl/bin/kcl /usr/local/bin/kcl"
@@ -64,8 +57,8 @@ spec:
     - "mkdir -p /workdir/.kube"
     - "mkdir -p /workdir/tmp"
 
-    # Git configuration
-    - "git config --global user.name 'Container User'"
+    # Git configuration aligned with Stuttgart-Things standards
+    - "git config --global user.name 'Stuttgart-Things Container User'"
     - "git config --global user.email 'container@stuttgart-things.com'"
     - "git config --global init.defaultBranch main"
     - "git config --global pull.rebase false"
@@ -103,11 +96,15 @@ spec:
     - name: "ka"
       command: "kubectl apply"
 
-    # Common development tasks
-    - name: "test-vcluster"
+    # Stuttgart-Things development shortcuts aligned with unified standards
+    - name: "cu-test-vault-config"
+      command: "cd /workdir/configurations/config/vault-config && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+    - name: "cu-test-vcluster"
       command: "cd /workdir/configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
-    - name: "test-ansible-run"
-      command: "cd /workdir/configurations/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+    - name: "cu-test-ansible-run"
+      command: "cd /workdir/configurations/apps/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+    - name: "cu-test-all"
+      command: "echo 'Testing all configurations...' && for config in /workdir/configurations/*/*/; do echo \"Testing $config\"; cd \"$config\" && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml; done"
 
   # Files to be created/copied during initialization
   files:
@@ -141,27 +138,28 @@ spec:
         alias gp='git push'
         alias gl='git log --oneline'
 
-        # Development shortcuts
-        alias test-vcluster='cd /workdir/configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml'
-        alias test-ansible-run='cd /workdir/configurations/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml'
+        # Stuttgart-Things unified development shortcuts
+        alias cu-test-vault-config='cd /workdir/configurations/config/vault-config && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml'
+        alias cu-test-vcluster='cd /workdir/configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml'
+        alias cu-test-ansible-run='cd /workdir/configurations/apps/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml'
+        alias cu-test-all='echo "Testing all configurations..." && for config in /workdir/configurations/*/*/; do echo "Testing $config"; cd "$config" && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml; done'
 
-        # Specification shortcuts
-        alias show-spec='echo "📋 Available specifications in .container-use/specs/:" && ls -1 /workdir/.container-use/specs/'
-        alias dev-spec='less /workdir/.container-use/specs/crossplane-configuration-development.md'
-        alias config-template='less /workdir/.container-use/specs/configuration-template.md'
-        alias spec-index='less /workdir/.container-use/specs/README.md'
+        # Stuttgart-Things standards shortcuts
+        alias show-decisions='echo "📋 Stuttgart-Things Development Decisions:" && less /workdir/.container-use/decisions-unified.md'
+        alias show-tasks='echo "📋 Stuttgart-Things Development Tasks:" && less /workdir/.container-use/tasks-unified.md'
+        alias show-standards='echo "📋 Stuttgart-Things Code Standards:" && less /workdir/.container-use/standards.md'
 
-        # Prompt customization
-        export PS1='\[\033[01;32m\]crossplane-dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+        # Prompt customization for Stuttgart-Things
+        export PS1='\[\033[01;32m\]stuttgart-things-crossplane\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
         # Load custom bashrc
         if [ -f /workdir/.bashrc_custom ]; then
             source /workdir/.bashrc_custom
-        fi  # Documentation and help
-  documentation:
+        fi  documentation:
     description: |
-      This environment is configured for Stuttgart-Things Crossplane development with:
+      Stuttgart-Things Crossplane Development Environment with unified standards compliance.
 
+      This environment includes:
       - Crossplane CLI for testing and building configurations
       - Docker support for KCL function runtime
       - kubectl for Kubernetes cluster interaction
@@ -169,21 +167,22 @@ spec:
       - yq for YAML processing
       - KCL for configuration language development
 
-      ## Quick Start Commands:
+      ## Stuttgart-Things Unified Standards:
 
       ```bash
-      # View development specifications
-      show-spec                 # List available specifications
-      dev-spec                  # View main development specification
-      config-template           # View configuration template
-      spec-index               # View specifications index
+      # View organizational standards
+      show-decisions           # View development decisions
+      show-tasks              # View development task workflow
+      show-standards          # View code standards and conventions
 
-      # Test configurations
-      test-vcluster            # Test VCluster configuration
-      test-ansible-run         # Test Ansible-Run configuration
+      # Test configurations (unified command pattern)
+      cu-test-vault-config    # Test Vault Config configuration
+      cu-test-vcluster        # Test VCluster configuration
+      cu-test-ansible-run     # Test Ansible-Run configuration
+      cu-test-all            # Test all configurations
 
       # Build packages
-      xp-build --package-root=configurations/apps/vcluster
+      xp-build --package-root=configurations/{category}/{name}
 
       # Render configurations
       xp-render examples/claim.yaml apis/composition.yaml examples/functions.yaml
@@ -204,25 +203,29 @@ spec:
       - Docker CE (for function runtime)
 
     examples:
+      - title: "Test Vault Config Configuration"
+        description: "Render and validate the Vault Config configuration"
+        command: "cu-test-vault-config"
+
       - title: "Test VCluster Configuration"
         description: "Render and validate the VCluster configuration"
-        command: "cd configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+        command: "cu-test-vcluster"
 
-      - title: "Test Ansible-Run Configuration"
-        description: "Render and validate the Ansible-Run configuration"
-        command: "cd configurations/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+      - title: "Test All Configurations"
+        description: "Test all available Crossplane configurations"
+        command: "cu-test-all"
 
       - title: "Build Crossplane Package"
         description: "Build a crossplane package from configuration"
-        command: "crossplane xpkg build --package-root=configurations/apps/vcluster --examples-root=configurations/apps/vcluster/examples"
+        command: "crossplane xpkg build --package-root=configurations/{category}/{name} --examples-root=configurations/{category}/{name}/examples"
 
       - title: "Validate YAML Files"
         description: "Check YAML syntax and structure"
         command: "find configurations -name '*.yaml' -exec yq e . {} \\;"
 
-      - title: "Check KCL Module"
-        description: "Test KCL module compilation"
-        command: "kcl run oci://ghcr.io/stuttgart-things/xplane-vcluster"
+      - title: "Check Stuttgart-Things Standards"
+        description: "View organizational development standards"
+        command: "show-standards"
 
   # Health checks and validation
   healthChecks:

@@ -99,7 +99,7 @@ crossplane render examples/production.yaml apis/composition.yaml examples/functi
 ```
 
 **Expected Output**: Each render should produce exactly 4 resources:
-- 1 Helm Release (VCluster deployment)  
+- 1 Helm Release (VCluster deployment)
 - 1 Object (VCluster secret observer)
 - 2 ProviderConfigs (Kubernetes + Helm)
 
@@ -127,7 +127,7 @@ kubectl get providerconfig
 
 ```bash
 # Extract kubeconfig from connection secret
-kubectl get secret vcluster-k3s-tink1-connection -n default -o jsonpath='{.data.kubeconfig}' | base64 -d > vcluster-kubeconfig.yaml
+kubectl get secret vcluster-k3s-tink1-connection -n crossplane-system -o jsonpath='{.data.kubeconfig}' | base64 -d > vcluster-kubeconfig.yaml
 
 # Test VCluster connectivity
 KUBECONFIG=vcluster-kubeconfig.yaml kubectl get nodes
@@ -298,13 +298,13 @@ spec:
 kubectl get vcluster -o wide
 kubectl describe vcluster VCLUSTER_NAME
 
-# Check XVCluster composite resource  
+# Check XVCluster composite resource
 kubectl get xvcluster -o wide
 kubectl describe xvcluster
 
 # Check generated resources
 kubectl get releases
-kubectl get object  
+kubectl get object
 kubectl get secret -n crossplane-system | grep connection
 kubectl get providerconfig
 
@@ -330,7 +330,7 @@ crossplane render examples/claim.yaml apis/composition.yaml examples/functions.y
 
 # Validate individual files
 yq e . examples/claim.yaml
-yq e . apis/composition.yaml  
+yq e . apis/composition.yaml
 yq e . examples/functions.yaml
 ```
 
@@ -367,13 +367,13 @@ kubectl describe composition xvcluster-kcl
 
 ```bash
 # Verify connection secret exists
-kubectl get secret VCLUSTER_NAME-connection -n default
+kubectl get secret VCLUSTER_NAME-connection -n crossplane-system
 
 # Test kubeconfig extraction
-kubectl get secret VCLUSTER_NAME-connection -n default -o jsonpath='{.data.kubeconfig}' | base64 -d | head -10
+kubectl get secret VCLUSTER_NAME-connection -n crossplane-system -o jsonpath='{.data.kubeconfig}' | base64 -d | head -10
 
 # Test VCluster connectivity
-kubectl get secret VCLUSTER_NAME-connection -n default -o jsonpath='{.data.kubeconfig}' | base64 -d > test-kubeconfig.yaml
+kubectl get secret VCLUSTER_NAME-connection -n crossplane-system -o jsonpath='{.data.kubeconfig}' | base64 -d > test-kubeconfig.yaml
 KUBECONFIG=test-kubeconfig.yaml kubectl get nodes
 ```
 
@@ -392,7 +392,7 @@ KUBECONFIG=test-kubeconfig.yaml kubectl get nodes
 This configuration includes comprehensive testing capabilities:
 
 - **Local Rendering**: Use `crossplane render` to test without a cluster
-- **Integration Tests**: Full cluster deployment testing  
+- **Integration Tests**: Full cluster deployment testing
 - **Validation Scripts**: Automated testing for CI/CD pipelines
 - **Performance Metrics**: Resource count and render time validation
 

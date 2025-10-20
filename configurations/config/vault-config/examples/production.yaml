@@ -1,0 +1,45 @@
+---
+apiVersion: config.stuttgart-things.com/v1alpha1
+kind: VaultConfig
+metadata:
+  name: vault-config-prod
+  namespace: production
+spec:
+  name: vault-config-production
+  clusterName: "k8s-prod-cluster"
+
+  # Enable all services for production
+  csiEnabled: true
+  vsoEnabled: true
+  esoEnabled: true
+
+  # Production-tested versions
+  csiChartVersion: "1.5.4"
+  vsoChartVersion: "1.0.1"
+  esoChartVersion: "0.20.3"
+
+  # Production namespaces following security standards
+  namespaceCsi: "vault-csi-system"
+  namespaceVso: "vault-operator-system"
+  namespaceEso: "external-secrets-system"
+
+  # Multiple auth configurations for different workloads
+  k8sAuths:
+    - name: "vault-auth-apps"
+      namespace: "applications"
+    - name: "vault-auth-platform"
+      namespace: "platform-system"
+    - name: "vault-auth-monitoring"
+      namespace: "monitoring-system"
+    - name: "vault-auth-security"
+      namespace: "security-system"
+
+  # Production connection secret
+  connectionSecret:
+    enabled: true
+    name: "vault-config-prod-connection"
+    namespace: "crossplane-system"
+
+writeConnectionSecretToRef:
+  name: vault-production-secrets
+  namespace: production

@@ -1,25 +1,28 @@
 #!/bin/bash
-# Container-Use Configuration for Stuttgart-Things Crossplane Development
+# Stuttgart-Things Crossplane Development - Container-Use Configuration
+# Aligned with unified organizational standards
 # Usage: source this file to set up container-use environment
 
 # Environment configuration
 export CONTAINER_USE_CONFIG="/workdir/.container-use/container-use.yaml"
 export CROSSPLANE_DEV_ENV="crossplane-development"
+export STUTTGART_THINGS_REGISTRY="ghcr.io/stuttgart-things"
 
-# Quick setup commands
-setup_crossplane_dev() {
-    echo "🚀 Setting up Crossplane development environment..."
+# Quick setup commands aligned with unified standards
+cu-setup() {
+    echo "🚀 Setting up Stuttgart-Things Crossplane development environment..."
+    echo "📋 Aligned with unified organizational standards"
 
-    # Create environment from config
-    container-use create --config .container-use/container-use.yaml --title "Crossplane Development"
+    # Create environment from unified config
+    container-use create --config .container-use/container-use.yaml --title "Stuttgart-Things Crossplane Development"
 
     echo "✅ Environment created successfully!"
     echo ""
-    echo "📋 Quick commands:"
+    echo "📋 Unified Stuttgart-Things commands:"
     echo "  container-use checkout $CROSSPLANE_DEV_ENV  # Access the environment"
     echo "  container-use log $CROSSPLANE_DEV_ENV       # View environment logs"
     echo ""
-    echo "🛠️  Available tools in environment:"
+    echo "🛠️  Available tools (unified standards):"
     echo "  - Crossplane CLI (render, build, push)"
     echo "  - kubectl (Kubernetes CLI)"
     echo "  - Helm (Package manager)"
@@ -27,26 +30,38 @@ setup_crossplane_dev() {
     echo "  - KCL (Configuration language)"
     echo "  - Docker (For function runtime)"
     echo ""
-    echo "🧪 Test commands:"
-    echo "  test-vcluster      # Test VCluster configuration"
-    echo "  test-ansible-run   # Test Ansible-Run configuration"
+    echo "📚 Stuttgart-Things Standards:"
+    echo "  show-decisions         # View organizational decisions"
+    echo "  show-tasks            # View development task workflow"
+    echo "  show-standards        # View code standards and conventions"
+    echo ""
+    echo "🧪 Unified test commands:"
+    echo "  cu-test-vault-config  # Test Vault Config configuration"
+    echo "  cu-test-vcluster      # Test VCluster configuration"
+    echo "  cu-test-ansible-run   # Test Ansible-Run configuration"
+    echo "  cu-test-all          # Test all configurations"
 }
 
-# Test specific configurations
-test_vcluster() {
+# Test specific configurations using unified command pattern
+cu-test-vault-config() {
+    echo "🧪 Testing Vault Config configuration (Stuttgart-Things unified standards)..."
+    container-use exec $CROSSPLANE_DEV_ENV "cd configurations/config/vault-config && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+}
+
+cu-test-vcluster() {
     echo "🧪 Testing VCluster configuration..."
     container-use exec $CROSSPLANE_DEV_ENV "cd configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
 }
 
-test_ansible_run() {
+cu-test-ansible-run() {
     echo "🧪 Testing Ansible-Run configuration..."
-    container-use exec $CROSSPLANE_DEV_ENV "cd configurations/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+    container-use exec $CROSSPLANE_DEV_ENV "cd configurations/apps/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
 }
 
-test_all_configs() {
-    echo "🧪 Testing all configurations..."
+cu-test-all() {
+    echo "🧪 Testing all configurations (Stuttgart-Things unified pattern)..."
 
-    # Find all configuration directories
+    # Find all configuration directories following unified structure
     configs=$(find configurations -name "composition.yaml" -type f | sed 's|/apis/composition.yaml||' | sort)
 
     for config in $configs; do
@@ -54,114 +69,129 @@ test_all_configs() {
         if [ -f "$config/examples/claim.yaml" ] && [ -f "$config/examples/functions.yaml" ]; then
             container-use exec $CROSSPLANE_DEV_ENV "cd $config && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
         else
-            echo "⚠️  Missing required files in $config"
+            echo "⚠️  Missing required files in $config (check unified standards)"
         fi
         echo "---"
     done
 }
 
-# Build crossplane packages
-build_package() {
+# Build crossplane packages following unified standards
+cu-build() {
     local package_path="$1"
     if [ -z "$package_path" ]; then
-        echo "❌ Usage: build_package <package-path>"
-        echo "   Example: build_package configurations/apps/vcluster"
+        echo "❌ Usage: cu-build <package-path>"
+        echo "   Example: cu-build configurations/config/vault-config"
+        echo "   Follows Stuttgart-Things unified directory structure:"
+        echo "   configurations/{category}/{name}/"
         return 1
     fi
 
-    echo "🏗️  Building package: $package_path"
+    echo "🏗️  Building package: $package_path (Stuttgart-Things standards)"
     container-use exec $CROSSPLANE_DEV_ENV "crossplane xpkg build --package-root=$package_path --examples-root=$package_path/examples"
 }
 
-# Specification and documentation helpers
-show_spec() {
-    echo "📋 Available specifications:"
-    echo ""
-    echo "📖 Development Specification:"
-    echo "   less .container-use/specs/crossplane-configuration-development.md"
-    echo ""
-    echo "📝 Configuration Template:"
-    echo "   less .container-use/specs/configuration-template.md"
-    echo ""
-    echo "📚 Specifications Index:"
-    echo "   less .container-use/specs/README.md"
+# Stuttgart-Things unified standards helpers
+show-decisions() {
+    echo "📋 Stuttgart-Things Development Decisions (Unified Standards):"
+    container-use exec $CROSSPLANE_DEV_ENV "less .container-use/decisions-unified.md"
 }
 
-new_config() {
+show-tasks() {
+    echo "� Stuttgart-Things Development Tasks (Unified Workflow):"
+    container-use exec $CROSSPLANE_DEV_ENV "less .container-use/tasks-unified.md"
+}
+
+show-standards() {
+    echo "� Stuttgart-Things Code Standards (Unified Framework):"
+    container-use exec $CROSSPLANE_DEV_ENV "less .container-use/standards.md"
+}
+
+# Create new configuration following unified standards
+cu-new() {
     local config_name="$1"
     local category="$2"
 
     if [ -z "$config_name" ] || [ -z "$category" ]; then
-        echo "❌ Usage: new_config <config-name> <category>"
-        echo "   Categories: apps, infra, platform"
-        echo "   Example: new_config my-app apps"
+        echo "❌ Usage: cu-new <config-name> <category>"
+        echo "   Categories (Stuttgart-Things unified): apps, config, infra, k8s, terraform"
+        echo "   Example: cu-new vault-config config"
+        echo "   Follows unified directory structure and standards"
         return 1
     fi
 
     echo "🚀 Creating new configuration: $config_name in category: $category"
+    echo "📋 Following Stuttgart-Things unified standards"
     echo ""
-    echo "📋 Follow the development specification:"
-    echo "   less .container-use/specs/crossplane-configuration-development.md"
+    echo "📚 Review unified standards first:"
+    echo "   show-decisions    # Organizational decisions"
+    echo "   show-tasks       # Development workflow"
+    echo "   show-standards   # Code standards and conventions"
     echo ""
-    echo "📝 Use the configuration template:"
-    echo "   less .container-use/specs/configuration-template.md"
-    echo ""
-    echo "🏗️  Directory structure:"
+    echo "🏗️  Unified directory structure:"
     echo "   mkdir -p configurations/$category/$config_name/{apis,examples}"
     echo "   cd configurations/$category/$config_name"
+    echo ""
+    echo "📝 Required files (unified standards):"
+    echo "   apis/definition.yaml          # XRD with {category}.stuttgart-things.com API group"
+    echo "   apis/composition.yaml         # KCL function using oci://$STUTTGART_THINGS_REGISTRY/xplane-{name}"
+    echo "   examples/claim.yaml           # Basic example"
+    echo "   examples/development.yaml     # Development scenario"
+    echo "   examples/production.yaml      # Production scenario"
+    echo "   examples/functions.yaml       # Function configuration"
+    echo "   crossplane.yaml              # Package configuration"
+    echo "   README.md                    # Documentation following unified template"
 }
 
-# Development shortcuts
-alias cu-setup="setup_crossplane_dev"
-alias cu-test-vcluster="test_vcluster"
-alias cu-test-ansible="test_ansible_run"
-alias cu-test-all="test_all_configs"
-alias cu-build="build_package"
-alias cu-spec="show_spec"
-alias cu-new="new_config"
-
-# Help function
+# Help function aligned with unified standards
 crossplane_dev_help() {
     cat << 'EOF'
-🚀 Stuttgart-Things Crossplane Development Helper
+🚀 Stuttgart-Things Crossplane Development (Unified Standards v1.0.0)
 
-SETUP:
+SETUP (Unified Framework):
   cu-setup                    # Create development environment
-  source container-use.sh     # Load this helper script
+  source container-use.sh     # Load unified helper script
 
-TESTING:
+TESTING (Unified Command Pattern):
+  cu-test-vault-config       # Test Vault Config configuration
   cu-test-vcluster           # Test VCluster configuration
-  cu-test-ansible            # Test Ansible-Run configuration
+  cu-test-ansible-run        # Test Ansible-Run configuration
   cu-test-all                # Test all configurations
 
-BUILDING:
+BUILDING (Unified Standards):
   cu-build <config-path>     # Build crossplane package
 
-SPECIFICATIONS:
-  cu-spec                    # Show available specifications
-  cu-new <name> <category>   # Create new configuration with guidance
+STANDARDS & DOCUMENTATION (Unified Framework):
+  show-decisions             # View organizational decisions
+  show-tasks                # View development task workflow
+  show-standards            # View code standards and conventions
+  cu-new <name> <category>   # Create new configuration with unified guidance
 
-ENVIRONMENT:
+ENVIRONMENT ACCESS:
   container-use checkout crossplane-development  # Access environment
-  container-use log crossplane-development       # View logs
-  container-use diff crossplane-development      # View changes
+  container-use log crossplane-development       # View logs and work output
 
-MANUAL COMMANDS (inside environment):
-  xp-render examples/claim.yaml apis/composition.yaml examples/functions.yaml
-  xp-build --package-root=configurations/apps/vcluster
-  k apply -f examples/claim.yaml
-  test-vcluster
-  test-ansible-run
+UNIFIED COMMAND SHORTCUTS (inside environment):
+  cu-test-vault-config      # Quick vault config test
+  cu-test-vcluster          # Quick vcluster test
+  cu-test-all              # Test all configurations
+  show-decisions           # View organizational decisions
+  show-tasks              # View development workflow
+  show-standards          # View code standards
 
-CONFIGURATION FILES:
-  .container-use/container-use.yaml         # Main environment configuration
-  .container-use/container-use.sh           # This helper script (source it)
-  .container-use/specs/                     # Development specifications and templates
+UNIFIED STRUCTURE:
+  .container-use/
+  ├── decisions-unified.md     # Organizational decisions (unified)
+  ├── tasks-unified.md         # Development workflow (unified)
+  ├── standards.md             # Code standards (unified)
+  ├── container-use.yaml       # Environment config (unified)
+  └── container-use.sh         # This helper script (unified)
+
+REGISTRY & STANDARDS:
+  Registry: ghcr.io/stuttgart-things/*
+  API Groups: {category}.stuttgart-things.com
+  KCL Modules: oci://ghcr.io/stuttgart-things/xplane-{name}
+  Documentation: Unified README template
+  Testing: Multi-scenario validation (basic, dev, prod)
 
 EOF
 }
-
-# Show help by default
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    crossplane_dev_help
-fi

@@ -199,7 +199,7 @@ spec:
     namespace: development
 EOF
 
-# Test rendering  
+# Test rendering
 crossplane render test-development-claim.yaml apis/composition.yaml examples/functions.yaml
 ```
 
@@ -224,7 +224,7 @@ crossplane render examples/claim.yaml apis/composition.yaml examples/functions.y
 
 # Expected kinds:
 # - Object
-# - ProviderConfig (2 instances: kubernetes + helm)  
+# - ProviderConfig (2 instances: kubernetes + helm)
 # - Release
 ```
 
@@ -297,7 +297,7 @@ KUBECONFIG=vcluster-test.yaml kubectl get namespaces
 # Test Kubernetes ProviderConfig
 kubectl apply -f - <<EOF
 apiVersion: kubernetes.crossplane.io/v1alpha2
-kind: Object  
+kind: Object
 metadata:
   name: test-vcluster-configmap
 spec:
@@ -350,7 +350,7 @@ crossplane render examples/claim.yaml apis/composition.yaml examples/functions.y
 
 # Check individual file syntax
 yq e . examples/claim.yaml
-yq e . apis/composition.yaml  
+yq e . apis/composition.yaml
 yq e . examples/functions.yaml
 ```
 
@@ -368,7 +368,7 @@ crossplane render examples/claim.yaml apis/composition.yaml examples/functions.y
 - [ ] Helm Release contains correct VCluster configuration
 - [ ] Object resource has proper secret observation setup
 - [ ] Kubernetes ProviderConfig points to connection secret
-- [ ] Helm ProviderConfig points to connection secret  
+- [ ] Helm ProviderConfig points to connection secret
 - [ ] Connection details configured for kubeconfig extraction
 - [ ] All parameters properly passed from claim to resources
 - [ ] Resource names follow expected patterns
@@ -409,7 +409,7 @@ fi
 # Validate resource types
 KINDS=$(yq e '.[] | .kind' /tmp/render-output.yaml | sort | uniq)
 EXPECTED_KINDS="Object
-ProviderConfig  
+ProviderConfig
 Release"
 
 if [ "$KINDS" != "$EXPECTED_KINDS" ]; then

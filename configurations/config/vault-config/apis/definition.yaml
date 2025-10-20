@@ -1,0 +1,187 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xvaultconfigs.config.stuttgart-things.com
+spec:
+  group: config.stuttgart-things.com
+  names:
+    kind: XVaultConfig
+    plural: xvaultconfigs
+  claimNames:
+    kind: VaultConfig
+    plural: vaultconfigs
+  defaultCompositionRef:
+    name: xvault-config-kcl
+  connectionSecretKeys:
+    - csi-token
+    - vso-token
+    - eso-token
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                # Basic Configuration
+                name:
+                  type: string
+                  description: "Name of the vault configuration"
+                  pattern: "^[a-z0-9-]+$"
+                  minLength: 1
+                  maxLength: 63
+                clusterName:
+                  type: string
+                  description: "Crossplane provider config reference for target cluster"
+                  default: "default"
+
+                # Service Enablement Flags
+                csiEnabled:
+                  type: boolean
+                  description: "Enable Secrets Store CSI Driver"
+                  default: false
+                vsoEnabled:
+                  type: boolean
+                  description: "Enable Vault Secrets Operator"
+                  default: false
+                esoEnabled:
+                  type: boolean
+                  description: "Enable External Secrets Operator"
+                  default: false
+
+                # Chart Versions
+                csiChartVersion:
+                  type: string
+                  description: "Chart version for Secrets Store CSI Driver"
+                  default: "1.5.4"
+                  pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+                vsoChartVersion:
+                  type: string
+                  description: "Chart version for Vault Secrets Operator"
+                  default: "1.0.1"
+                  pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+                esoChartVersion:
+                  type: string
+                  description: "Chart version for External Secrets Operator"
+                  default: "0.20.3"
+                  pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+
+                # Namespace Configuration
+                namespaceCsi:
+                  type: string
+                  description: "Namespace for Secrets Store CSI Driver"
+                  default: "secrets-store-csi"
+                  pattern: "^[a-z0-9-]+$"
+                namespaceVso:
+                  type: string
+                  description: "Namespace for Vault Secrets Operator"
+                  default: "vault-secrets-operator"
+                  pattern: "^[a-z0-9-]+$"
+                namespaceEso:
+                  type: string
+                  description: "Namespace for External Secrets Operator"
+                  default: "external-secrets"
+                  pattern: "^[a-z0-9-]+$"
+
+                # Kubernetes Auth Configuration
+                k8sAuths:
+                  type: array
+                  description: "Kubernetes authentication configurations"
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: "Name of the auth configuration"
+                        pattern: "^[a-z0-9-]+$"
+                      namespace:
+                        type: string
+                        description: "Namespace for the auth resources"
+                        default: "default"
+                        pattern: "^[a-z0-9-]+$"
+                    required:
+                      - name
+                  default:
+                    - name: "vault-auth-default"
+                      namespace: "default"
+
+                # Connection Secret Configuration
+                connectionSecret:
+                  type: object
+                  description: "Connection secret configuration"
+                  properties:
+                    enabled:
+                      type: boolean
+                      description: "Enable connection secret creation"
+                      default: true
+                    name:
+                      type: string
+                      description: "Name of the connection secret"
+                    namespace:
+                      type: string
+                      description: "Namespace for connection secret"
+                      default: "crossplane-system"
+                  default:
+                    enabled: true
+                    namespace: "crossplane-system"
+
+              required:
+                - name
+                - clusterName
+
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                  description: "Indicates if all vault services are ready"
+                conditions:
+                  type: array
+                  description: "Detailed status of each service"
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                servicesStatus:
+                  type: object
+                  description: "Status of individual vault services"
+                  properties:
+                    csi:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                        ready:
+                          type: boolean
+                        namespace:
+                          type: string
+                    vso:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                        ready:
+                          type: boolean
+                        namespace:
+                          type: string
+                    eso:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                        ready:
+                          type: boolean
+                        namespace:
+                          type: string

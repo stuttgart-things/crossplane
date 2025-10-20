@@ -1,0 +1,37 @@
+---
+apiVersion: config.stuttgart-things.com/v1alpha1
+kind: XVaultConfig
+metadata:
+  name: vault-config-example
+  namespace: crossplane-system
+spec:
+  name: vault-config-test
+  clusterName: "k3s-prod"
+
+  # Enable all services for comprehensive testing
+  csiEnabled: true
+  vsoEnabled: true
+  esoEnabled: true
+
+  # Use specific chart versions
+  csiChartVersion: "1.5.4"
+  vsoChartVersion: "1.0.1"
+  esoChartVersion: "0.20.3"
+
+  # Custom namespaces
+  namespaceCsi: "secrets-store-csi"
+  namespaceVso: "vault-secrets-operator"
+  namespaceEso: "external-secrets-system"
+
+  # Kubernetes Auth configurations
+  k8sAuths:
+    - name: "vault-auth-apps"
+      namespace: "applications"
+    - name: "vault-auth-platform"
+      namespace: "platform-system"
+
+  # Connection secret configuration
+  connectionSecret:
+    enabled: true
+    name: "vault-config-connection"
+    namespace: "crossplane-system"

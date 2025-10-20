@@ -1,0 +1,100 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-vault-config
+  annotations:
+    meta.crossplane.io/maintainer: Stuttgart-Things
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      This configuration provides comprehensive Vault service deployment capabilities through Crossplane
+      using KCL functions and the stuttgart-things/xplane-vault-config KCL module.
+
+      Features:
+      - Secrets Store CSI Driver for mounting external secrets as volumes
+      - Vault Secrets Operator for HashiCorp Vault integration
+      - External Secrets Operator for syncing secrets from external systems
+      - Kubernetes RBAC with ServiceAccounts, Secrets, and ClusterRoleBindings
+      - Automatic ServiceAccount JWT token extraction to connection secrets
+      - Flexible service combinations (enable/disable individual components)
+      - Configurable chart versions and namespaces
+      - KCL integration using OCI registry oci://ghcr.io/stuttgart-things/xplane-vault-config
+
+      For testing instructions, see TESTING.md in this directory.
+    meta.crossplane.io/readme: |
+      # Vault Config Configuration
+
+      This Crossplane configuration provides comprehensive Vault service deployment with:
+      - Secrets Store CSI Driver for external secret mounting
+      - Vault Secrets Operator for HashiCorp Vault integration
+      - External Secrets Operator for multi-system secret synchronization
+      - Complete Kubernetes RBAC setup with token extraction
+      - Integration with stuttgart-things/xplane-vault-config KCL module
+
+      ## Quick Start
+
+      ```bash
+      # Install the configuration
+      kubectl apply -f crossplane.yaml
+
+      # Apply XRD and Composition
+      kubectl apply -f apis/
+
+      # Deploy Vault services
+      kubectl apply -f examples/claim.yaml
+      ```
+
+      ## Testing
+
+      Use the crossplane CLI to test rendering locally:
+
+      ```bash
+      crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml
+      ```
+
+      See TESTING.md for comprehensive testing instructions.
+
+      ## Usage
+
+      Apply a VaultConfig claim:
+
+      ```yaml
+      apiVersion: config.stuttgart-things.com/v1alpha1
+      kind: VaultConfig
+      metadata:
+        name: my-vault-config
+        namespace: default
+      spec:
+        name: my-vault-setup
+        clusterName: target-cluster
+        csiEnabled: true
+        vsoEnabled: true
+        esoEnabled: false
+        namespaceCsi: "secrets-store-csi"
+        namespaceVso: "vault-secrets-operator"
+        k8sAuths:
+          - name: "vault-auth-apps"
+            namespace: "applications"
+      ```
+
+      ## Features
+
+      - **Secrets Store CSI Driver**: Mount secrets from external systems as Kubernetes volumes
+      - **Vault Secrets Operator**: Native HashiCorp Vault integration for Kubernetes
+      - **External Secrets Operator**: Sync secrets from multiple external systems
+      - **Kubernetes RBAC**: Complete ServiceAccount, Secret, and ClusterRoleBinding setup
+      - **Token Extraction**: Automatic JWT token extraction for external authentication
+      - **Flexible Configuration**: Enable/disable services independently
+      - **KCL Integration**: Uses stuttgart-things/xplane-vault-config KCL module from OCI registry
+
+spec:
+  crossplane:
+    version: ">=v1.14.0"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/function-kcl
+      version: ">=v0.9.0"
+    - provider: ghcr.io/stuttgart-things/crossplane-provider-helm
+      version: ">=v0.1.1"
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.18.0"

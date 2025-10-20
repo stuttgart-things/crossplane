@@ -1,0 +1,37 @@
+---
+apiVersion: config.stuttgart-things.com/v1alpha1
+kind: VaultConfig
+metadata:
+  name: vault-config-dev
+  namespace: development
+spec:
+  name: vault-config-dev
+  clusterName: "k3s-dev"
+
+  # Enable only CSI and ESO for development
+  csiEnabled: true
+  vsoEnabled: false
+  esoEnabled: true
+
+  # Use latest stable versions
+  csiChartVersion: "1.5.4"
+  esoChartVersion: "0.20.3"
+
+  # Development namespaces
+  namespaceCsi: "secrets-csi"
+  namespaceEso: "external-secrets"
+
+  # Single auth configuration
+  k8sAuths:
+    - name: "vault-auth-dev"
+      namespace: "development"
+
+  # Development connection secret
+  connectionSecret:
+    enabled: true
+    name: "vault-config-dev-connection"
+    namespace: "development"
+
+writeConnectionSecretToRef:
+  name: vault-dev-secrets
+  namespace: development
