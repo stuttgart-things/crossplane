@@ -133,7 +133,11 @@ kubectl describe workspace.tf.upbound.io <workspace-name>
 
 ### Check Secret Exists
 ```bash
+# Check default secret location
 kubectl get secret vault-credentials -o yaml
+
+# Check custom secret location (if using secretRef)
+kubectl get secret <custom-secret-name> -n <custom-namespace> -o yaml
 ```
 
 ### Validate Terraform Execution
