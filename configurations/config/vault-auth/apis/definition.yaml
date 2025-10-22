@@ -32,6 +32,22 @@ spec:
                   type: string
                   description: "The name of the Terraform ProviderConfig to use"
                   default: "default"
+                secretRef:
+                  type: object
+                  description: "Reference to the secret containing Vault credentials"
+                  properties:
+                    namespace:
+                      type: string
+                      description: "Namespace of the secret containing Vault credentials"
+                      default: "default"
+                    name:
+                      type: string
+                      description: "Name of the secret containing Vault credentials"
+                      default: "vault-credentials"
+                    key:
+                      type: string
+                      description: "Key in the secret containing terraform.tfvars.json"
+                      default: "terraform.tfvars.json"
                 skip_tls_verify:
                   type: boolean
                   description: "Skip TLS verification for Vault connections"
