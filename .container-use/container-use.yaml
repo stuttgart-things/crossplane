@@ -155,7 +155,8 @@ spec:
         # Load custom bashrc
         if [ -f /workdir/.bashrc_custom ]; then
             source /workdir/.bashrc_custom
-        fi  documentation:
+        fi
+  documentation:
     description: |
       Stuttgart-Things Crossplane Development Environment with unified standards compliance.
 

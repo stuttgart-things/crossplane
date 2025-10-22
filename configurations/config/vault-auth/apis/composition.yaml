@@ -118,6 +118,6 @@ spec:
               providerConfigRef:
                 name: default
 
-              writeConnectionSecretToRef:
+              writeConnectionSecretToRef:  # pragma: allowlist secret
                 namespace: {{ .observed.composite.resource.metadata.namespace | default "default" }}
                 name: {{ .observed.composite.resource.metadata.name }}-vault-auth-output

@@ -4,10 +4,10 @@ This Crossplane configuration provides comprehensive Vault service deployment ca
 
 ## Features
 
-- **Secrets Store CSI Driver**: Mount secrets from external systems as Kubernetes volumes
-- **Vault Secrets Operator**: Native HashiCorp Vault integration for Kubernetes secret management
-- **External Secrets Operator**: Sync secrets from multiple external systems (AWS, GCP, Azure, etc.)
-- **Kubernetes RBAC**: Complete ServiceAccount, Secret, and ClusterRoleBinding setup with proper permissions
+- **Secrets Store CSI Driver**: Mount secrets from external systems as Kubernetes volumes  # pragma: allowlist secret
+- **Vault Secrets Operator**: Native HashiCorp Vault integration for Kubernetes secret management  # pragma: allowlist secret
+- **External Secrets Operator**: Sync secrets from multiple external systems (AWS, GCP, Azure, etc.)  # pragma: allowlist secret
+- **Kubernetes RBAC**: Complete ServiceAccount, Secret, and ClusterRoleBinding setup with proper permissions  # pragma: allowlist secret
 - **Token Extraction**: Automatic ServiceAccount JWT token extraction to connection secrets for external authentication
 - **Flexible Configuration**: Enable/disable services independently based on requirements
 - **KCL Integration**: Uses OCI registry `oci://ghcr.io/stuttgart-things/xplane-vault-config` for module source
