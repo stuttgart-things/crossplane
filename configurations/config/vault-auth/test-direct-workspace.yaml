@@ -1,0 +1,79 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: vault-auth-claim-vault-auth
+spec:
+  forProvider:
+    source: Inline
+    module: |
+      terraform {
+        required_version = ">= 1.5.0"
+        required_providers {
+          vault = {
+            source  = "hashicorp/vault"
+            version = ">= 3.21.0"
+          }
+        }
+      }
+
+      provider "vault" {
+        address         = var.vault_addr
+        skip_tls_verify = var.skip_tls_verify
+        token           = var.vault_token
+      }
+
+      variable "cluster_name" {
+        type        = string
+        description = "The name of the Kubernetes cluster"
+      }
+
+      variable "vault_addr" {
+        type        = string
+        description = "The address of the Vault server"
+      }
+
+      variable "vault_token" {
+        type        = string
+        description = "The token for accessing the Vault server"
+      }
+
+      variable "skip_tls_verify" {
+        type        = bool
+        description = "Skip TLS verification for Vault connections"
+        default     = false
+      }
+
+      # CREATE KUBERNETES AUTH BACKENDS
+      resource "vault_auth_backend" "kubernetes_dev" {
+        type = "kubernetes"
+        path = "${var.cluster_name}-dev"
+      }
+
+      # CREATE KUBERNETES AUTH BACKEND ROLES
+      resource "vault_kubernetes_auth_backend_role" "dev" {
+        backend = vault_auth_backend.kubernetes_dev.path
+        role_name = "dev"
+        bound_service_account_names      = ["default"]
+        bound_service_account_namespaces = ["default"]
+        token_policies = ["read-all-s3-kvv2", "read-write-all-s3-kvv2"]
+        token_ttl      = 3600
+      }
+
+      output "auth_backend_path" {
+        value = vault_auth_backend.kubernetes_dev.path
+      }
+
+      output "role_name" {
+        value = vault_kubernetes_auth_backend_role.dev.role_name
+      }
+    vars:
+      - key: cluster_name
+        value: "vcluster-tink2"
+      - key: vault_addr
+        value: "https://vault.demo-infra.sthings-vsphere.labul.sva.de"
+      - key: vault_token
+        value: "hvs.EXAMPLE-TOKEN-REPLACE-WITH-REAL-VALUE"
+      - key: skip_tls_verify
+        value: "true"
+  providerConfigRef:
+    name: default

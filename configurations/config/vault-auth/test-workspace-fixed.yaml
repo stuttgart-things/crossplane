@@ -1,0 +1,63 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: test-vault-auth-workspace-fixed
+spec:
+  forProvider:
+    source: Inline
+    module: |
+      terraform {
+        required_version = ">= 1.5.0"
+        required_providers {
+          vault = {
+            source  = "hashicorp/vault"
+            version = "~> 4.4"
+          }
+        }
+      }
+
+      provider "vault" {
+        address = "https://vault-dev.tiab.ssc.sva.de"
+        token   = "hvs.test-token"
+      }
+
+      variable "cluster_name" {
+        description = "Name of the Kubernetes cluster"
+        type        = string
+        default     = "test-cluster"
+      }
+
+      # Vault Kubernetes Auth Backend
+      resource "vault_auth_backend" "test_cluster_kubernetes" {
+        type = "kubernetes"
+        path = "kubernetes-${var.cluster_name}"
+        description = "Kubernetes auth backend for ${var.cluster_name}"
+      }
+
+      # Vault Kubernetes Auth Backend Config
+      resource "vault_kubernetes_auth_backend_config" "test_cluster_config" {
+        backend                = vault_auth_backend.test_cluster_kubernetes.path
+        kubernetes_host        = "https://kubernetes.default.svc:443"
+        kubernetes_ca_cert     = file("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+        disable_iss_validation = "true"
+      }
+
+      # Service Account Role
+      resource "vault_kubernetes_auth_backend_role" "test_cluster_serviceaccount" {
+        backend                          = vault_auth_backend.test_cluster_kubernetes.path
+        role_name                       = "${var.cluster_name}-serviceaccount"
+        bound_service_account_names     = ["vault-auth"]
+        bound_service_account_namespaces = ["default"]
+        token_ttl                       = 3600
+        token_policies                  = ["default"]
+      }
+
+      output "auth_backend_path" {
+        value = vault_auth_backend.test_cluster_kubernetes.path
+      }
+
+      output "role_name" {
+        value = vault_kubernetes_auth_backend_role.test_cluster_serviceaccount.role_name
+      }
+  providerConfigRef:
+    name: default

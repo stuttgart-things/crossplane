@@ -1,0 +1,112 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: test-vault-auth-workspace
+  namespace: default
+spec:
+  forProvider:
+    module: |
+      terraform {
+        required_version = ">= 1.10.5"
+
+        required_providers {
+          vault = {
+            source  = "hashicorp/vault"
+            version = ">= 3.21.0"
+          }
+        }
+      }
+
+      provider "vault" {
+        address         = var.vault_addr
+        skip_tls_verify = var.skip_tls_verify
+        token           = var.vault_token
+      }
+
+      variable "cluster_name" {
+        type        = string
+        description = "The name of the Kubernetes cluster"
+      }
+
+      variable "vault_addr" {
+        type        = string
+        description = "The address of the Vault server"
+      }
+
+      variable "vault_token" {
+        type        = string
+        description = "The token for accessing the Vault server"
+      }
+
+      variable "skip_tls_verify" {
+        type        = bool
+        description = "Skip TLS verification for Vault connections"
+        default     = false
+      }
+
+      # CREATE KUBERNETES AUTH BACKENDS
+      resource "vault_auth_backend" "kubernetes_dev" {
+        type = "kubernetes"
+        path = "${var.cluster_name}-dev"
+      }
+      resource "vault_auth_backend" "kubernetes_cicd" {
+        type = "kubernetes"
+        path = "${var.cluster_name}-cicd"
+      }
+
+      # CREATE KUBERNETES AUTH BACKEND CONFIGS
+      resource "vault_kubernetes_auth_backend_config" "kubernetes_dev" {
+        backend                = vault_auth_backend.kubernetes_dev.path
+        kubernetes_host        = local.kubeconfig.clusters[0].cluster.server
+        kubernetes_ca_cert     = data.kubernetes_secret.vault_dev.data["ca.crt"]
+        token_reviewer_jwt     = data.kubernetes_secret.vault_dev.data.token
+        disable_iss_validation = true
+        disable_local_ca_jwt   = true
+
+        depends_on = [
+          vault_auth_backend.kubernetes_dev
+        ]
+      }
+      resource "vault_kubernetes_auth_backend_config" "kubernetes_cicd" {
+        backend                = vault_auth_backend.kubernetes_cicd.path
+        kubernetes_host        = local.kubeconfig.clusters[0].cluster.server
+        kubernetes_ca_cert     = data.kubernetes_secret.vault_cicd.data["ca.crt"]
+        token_reviewer_jwt     = data.kubernetes_secret.vault_cicd.data.token
+        disable_iss_validation = true
+        disable_local_ca_jwt   = true
+
+        depends_on = [
+          vault_auth_backend.kubernetes_cicd
+        ]
+      }
+
+      # CREATE KUBERNETES AUTH BACKEND ROLES
+      resource "vault_kubernetes_auth_backend_role" "dev" {
+        backend = vault_auth_backend.kubernetes_dev.path
+        role_name = "dev"
+        bound_service_account_names      = ["default"]
+        bound_service_account_namespaces = ["default"]
+        token_policies = ["read-all-s3-kvv2", "read-write-all-s3-kvv2"]
+        token_ttl      = 3600
+      }
+      resource "vault_kubernetes_auth_backend_role" "cicd" {
+        backend = vault_auth_backend.kubernetes_cicd.path
+        role_name = "cicd"
+        bound_service_account_names      = ["default"]
+        bound_service_account_namespaces = ["tektoncd"]
+        token_policies = ["read-all-tektoncd-kvv2"]
+        token_ttl      = 3600
+      }
+    source: Inline
+    vars:
+    - key: cluster_name
+      value: vcluster-tink1
+    - key: vault_addr
+      value: https://vault.demo-infra.sthings-vsphere.labul.sva.de
+    - key: vault_token
+      value: hvs.EXAMPLE-TOKEN-REPLACE-WITH-REAL-VALUE
+    - key: skip_tls_verify
+      value: "false"
+  writeConnectionSecretToRef:
+    name: test-vault-auth-output
+    namespace: default

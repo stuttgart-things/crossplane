@@ -1,0 +1,123 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: vault-auth-composition
+spec:
+  mode: Pipeline
+  compositeTypeRef:
+    apiVersion: vaultk8sauths.config.stuttgart-things.com/v1alpha1
+    kind: VaultK8sAuth
+  pipeline:
+    - step: render-workspace
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: tf.upbound.io/v1beta1
+            kind: Workspace
+            metadata:
+              name: {{ .observed.composite.resource.metadata.name }}-vault-auth
+              namespace: {{ .observed.composite.resource.metadata.namespace | default "default" }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: vault-workspace
+            spec:
+              forProvider:
+                source: Inline
+                module: |
+                  terraform {
+                    required_version = ">= 1.5.0"
+
+                    required_providers {
+                      vault = {
+                        source  = "hashicorp/vault"
+                        version = ">= 3.21.0"
+                      }
+                    }
+                  }
+
+                  provider "vault" {
+                    address         = var.vault_addr
+                    skip_tls_verify = var.skip_tls_verify
+                    token           = var.vault_token
+                  }
+
+                  variable "cluster_name" {
+                    type        = string
+                    description = "The name of the Kubernetes cluster"
+                  }
+
+                  variable "vault_addr" {
+                    type        = string
+                    description = "The address of the Vault server"
+                  }
+
+                  variable "vault_token" {
+                    type        = string
+                    description = "The token for accessing the Vault server"
+                  }
+
+                  variable "skip_tls_verify" {
+                    type        = bool
+                    description = "Skip TLS verification for Vault connections"
+                    default     = false
+                  }
+
+                  # CREATE KUBERNETES AUTH BACKENDS
+                  {{- range $auth := .observed.composite.resource.spec.k8s_auths }}
+                  resource "vault_auth_backend" "kubernetes_{{ $auth.name }}" {
+                    type = "kubernetes"
+                    path = "${var.cluster_name}-{{ $auth.name }}"
+                  }
+
+                  {{- end }}
+
+                  # CREATE KUBERNETES AUTH BACKEND CONFIGS
+                  {{- range $auth := .observed.composite.resource.spec.k8s_auths }}
+                  resource "vault_kubernetes_auth_backend_config" "kubernetes_{{ $auth.name }}" {
+                    backend                = vault_auth_backend.kubernetes_{{ $auth.name }}.path
+                    kubernetes_host        = local.kubeconfig.clusters[0].cluster.server
+                    kubernetes_ca_cert     = data.kubernetes_secret.vault_{{ $auth.name }}.data["ca.crt"]
+                    token_reviewer_jwt     = data.kubernetes_secret.vault_{{ $auth.name }}.data.token
+                    disable_iss_validation = true
+                    disable_local_ca_jwt   = true
+
+                    depends_on = [
+                      vault_auth_backend.kubernetes_{{ $auth.name }}
+                    ]
+                  }
+
+                  {{- end }}
+
+                  # CREATE KUBERNETES AUTH BACKEND ROLES
+                  {{- range $auth := .observed.composite.resource.spec.k8s_auths }}
+                  resource "vault_kubernetes_auth_backend_role" "{{ $auth.name }}" {
+                    backend = vault_auth_backend.kubernetes_{{ $auth.name }}.path
+                    role_name = "{{ $auth.name }}"
+                    bound_service_account_names      = ["default"]
+                    bound_service_account_namespaces = ["{{ $auth.namespace }}"]
+                    token_policies = [{{- range $i, $p := $auth.token_policies }}{{ if $i }}, {{ end }}"{{ $p }}"{{ end }}]
+                    token_ttl      = {{ $auth.token_ttl }}
+                  }
+
+                  {{- end }}
+
+                vars:
+                  - key: cluster_name
+                    value: "{{ .observed.composite.resource.spec.cluster_name }}"
+                  - key: vault_addr
+                    value: "{{ .observed.composite.resource.spec.vault_addr }}"
+                  - key: vault_token
+                    value: "{{ .observed.composite.resource.spec.vault_token }}"
+                  - key: skip_tls_verify
+                    value: "{{ .observed.composite.resource.spec.skip_tls_verify | default false }}"
+              providerConfigRef:
+                name: default
+
+              writeConnectionSecretToRef:
+                namespace: {{ .observed.composite.resource.metadata.namespace | default "default" }}
+                name: {{ .observed.composite.resource.metadata.name }}-vault-auth-output

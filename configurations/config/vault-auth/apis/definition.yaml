@@ -1,0 +1,57 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: vaultk8sauths.config.stuttgart-things.com
+spec:
+  group: config.stuttgart-things.com
+  names:
+    kind: VaultK8sAuth
+    plural: vaultk8sauths
+  claimNames:
+    kind: VaultK8sAuthClaim
+    plural: vaultk8sauthclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                cluster_name:
+                  type: string
+                  description: "The name of the Kubernetes cluster"
+                vault_addr:
+                  type: string
+                  description: "The address of the Vault server"
+                vault_token:
+                  type: string
+                  description: "The token for accessing the Vault server"
+                skip_tls_verify:
+                  type: boolean
+                  description: "Skip TLS verification for Vault connections"
+                  default: false
+                k8s_auths:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      token_policies:
+                        type: array
+                        items:
+                          type: string
+                      token_ttl:
+                        type: integer
+              required:
+                - cluster_name
+                - vault_addr
+                - vault_token
+                - k8s_auths

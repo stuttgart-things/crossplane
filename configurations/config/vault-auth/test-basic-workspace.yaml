@@ -1,0 +1,35 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: test-terraform-basic
+spec:
+  forProvider:
+    source: Inline
+    module: |
+      terraform {
+        required_version = ">= 1.5.0"
+      }
+
+      variable "test_string" {
+        description = "Test string variable"
+        type        = string
+        default     = "hello-world"
+      }
+
+      # Simple local value
+      locals {
+        formatted_string = "test-${var.test_string}"
+      }
+
+      # Output the formatted string
+      output "formatted_output" {
+        value = local.formatted_string
+        description = "Formatted test output"
+      }
+
+      output "test_string_upper" {
+        value = upper(var.test_string)
+        description = "Test string in uppercase"
+      }
+  providerConfigRef:
+    name: default

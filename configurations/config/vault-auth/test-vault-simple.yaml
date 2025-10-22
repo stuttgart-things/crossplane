@@ -1,0 +1,74 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: test-vault-auth-v2
+spec:
+  forProvider:
+    source: Inline
+    module: |
+      terraform {
+        required_version = ">= 1.5.0"
+        required_providers {
+          vault = {
+            source  = "hashicorp/vault"
+            version = "~> 4.4"
+          }
+        }
+      }
+
+      # Use environment variables for Vault connection
+      # This allows testing without hardcoded credentials
+      provider "vault" {
+        # Will use VAULT_ADDR and VAULT_TOKEN env vars
+        # or we can set them via vars
+        address = var.vault_addr
+        token   = var.vault_token
+        skip_child_token = true
+      }
+
+      variable "vault_addr" {
+        description = "Vault server address"
+        type        = string
+        default     = "http://localhost:8200"
+      }
+
+      variable "vault_token" {
+        description = "Vault token"
+        type        = string
+        default     = "dev-token"
+      }
+
+      variable "cluster_name" {
+        description = "Name of the Kubernetes cluster"
+        type        = string
+        default     = "test-cluster"
+      }
+
+      # Simple test - create a KV secret first
+      resource "vault_mount" "kv" {
+        path        = "${var.cluster_name}-kv"
+        type        = "kv-v2"
+        description = "KV store for ${var.cluster_name}"
+      }
+
+      # Create a simple secret
+      resource "vault_kv_secret_v2" "test" {
+        mount               = vault_mount.kv.path
+        name                = "test-secret"
+        cas                 = 1
+        delete_all_versions = true
+        data_json = jsonencode({
+          cluster = var.cluster_name
+          created = timestamp()
+        })
+      }
+
+      output "kv_mount_path" {
+        value = vault_mount.kv.path
+      }
+
+      output "secret_name" {
+        value = vault_kv_secret_v2.test.name
+      }
+  providerConfigRef:
+    name: default
