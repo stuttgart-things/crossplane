@@ -32,11 +32,19 @@ spec:
       value: "v4.44.3"
     - name: "KCL_VERSION"
       value: "v0.11.3"
+    - name: "GO_VERSION"
+      value: "1.23"
+    - name: "GOPATH"
+      value: "/workdir/go"
+    - name: "GOROOT"
+      value: "/usr/lib/go"
+    - name: "PATH"
+      value: "/usr/local/bin:/usr/bin:/bin:/workdir/go/bin:/usr/lib/go/bin"
 
   # Setup commands executed during container initialization
   setupCommands:
-    # Alpine packages
-    - "apk add --no-cache curl git wget jq vim nano ca-certificates gnupg unzip bash docker-cli yq"
+    # Alpine packages with Python for pre-commit
+    - "apk add --no-cache curl git wget jq vim nano ca-certificates gnupg unzip bash docker-cli yq python3 py3-pip python3-dev gcc musl-dev"
 
     # Install Crossplane CLI
     - "curl -sL \"https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh\" | sh && mv crossplane /usr/local/bin/"
@@ -53,15 +61,30 @@ spec:
     - "curl -fsSL https://kcl-lang.io/script/install-kcl.sh | bash"
     - "ln -sf /root/.kcl/bin/kcl /usr/local/bin/kcl"
 
+    # Install pre-commit for code quality
+    - "pip3 install pre-commit detect-secrets"
+
+    # Install Go for function-go-templating development
+    - "apk add --no-cache go"
+
+    # Install task runner (go-task) for Taskfile execution
+    - "curl -sL https://taskfile.dev/install.sh | sh && mv bin/task /usr/local/bin/"
+
     # Create directories
     - "mkdir -p /workdir/.kube"
     - "mkdir -p /workdir/tmp"
+    - "mkdir -p /workdir/go/bin"
+    - "mkdir -p /workdir/go/src"
+    - "mkdir -p /workdir/go/pkg"
 
     # Git configuration aligned with Stuttgart-Things standards
     - "git config --global user.name 'Stuttgart-Things Container User'"
     - "git config --global user.email 'container@stuttgart-things.com'"
     - "git config --global init.defaultBranch main"
     - "git config --global pull.rebase false"
+
+    # Setup pre-commit in the repository
+    - "cd /workdir && if [ -f .pre-commit-config.yaml ]; then pre-commit install; fi"
 
   # Services to run alongside the development environment
   services:
@@ -86,6 +109,12 @@ spec:
     - name: "xp-push"
       command: "crossplane xpkg push"
 
+    # Function-go-templating specific
+    - name: "xp-test-template"
+      command: "crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml --include-function-results"
+    - name: "xp-validate"
+      command: "crossplane xpkg build --verbose"
+
     # Kubectl shortcuts
     - name: "k"
       command: "kubectl"
@@ -93,18 +122,44 @@ spec:
       command: "kubectl get"
     - name: "kd"
       command: "kubectl describe"
+
+    # Pre-commit and quality shortcuts
+    - name: "pc"
+      command: "pre-commit"
+    - name: "pc-run"
+      command: "pre-commit run --all-files"
+    - name: "pc-install"
+      command: "pre-commit install"
+
+    # Task runner shortcuts
+    - name: "t"
+      command: "task"
+    - name: "tc"
+      command: "task commit"
+    - name: "tcheck"
+      command: "task check"
     - name: "ka"
       command: "kubectl apply"
 
     # Stuttgart-Things development shortcuts aligned with unified standards
     - name: "cu-test-vault-config"
       command: "cd /workdir/configurations/config/vault-config && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
+    - name: "cu-test-vault-auth"
+      command: "cd /workdir/configurations/config/vault-auth && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml --include-function-results"
     - name: "cu-test-vcluster"
       command: "cd /workdir/configurations/apps/vcluster && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
     - name: "cu-test-ansible-run"
       command: "cd /workdir/configurations/apps/ansible-run && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml"
     - name: "cu-test-all"
       command: "echo 'Testing all configurations...' && for config in /workdir/configurations/*/*/; do echo \"Testing $config\"; cd \"$config\" && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml; done"
+
+    # Quality and pre-commit tasks
+    - name: "cu-check"
+      command: "cd /workdir && task check"
+    - name: "cu-commit"
+      command: "cd /workdir && task commit"
+    - name: "cu-pr"
+      command: "cd /workdir && task pr"
 
   # Files to be created/copied during initialization
   files:
@@ -125,11 +180,45 @@ spec:
         alias xp-build='crossplane xpkg build'
         alias xp-push='crossplane xpkg push'
 
+        # Function-go-templating specific
+        alias xp-test='crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml --include-function-results'
+        alias xp-validate='crossplane xpkg build --verbose'
+
         # Kubectl aliases
         alias k='kubectl'
         alias kg='kubectl get'
         alias kd='kubectl describe'
         alias ka='kubectl apply'
+
+        # Pre-commit and quality
+        alias pc='pre-commit'
+        alias pc-run='pre-commit run --all-files'
+        alias pc-install='pre-commit install'
+
+        # Task runner aliases
+        alias t='task'
+        alias tc='task commit'
+        alias tcheck='task check'
+
+        # Go environment
+        export GOPATH=/workdir/go
+        export GOROOT=/usr/lib/go
+        export PATH=$PATH:$GOPATH/bin:$GOROOT/bin
+
+        # Stuttgart-Things specific shortcuts
+        alias cu-test-vault-auth='cd /workdir/configurations/config/vault-auth && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml --include-function-results'
+        alias cu-check='cd /workdir && task check'
+        alias cu-commit='cd /workdir && task commit'
+
+        # Function to quickly test a specific configuration
+        test-config() {
+          if [ -z "$1" ]; then
+            echo "Usage: test-config <config-path>"
+            echo "Example: test-config configurations/config/vault-auth"
+            return 1
+          fi
+          cd "/workdir/$1" && crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml --include-function-results
+        }
 
         # Git aliases
         alias gs='git status'
