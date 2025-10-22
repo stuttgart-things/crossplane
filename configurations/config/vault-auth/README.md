@@ -147,9 +147,11 @@ kubectl logs -l app.kubernetes.io/name=provider-terraform
 
 ### Common Issues
 
-1. **Secret not found**: Ensure `vault-credentials` secret exists in the correct namespace
+1. **Secret not found**: Ensure the secret exists in the correct namespace (check `secretRef` configuration)
 2. **Invalid token**: Verify the Vault token has sufficient permissions  # pragma: allowlist secret
 3. **TLS errors**: Set `skip_tls_verify: true` for self-signed certificates
+4. **Wrong secret key**: Verify the `secretRef.key` points to the correct key containing terraform.tfvars.json
+5. **Namespace access**: Ensure Crossplane can access secrets in the specified `secretRef.namespace`
 
 ## Advanced Configuration
 
