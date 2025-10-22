@@ -151,6 +151,56 @@ kubectl logs -l app.kubernetes.io/name=provider-terraform
 
 ### Custom ProviderConfig
 
+For environment-specific configurations, you can use custom ProviderConfigs:
+
+```yaml
+spec:
+  providerConfigRef: "production-terraform-config"
+  cluster_name: "prod-cluster"
+  # ... rest of config
+```
+
+This enables:
+- Different state backends per environment
+- Custom Terraform configurations  
+- Multi-tenant ProviderConfig separation
+- Environment-specific provider settings
+
+### Custom Secret Reference
+
+By default, the composition looks for `vault-credentials` secret in the claim's namespace. You can customize this:
+
+```yaml
+spec:
+  cluster_name: "production-cluster"
+  vault_addr: "https://vault.production.com"
+  
+  # Custom secret reference
+  secretRef:
+    namespace: "vault-secrets"        # Different namespace
+    name: "production-credentials"    # Different secret name  
+    key: "terraform.tfvars.json"     # Different key (optional)
+  
+  k8s_auths:
+    - name: "workload-identity"
+      # ... rest of config
+```
+
+**Use cases for custom secret references:**
+- **Multi-namespace deployments**: Secrets in dedicated namespaces
+- **Environment separation**: Different secrets per environment
+- **Security policies**: Namespace-based access controls
+- **Migration scenarios**: Gradual secret name changes
+
+**Default values:**
+- `namespace`: Same as claim namespace (or "default")
+- `name`: "vault-credentials"  
+- `key`: "terraform.tfvars.json"
+
+## Troubleshooting
+
+### Custom ProviderConfig
+
 You can specify a custom Terraform ProviderConfig for different environments:
 
 ```yaml
