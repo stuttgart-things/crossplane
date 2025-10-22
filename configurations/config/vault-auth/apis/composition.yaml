@@ -117,9 +117,9 @@ spec:
                 varFiles:
                   - source: SecretKey
                     secretKeyRef:
-                      namespace: {{ .observed.composite.resource.metadata.namespace | default "default" }}
-                      name: vault-credentials
-                      key: terraform.tfvars.json
+                      namespace: {{ .observed.composite.resource.spec.secretRef.namespace | default "default" }}
+                      name: {{ .observed.composite.resource.spec.secretRef.name | default "vault-credentials" }}
+                      key: {{ .observed.composite.resource.spec.secretRef.key | default "terraform.tfvars.json" }}
                     format: JSON
               providerConfigRef:
                 name: {{ .observed.composite.resource.spec.providerConfigRef | default "default" }}
