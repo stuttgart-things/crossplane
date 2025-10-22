@@ -303,8 +303,8 @@ spec:
     vaultAddress: "http://vault.vault.svc.cluster.local:8200"
     roleName: "test-role"
     objects: |
-      - objectName: "test-secret"
-        secretPath: "secret/test"
+      - objectName: "test-secret"  # pragma: allowlist secret
+        secretPath: "secret/test"  # pragma: allowlist secret
         secretKey: "value"
 EOF
 

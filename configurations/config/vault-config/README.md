@@ -469,10 +469,10 @@ spec:
     roleName: "database-role"
     objects: |
       - objectName: "database-username"
-        secretPath: "secret/database"
-        secretKey: "username"
+        secretPath: "secret/database"  # pragma: allowlist secret
+        secretKey: "username"  # pragma: allowlist secret
       - objectName: "database-password"
-        secretPath: "secret/database"
+        secretPath: "secret/database"  # pragma: allowlist secret
         secretKey: "password"
   secretObjects:
     - secretName: database-credentials

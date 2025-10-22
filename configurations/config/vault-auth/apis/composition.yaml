@@ -43,7 +43,7 @@ spec:
                   provider "vault" {
                     address         = var.vault_addr
                     skip_tls_verify = var.skip_tls_verify
-                    token           = var.vault_token
+                    token           = var.vault_token  # pragma: allowlist secret
                   }
 
                   variable "cluster_name" {
@@ -56,9 +56,9 @@ spec:
                     description = "The address of the Vault server"
                   }
 
-                  variable "vault_token" {
+                  variable "vault_token" {  # pragma: allowlist secret
                     type        = string
-                    description = "The token for accessing the Vault server"
+                    description = "The token for accessing the Vault server"  # pragma: allowlist secret
                   }
 
                   variable "skip_tls_verify" {
@@ -82,7 +82,7 @@ spec:
                     backend                = vault_auth_backend.kubernetes_{{ $auth.name }}.path
                     kubernetes_host        = local.kubeconfig.clusters[0].cluster.server
                     kubernetes_ca_cert     = data.kubernetes_secret.vault_{{ $auth.name }}.data["ca.crt"]
-                    token_reviewer_jwt     = data.kubernetes_secret.vault_{{ $auth.name }}.data.token
+                    token_reviewer_jwt     = data.kubernetes_secret.vault_{{ $auth.name }}.data.token  # pragma: allowlist secret
                     disable_iss_validation = true
                     disable_local_ca_jwt   = true
 
@@ -100,8 +100,8 @@ spec:
                     role_name = "{{ $auth.name }}"
                     bound_service_account_names      = ["default"]
                     bound_service_account_namespaces = ["{{ $auth.namespace }}"]
-                    token_policies = [{{- range $i, $p := $auth.token_policies }}{{ if $i }}, {{ end }}"{{ $p }}"{{ end }}]
-                    token_ttl      = {{ $auth.token_ttl }}
+                    token_policies = [{{- range $i, $p := $auth.token_policies }}{{ if $i }}, {{ end }}"{{ $p }}"{{ end }}]  # pragma: allowlist secret
+                    token_ttl      = {{ $auth.token_ttl }}  # pragma: allowlist secret
                   }
 
                   {{- end }}
@@ -111,8 +111,8 @@ spec:
                     value: "{{ .observed.composite.resource.spec.cluster_name }}"
                   - key: vault_addr
                     value: "{{ .observed.composite.resource.spec.vault_addr }}"
-                  - key: vault_token
-                    value: "{{ .observed.composite.resource.spec.vault_token }}"
+                  - key: vault_token  # pragma: allowlist secret
+                    value: "{{ .observed.composite.resource.spec.vault_token }}"  # pragma: allowlist secret
                   - key: skip_tls_verify
                     value: "{{ .observed.composite.resource.spec.skip_tls_verify | default false }}"
               providerConfigRef:
