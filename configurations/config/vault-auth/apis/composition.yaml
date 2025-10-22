@@ -122,7 +122,7 @@ spec:
                       key: terraform.tfvars.json
                     format: JSON
               providerConfigRef:
-                name: default
+                name: {{ .observed.composite.resource.spec.providerConfigRef | default "default" }}
 
               writeConnectionSecretToRef:  # pragma: allowlist secret
                 namespace: {{ .observed.composite.resource.metadata.namespace | default "default" }}

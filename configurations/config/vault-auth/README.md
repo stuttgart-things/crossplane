@@ -56,7 +56,7 @@ kubectl apply -f examples/claim.yaml
 # Check the workspace status
 kubectl get workspace.tf.upbound.io
 
-# Check the claim status  
+# Check the claim status
 kubectl get vaultk8sauth
 ```
 
@@ -74,6 +74,9 @@ spec:
     name: vault-auth-composition
   cluster_name: "my-cluster"
   vault_addr: "https://vault.example.com:8200"
+  # Optional: specify custom ProviderConfig (defaults to "default")
+  providerConfigRef: "custom-terraform-config"
+  skip_tls_verify: false
   k8s_auths:
     - name: dev
       namespace: default
@@ -118,7 +121,7 @@ The Vault credentials must be provided as JSON in the secret:
 For each auth backend in `k8s_auths`, the composition creates:
 
 1. **vault_auth_backend** - Kubernetes auth method
-2. **vault_kubernetes_auth_backend_config** - Connection configuration  
+2. **vault_kubernetes_auth_backend_config** - Connection configuration
 3. **vault_kubernetes_auth_backend_role** - Service account roles
 
 ## Troubleshooting
@@ -146,6 +149,40 @@ kubectl logs -l app.kubernetes.io/name=provider-terraform
 
 ## Advanced Configuration
 
+### Custom ProviderConfig
+
+You can specify a custom Terraform ProviderConfig for different environments:
+
+```yaml
+apiVersion: config.stuttgart-things.com/v1alpha1
+kind: VaultK8sAuth
+metadata:
+  name: vault-auth-production
+spec:
+  cluster_name: "prod-cluster"
+  vault_addr: "https://vault-prod.example.com:8200"
+  providerConfigRef: "production-terraform-config"  # Custom ProviderConfig
+  k8s_auths: [...]
+```
+
+Create a custom ProviderConfig with different state backend or configuration:
+
+```yaml
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: production-terraform-config
+spec:
+  configuration: |
+    terraform {
+      backend "kubernetes" {
+        secret_suffix    = "providerconfig-production"
+        namespace        = "terraform-system"
+        in_cluster_config = true
+      }
+    }
+```
+
 ### Custom Secret Name/Namespace
 
 You can customize the secret reference in the composition:
@@ -170,7 +207,7 @@ kubectl create secret generic vault-dev-credentials \
   --from-literal='terraform.tfvars.json={"vault_token":"hvs.dev-token"}' \
   --namespace default
 
-# Production  
+# Production
 kubectl create secret generic vault-prod-credentials \
   --from-literal='terraform.tfvars.json={"vault_token":"hvs.prod-token"}' \
   --namespace production

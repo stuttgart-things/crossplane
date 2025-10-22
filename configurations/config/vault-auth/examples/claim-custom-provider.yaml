@@ -1,0 +1,21 @@
+---
+apiVersion: config.stuttgart-things.com/v1alpha1
+kind: VaultK8sAuth
+metadata:
+  name: vault-auth-custom-provider
+spec:
+  compositionRef:
+    name: vault-auth-composition
+  cluster_name: "production-cluster"
+  vault_addr: "https://vault-prod.example.com:8200"
+  providerConfigRef: "production-terraform-config"
+  skip_tls_verify: false
+  k8s_auths:
+    - name: production
+      namespace: production
+      token_policies: ["prod-read-policy", "prod-write-policy"]  # pragma: allowlist secret
+      token_ttl: 1800  # pragma: allowlist secret
+    - name: monitoring
+      namespace: monitoring
+      token_policies: ["metrics-read-policy"]  # pragma: allowlist secret
+      token_ttl: 3600  # pragma: allowlist secret

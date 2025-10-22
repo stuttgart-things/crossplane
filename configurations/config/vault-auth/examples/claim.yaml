@@ -8,6 +8,7 @@ spec:
     name: vault-auth-composition
   cluster_name: "vcluster-tink2"
   vault_addr: "https://vault.demo-infra.sthings-vsphere.labul.sva.de"
+  # providerConfigRef: "custom-terraform-config"  # Optional: use custom ProviderConfig
   k8s_auths:
     - name: dev
       namespace: default

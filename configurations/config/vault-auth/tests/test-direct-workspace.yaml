@@ -73,7 +73,7 @@ spec:
         value: "https://vault.demo-infra.sthings-vsphere.labul.sva.de"
       - key: skip_tls_verify
         value: "true"
-    
+
     varFiles:
       - source: SecretKey
         secretKeyRef:
