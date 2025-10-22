@@ -8,7 +8,6 @@ spec:
     name: vault-auth-composition
   cluster_name: "vcluster-tink2"
   vault_addr: "https://vault.demo-infra.sthings-vsphere.labul.sva.de"
-  vault_token: "hvs.EXAMPLE-TOKEN-REPLACE-WITH-REAL-VALUE"
   k8s_auths:
     - name: dev
       namespace: default

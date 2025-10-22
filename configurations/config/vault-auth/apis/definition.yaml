@@ -28,9 +28,6 @@ spec:
                 vault_addr:
                   type: string
                   description: "The address of the Vault server"
-                vault_token:
-                  type: string
-                  description: "The token for accessing the Vault server"
                 skip_tls_verify:
                   type: boolean
                   description: "Skip TLS verification for Vault connections"
@@ -44,14 +41,13 @@ spec:
                         type: string
                       namespace:
                         type: string
-                      token_policies:
+                      token_policies:  # pragma: allowlist secret
                         type: array
                         items:
                           type: string
-                      token_ttl:
+                      token_ttl:  # pragma: allowlist secret
                         type: integer
               required:
                 - cluster_name
                 - vault_addr
-                - vault_token
                 - k8s_auths

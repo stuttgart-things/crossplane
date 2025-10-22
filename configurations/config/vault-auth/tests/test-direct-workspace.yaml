@@ -71,9 +71,15 @@ spec:
         value: "vcluster-tink2"
       - key: vault_addr
         value: "https://vault.demo-infra.sthings-vsphere.labul.sva.de"
-      - key: vault_token
-        value: "hvs.EXAMPLE-TOKEN-REPLACE-WITH-REAL-VALUE"
       - key: skip_tls_verify
         value: "true"
+    
+    varFiles:
+      - source: SecretKey
+        secretKeyRef:
+          namespace: default
+          name: vault-credentials
+          key: terraform.tfvars.json
+        format: JSON
   providerConfigRef:
     name: default

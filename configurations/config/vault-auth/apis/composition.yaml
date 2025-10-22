@@ -111,10 +111,16 @@ spec:
                     value: "{{ .observed.composite.resource.spec.cluster_name }}"
                   - key: vault_addr
                     value: "{{ .observed.composite.resource.spec.vault_addr }}"
-                  - key: vault_token  # pragma: allowlist secret
-                    value: "{{ .observed.composite.resource.spec.vault_token }}"  # pragma: allowlist secret
                   - key: skip_tls_verify
                     value: "{{ .observed.composite.resource.spec.skip_tls_verify | default false }}"
+
+                varFiles:
+                  - source: SecretKey
+                    secretKeyRef:
+                      namespace: {{ .observed.composite.resource.metadata.namespace | default "default" }}
+                      name: vault-credentials
+                      key: terraform.tfvars.json
+                    format: JSON
               providerConfigRef:
                 name: default
 
