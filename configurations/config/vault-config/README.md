@@ -474,8 +474,8 @@ spec:
       - objectName: "database-password"
         secretPath: "secret/database"  # pragma: allowlist secret
         secretKey: "password"
-  secretObjects:
-    - secretName: database-credentials
+  secretObjects:  # pragma: allowlist secret
+    - secretName: database-credentials  # pragma: allowlist secret
       type: Opaque
       data:
         - objectName: database-username

@@ -305,7 +305,7 @@ spec:
     objects: |
       - objectName: "test-secret"  # pragma: allowlist secret
         secretPath: "secret/test"  # pragma: allowlist secret
-        secretKey: "value"
+        secretKey: "value"  # pragma: allowlist secret
 EOF
 
 # Check if SPC is created successfully
