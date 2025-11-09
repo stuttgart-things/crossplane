@@ -1,0 +1,28 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: vcluster
+  labels:
+    provider-helm: "true"
+    provider-kubernetes: "true"
+    service: vcluster
+spec:
+  compositeTypeRef:
+    apiVersion: vcluster.stuttgart-things.com/v1alpha1
+    kind: XVcluster
+  mode: Pipeline
+  pipeline:
+  - step: vcluster
+    functionRef:
+      name: function-kcl
+    input:
+      apiVersion: krm.kcl.dev/v1alpha1
+      kind: KCLInput
+      metadata:
+        name: vcluster
+      spec:
+        source: oci://ghcr.io/stuttgart-things/xplane-vcluster:0.29.6
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: function-auto-ready

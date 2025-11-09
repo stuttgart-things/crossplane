@@ -122,6 +122,126 @@ tasks:
 
 
 
+  merge-environment:
+    desc: Merge container-use environment into main branch
+    cmds:
+      - |
+        echo "Available environments:"
+        ENVIRONMENTS=$(container-use list | tail -n +2 | awk '{print $1}' | grep -v "^$")
+        if [ -z "$ENVIRONMENTS" ]; then
+          echo "No environments found. Please create an environment first."
+          exit 1
+        fi
+
+        echo "$ENVIRONMENTS"
+        echo ""
+        echo "Enter environment ID to merge:"
+        read ENV_ID
+
+        if [ -z "$ENV_ID" ]; then
+          echo "No environment ID provided. Exiting."
+          exit 1
+        fi
+
+        echo "Merging environment: $ENV_ID"
+
+        # Checkout environment
+        container-use checkout $ENV_ID
+
+        # Check status
+        echo "Environment status:"
+        git status
+
+        # Switch to main and merge
+        git checkout main
+        git merge cu-$ENV_ID
+
+        # Push changes
+        git push origin main
+
+        echo "✅ Environment $ENV_ID successfully merged into main!"
+        echo ""
+        echo "🔍 View logs: container-use log $ENV_ID"
+        echo "🏗️  Checkout: container-use checkout $ENV_ID"
+
+  merge-environment-auto:
+    desc: Merge specific container-use environment into main (with ENV_ID parameter)
+    cmds:
+      - |
+        if [ -z "{{ .ENV_ID }}" ]; then
+          echo "❌ Error: ENV_ID not provided"
+          echo "Usage: task merge-environment-auto ENV_ID=your-env-id"
+          exit 1
+        fi
+
+        echo "🔄 Merging environment: {{ .ENV_ID }}"
+
+        # Checkout environment
+        container-use checkout {{ .ENV_ID }}
+
+        # Check status
+        echo "📊 Environment status:"
+        git status
+
+        # Switch to main and merge
+        echo "🔀 Switching to main and merging..."
+        git checkout main
+        git merge cu-{{ .ENV_ID }}
+
+        # Push changes
+        echo "🚀 Pushing changes..."
+        git push origin main
+
+        echo "✅ Environment {{ .ENV_ID }} successfully merged into main!"
+        echo ""
+        echo "🔍 View logs: container-use log {{ .ENV_ID }}"
+        echo "🏗️  Checkout: container-use checkout {{ .ENV_ID }}"
+    vars:
+      ENV_ID: '{{ .ENV_ID | default "" }}'
+
+  merge-environment-pr:
+    desc: Merge container-use environment via Pull Request
+    cmds:
+      - |
+        echo "Available environments:"
+        ENVIRONMENTS=$(container-use list | tail -n +2 | awk '{print $1}' | grep -v "^$")
+        if [ -z "$ENVIRONMENTS" ]; then
+          echo "No environments found. Please create an environment first."
+          exit 1
+        fi
+
+        echo "$ENVIRONMENTS"
+        echo ""
+        echo "Enter environment ID for PR:"
+        read ENV_ID
+
+        if [ -z "$ENV_ID" ]; then
+          echo "No environment ID provided. Exiting."
+          exit 1
+        fi
+
+        echo "Creating PR for environment: $ENV_ID"
+
+        # Checkout environment
+        container-use checkout $ENV_ID
+
+        # Create PR title and body
+        TITLE="feat: merge container-use environment $ENV_ID"
+        BODY="Automated merge of container-use environment: $ENV_ID
+
+        Environment Changes:
+        - $(git log --oneline cu-$ENV_ID ^main | head -5)
+
+        🔍 View logs: \`container-use log $ENV_ID\`
+        🏗️  Checkout: \`container-use checkout $ENV_ID\`"
+
+        # Create PR from environment branch to main
+        gh pr create --base main --head cu-$ENV_ID --title "$TITLE" --body "$BODY"
+
+        echo "✅ Pull Request created successfully!"
+        echo "🔍 View logs: container-use log $ENV_ID"
+        echo "🏗️  Checkout: container-use checkout $ENV_ID"
+
   do:
     desc: Select a task to run
     cmds:

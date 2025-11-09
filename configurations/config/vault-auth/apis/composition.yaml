@@ -17,7 +17,7 @@ spec:
         kind: GoTemplate
         source: Inline
         inline:
-          template: |
+          template: | # pragma: allowlist secret
             apiVersion: tf.upbound.io/v1beta1
             kind: Workspace
             metadata:

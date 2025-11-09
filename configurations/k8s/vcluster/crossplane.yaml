@@ -1,0 +1,19 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: vcluster
+  annotations:
+    meta.crossplane.io/maintainer: patrick.hermann@sva.de
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      deploys vcluster + provider config
+    meta.crossplane.io/readme: |
+      deploys vcluster + provider config
+spec:
+  crossplane:
+    version: ">=v1.19.1-0"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.17.1"
