@@ -1,0 +1,53 @@
+---
+apiVersion: vcluster.stuttgart-things.com/v1alpha1
+kind: Vcluster
+metadata:
+  name: vcluster-k3s-tink5
+  namespace: default
+spec:
+  # Basic configuration
+  name: vcluster-k3s-tink5
+  version: "0.29.0"
+  chartName: vcluster
+  repository: https://charts.loft.sh
+  clusterName: k3s-tink1
+  targetNamespace: vcluster-k3s-tink5
+
+  # VCluster specific configuration
+  storageClass: local-path
+  bindAddress: 0.0.0.0
+  proxyPort: 8443
+  nodePort: 32755
+  extraSANs:
+  - test-k3s1.labul.sva.de
+  - 10.31.103.23
+  - localhost
+  serverUrl: https://10.31.103.23:32755
+
+  # Additional secrets for Crossplane
+  additionalSecrets:
+  - name: vc-vcluster-k3s-tink5-crossplane
+    namespace: vcluster-k3s-tink5
+    context: vcluster-crossplane-context
+    server: https://10.31.103.23:32755
+
+  # Connection secret configuration
+  connectionSecret:
+    enabled: true
+    name: vcluster-k3s-tink5-connection
+    namespace: crossplane-system
+    vclusterSecretName: vc-vcluster-k3s-tink5
+    vclusterSecretNamespace: vcluster-k3s-tink5
+
+  # PushSecret configuration
+  pushSecret:
+    enabled: true
+    name: pushsecret-vcluster-k3s-tink5
+    namespace: default
+    clusterName: in-cluster
+    secretStoreRef: vault-backend-kubeconfigs
+    refreshInterval: 1m
+
+  # ProviderConfig configuration
+  providerConfig:
+    clusterName: in-cluster

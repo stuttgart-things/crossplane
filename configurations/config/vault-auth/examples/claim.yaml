@@ -9,13 +9,13 @@ spec:
   cluster_name: "vcluster-tink2"
   vault_addr: "https://vault.demo-infra.sthings-vsphere.labul.sva.de"
   # providerConfigRef: "custom-terraform-config"  # Optional: use custom ProviderConfig
-  
+
   # Optional: Custom secret reference (defaults to vault-credentials in current namespace)
   # secretRef:
   #   namespace: "vault-secrets"
   #   name: "custom-vault-credentials"
   #   key: "terraform.tfvars.json"
-  
+
   k8s_auths:
     - name: dev
       namespace: default

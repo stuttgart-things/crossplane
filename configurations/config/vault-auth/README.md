@@ -168,7 +168,7 @@ spec:
 
 This enables:
 - Different state backends per environment
-- Custom Terraform configurations  
+- Custom Terraform configurations
 - Multi-tenant ProviderConfig separation
 - Environment-specific provider settings
 
@@ -180,13 +180,13 @@ By default, the composition looks for `vault-credentials` secret in the claim's 
 spec:
   cluster_name: "production-cluster"
   vault_addr: "https://vault.production.com"
-  
+
   # Custom secret reference
   secretRef:
     namespace: "vault-secrets"        # Different namespace
-    name: "production-credentials"    # Different secret name  
+    name: "production-credentials"    # Different secret name
     key: "terraform.tfvars.json"     # Different key (optional)
-  
+
   k8s_auths:
     - name: "workload-identity"
       # ... rest of config
@@ -200,7 +200,7 @@ spec:
 
 **Default values:**
 - `namespace`: Same as claim namespace (or "default")
-- `name`: "vault-credentials"  
+- `name`: "vault-credentials"
 - `key`: "terraform.tfvars.json"
 
 ## Troubleshooting
@@ -232,7 +232,7 @@ spec:
   configuration: |
     terraform {
       backend "kubernetes" {
-        secret_suffix    = "providerconfig-production"
+        secret_suffix    = "providerconfig-production" # pragma: allowlist secret
         namespace        = "terraform-system"
         in_cluster_config = true
       }

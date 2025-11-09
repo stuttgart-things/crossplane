@@ -1,0 +1,186 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xvclusters.vcluster.stuttgart-things.com
+spec:
+  group: vcluster.stuttgart-things.com
+  names:
+    kind: XVcluster
+    plural: xvclusters
+  claimNames:
+    kind: Vcluster
+    plural: vclusters
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              # Basic configuration
+              name:
+                type: string
+                description: Name of the vcluster instance
+                default: "test"
+              version:
+                type: string
+                description: Version of vcluster to deploy
+                default: "0.29.0"
+              chartName:
+                type: string
+                description: Helm chart name
+                default: "vcluster"
+              repository:
+                type: string
+                description: Helm chart repository URL
+                default: "https://charts.loft.sh"
+              clusterName:
+                type: string
+                description: Target cluster name for deployment
+                default: "kind"
+              targetNamespace:
+                type: string
+                description: Namespace where vcluster will be deployed
+                default: "vcluster"
+
+              # VCluster specific configuration
+              storageClass:
+                type: string
+                description: Storage class for persistent volumes
+                default: "standard"
+              bindAddress:
+                type: string
+                description: Bind address for vcluster API server
+                default: "0.0.0.0"
+              proxyPort:
+                type: integer
+                description: Proxy port for vcluster
+                default: 8443
+              nodePort:
+                type: integer
+                description: NodePort for external access
+                default: 32443
+              extraSANs:
+                type: array
+                description: Extra Subject Alternative Names for certificates
+                items:
+                  type: string
+                default:
+                - "localhost"
+              serverUrl:
+                type: string
+                description: Server URL for connecting to vcluster
+                default: "https://localhost:32443"
+
+              # Additional Helm values
+              values:
+                type: object
+                description: Additional Helm values to merge
+                x-kubernetes-preserve-unknown-fields: true
+
+              # Additional secrets configuration
+              additionalSecrets:
+                type: array
+                description: Additional secrets to create for Crossplane integration
+                items:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+
+              # Connection secret configuration
+              connectionSecret:
+                type: object
+                description: Configuration for the connection secret
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Enable connection secret creation
+                    default: true
+                  name:
+                    type: string
+                    description: Name of the connection secret
+                  namespace:
+                    type: string
+                    description: Namespace for the connection secret
+                    default: "crossplane-system"
+                  vclusterSecretName:
+                    type: string
+                    description: Name of the vcluster source secret
+                  vclusterSecretNamespace:
+                    type: string
+                    description: Namespace of the vcluster source secret
+
+              providerConfig:
+                type: object
+                description: Configuration for ProviderConfig creation
+                properties:
+                  clusterName:
+                    type: string
+                    description: Cluster name where ProviderConfigs are created (typically Crossplane cluster)
+
+              # PushSecret configuration
+              pushSecret:
+                type: object
+                description: Configuration for External Secrets Operator PushSecret
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Enable PushSecret creation
+                    default: false
+                  name:
+                    type: string
+                    description: Name of the PushSecret resource
+                  namespace:
+                    type: string
+                    description: Namespace for the PushSecret
+                    default: "default"
+                  clusterName:
+                    type: string
+                    description: Cluster name for PushSecret (can differ from main clusterName)
+                  secretStoreRef:
+                    type: string
+                    description: SecretStore reference for External Secrets
+                    default: "vault-backend-kubeconfigs"
+                  refreshInterval:
+                    type: string
+                    description: Refresh interval for the PushSecret
+                    default: "1m"
+            required:
+            - name
+          status:
+            type: object
+            properties:
+              # Status conditions
+              conditions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    status:
+                      type: string
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+                    reason:
+                      type: string
+                    message:
+                      type: string
+              # Connection details
+              connectionDetails:
+                type: object
+                properties:
+                  serverUrl:
+                    type: string
+                  secretName:
+                    type: string
+                  secretNamespace:
+                    type: string
+              # Ready status
+              ready:
+                type: boolean

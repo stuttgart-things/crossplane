@@ -48,7 +48,26 @@ This repository follows structured development specifications:
 
 - 📋 **[Development Specification](.container-use/specs/crossplane-configuration-development.md)** - Complete development workflow
 - 🛠️ **[Configuration Template](.container-use/specs/configuration-template.md)** - Standardized template for new configurations
-- 📚 **[Specifications Index](.container-use/specs/README.md)** - Overview of all specifications
+- � **[Container-Use Workflow](docs/container-use-workflow.md)** - Environment merge and workflow automation
+- �📚 **[Specifications Index](.container-use/specs/README.md)** - Overview of all specifications
+
+### Workflow Automation
+
+Standardized tasks for environment management:
+
+```bash
+# Interactive environment merge
+task merge-environment
+
+# Direct environment merge
+task merge-environment-auto ENV_ID=your-env-id
+
+# Pull request workflow
+task merge-environment-pr
+
+# View all available tasks
+task do
+```
 - 🚀 **[Container-Use Setup](.container-use/README.md)** - Standardized development environment
 
 ### Quick Specification Access
