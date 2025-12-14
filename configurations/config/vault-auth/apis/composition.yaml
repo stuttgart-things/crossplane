@@ -12,12 +12,12 @@ spec:
     - step: render-workspace
       functionRef:
         name: function-go-templating
-      input:
+      input:  # pragma: allowlist secret
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
         source: Inline
         inline:
-          template: | # pragma: allowlist secret
+          template: |  # pragma: allowlist secret
             apiVersion: tf.upbound.io/v1beta1
             kind: Workspace
             metadata:

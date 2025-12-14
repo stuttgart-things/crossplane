@@ -229,12 +229,12 @@ kind: ProviderConfig
 metadata:
   name: production-terraform-config
 spec:
-  configuration: |
+  configuration: |  # pragma: allowlist secret
     terraform {
       backend "kubernetes" {
-        secret_suffix    = "providerconfig-production" # pragma: allowlist secret
+        secret_suffix    = "providerconfig-production"  # pragma: allowlist secret
         namespace        = "terraform-system"
-        in_cluster_config = true
+        in_cluster_config = true  # pragma: allowlist secret
       }
     }
 ```

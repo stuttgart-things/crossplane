@@ -32,20 +32,20 @@ spec:
     server: https://10.31.103.23:32755
 
   # Connection secret configuration
-  connectionSecret:
+  connectionSecret:  # pragma: allowlist secret
     enabled: true
     name: vcluster-k3s-tink5-connection
     namespace: crossplane-system
-    vclusterSecretName: vc-vcluster-k3s-tink5
-    vclusterSecretNamespace: vcluster-k3s-tink5
+    vclusterSecretName: vc-vcluster-k3s-tink5  # pragma: allowlist secret
+    vclusterSecretNamespace: vcluster-k3s-tink5  # pragma: allowlist secret
 
-  # PushSecret configuration
+  # PushSecret configuration  # pragma: allowlist secret
   pushSecret:
     enabled: true
     name: pushsecret-vcluster-k3s-tink5
     namespace: default
     clusterName: in-cluster
-    secretStoreRef: vault-backend-kubeconfigs
+    secretStoreRef: vault-backend-kubeconfigs  # pragma: allowlist secret
     refreshInterval: 1m
 
   # ProviderConfig configuration

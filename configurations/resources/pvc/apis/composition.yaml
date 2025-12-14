@@ -1,0 +1,24 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xplane-pvc
+  labels:
+    provider: xplane
+spec:
+  compositeTypeRef:
+    apiVersion: github.stuttgart-things.com/v1alpha1
+    kind: Xpvc
+  mode: Pipeline
+  pipeline:
+    - functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLRun
+        metadata:
+          name: kcl-render-pvc
+        spec:
+          source: oci://ghcr.io/stuttgart-things/xplane-pvc:0.1.0
+          target: Resources
+      step: create-pvc

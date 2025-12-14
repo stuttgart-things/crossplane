@@ -1,0 +1,78 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpvcs.github.stuttgart-things.com
+spec:
+  group: github.stuttgart-things.com
+  names:
+    kind: Xpvc
+    plural: xpvcs
+  claimNames:
+    kind: Pvc
+    plural: pvcs
+  defaultCompositionRef:
+    name: xplane-pvc
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              description: "PersistentVolumeClaim specification"
+              properties:
+                # PVC Core Configuration
+                name:
+                  type: string
+                  description: "Name of the PersistentVolumeClaim"
+                  default: "pvc-0"
+                namespace:
+                  type: string
+                  description: "Kubernetes namespace where PVC will be created"
+                  default: "default"
+                storage:
+                  type: string
+                  description: "Storage size (e.g., 10Gi, 20Gi, 100Gi)"
+                  default: "10Gi"
+                  pattern: '^\d+Gi$|^\d+Mi$|^\d+Ki$'
+                storageClass:
+                  type: string
+                  description: "Storage class name (e.g., longhorn, local-path)"
+                  default: "longhorn"
+                # Volume Configuration
+                volumeMode:
+                  type: string
+                  description: "Volume mode: Block for raw device or Filesystem"
+                  enum:
+                    - Block
+                    - Filesystem
+                  default: "Block"
+                accessModes:
+                  type: array
+                  description: "Access modes for the volume"
+                  items:
+                    type: string
+                    enum:
+                      - ReadWriteOnce
+                      - ReadOnlyMany
+                      - ReadWriteMany
+                      - ReadWriteOncePod
+                  default:
+                    - ReadWriteMany
+                # Harvester Integration
+                imageId:
+                  type: string
+                  description: "Harvester image ID (format: namespace/image-id, e.g., default/image-t9w92)"
+                  default: "default/image-default"
+                imageNamespace:
+                  type: string
+                  description: "Image namespace in Harvester"
+                  default: "default"
+              required:
+                - name
+                - namespace
+                - storage
