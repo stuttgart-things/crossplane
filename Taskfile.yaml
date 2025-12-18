@@ -246,3 +246,117 @@ tasks:
       - |
         task=$(yq e '.tasks | keys' Taskfile.yaml | sed 's/^- //' | gum choose)
         task ${task}
+
+  apply-crossplane-functions:
+    desc: Manage Crossplane functions using Dagger Kubernetes module
+    vars:
+      MODULE: github.com/stuttgart-things/dagger/kubernetes
+      VERSION: v0.57.0
+      OPERATION:
+        sh: |
+          if [[ -n "${OPERATION:-}" ]]; then
+            if gum confirm --default=true "OPERATION is set to '${OPERATION}'. Keep it?"; then
+              echo "${OPERATION}"
+            else
+              gum choose "apply" "delete"
+            fi
+          else
+            gum choose "apply" "delete"
+          fi
+      SELECTED_FUNCTIONS:
+        sh: |
+          gum choose --no-limit \
+            "function-auto-ready" \
+            "function-go-templating" \
+            "function-kcl"
+      KUBECONFIG_PATH:
+        sh: |
+          if [[ -n "${KUBECONFIG_PATH:-}" ]]; then
+            if gum confirm --default=true "KUBECONFIG_PATH is set to '${KUBECONFIG_PATH}'. Keep it?"; then
+              echo "${KUBECONFIG_PATH}"
+            else
+              if gum confirm "Use current KUBECONFIG (${KUBECONFIG:-~/.kube/config})?"; then
+                echo "${KUBECONFIG:-~/.kube/config}"
+              else
+                gum file ~/.kube/
+              fi
+            fi
+          else
+            if gum confirm "Use current KUBECONFIG (${KUBECONFIG:-~/.kube/config})?"; then
+              echo "${KUBECONFIG:-~/.kube/config}"
+            else
+              gum file ~/.kube/
+            fi
+          fi
+      KUBECONFIG_FILE:
+        sh: |
+          path="{{ .KUBECONFIG_PATH }}"
+          eval echo "$path"
+    cmds:
+      - |
+        selected_functions="{{ .SELECTED_FUNCTIONS }}"
+
+        if [[ -z "$selected_functions" ]]; then
+          echo "Error: No functions selected"
+          exit 1
+        fi
+
+        echo "Executing kubectl operation with the following configuration:"
+        echo "  Operation: {{ .OPERATION }}"
+        echo "  Selected Functions:"
+        while IFS= read -r func; do
+          echo "    - $func"
+        done <<< "$selected_functions"
+        echo "  Kubeconfig: {{ .KUBECONFIG_FILE }}"
+        echo ""
+      - |
+        if [[ ! -f "{{ .KUBECONFIG_FILE }}" ]]; then
+          echo "Error: Kubeconfig file not found at {{ .KUBECONFIG_FILE }}"
+          exit 1
+        fi
+      - |
+        selected_functions="{{ .SELECTED_FUNCTIONS }}"
+        operation="{{ .OPERATION }}"
+
+        if gum confirm "Proceed with kubectl $operation for selected functions?"; then
+          while IFS= read -r function_name; do
+            [[ -z "$function_name" ]] && continue
+
+            case "$function_name" in
+              "function-auto-ready")
+                func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/functions/function-auto-ready.yaml"
+                ;;
+              "function-go-templating")
+                func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/functions/function-go-templating.yaml"
+                ;;
+              "function-kcl")
+                func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/functions/function-kcl.yaml"
+                ;;
+              *)
+                echo "✗ Unknown function: $function_name"
+                continue
+                ;;
+            esac
+
+            echo ""
+            echo "Processing $function_name..."
+
+            dagger call -m {{ .MODULE }}@{{ .VERSION }} kubectl \
+              --operation "$operation" \
+              --url-source "$func_url" \
+              --kube-config file://{{ .KUBECONFIG_FILE }}
+
+            if [[ $? -eq 0 ]]; then
+              echo "✓ $function_name $operation completed successfully!"
+            else
+              echo "✗ $function_name $operation failed!"
+              exit 1
+            fi
+          done <<< "$selected_functions"
+
+          echo ""
+          echo "✓ All selected functions processed successfully!"
+        else
+          echo "Operation cancelled."
+          exit 0
+        fi
