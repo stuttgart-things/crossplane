@@ -4,9 +4,27 @@ crossplane configurations, apis and examples
 
 ## DEV DEPLOYMENT & CONFIGURATION CROSSPLANE
 
+<details><summary><b>CREATE KIND CLUSTER</b></summary>
+
+```bash
+export TASK_X_REMOTE_TASKFILES=1
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/kind.yaml create-kind-cluster
+task --taskfile /home/sthings/projects/tasks/kubernetes/crds.yaml kubectl-kustomize #apply+cilium
+task --taskfile /home/sthings/projects/tasks/kubernetes/helm.yaml helmfile-operation #apply+cilium
+```
+
+</details>
+
 <details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
 
 ```bash
+# BY TASKFILE
+export TASK_X_REMOTE_TASKFILES=1
+task --taskfile /home/sthings/projects/tasks/kubernetes/helm.yaml helmfile-operation #capply+crossplane
+```
+
+```bash
+# OR BY DIRECT DAGGER CALL
 dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 helmfile-operation \
   --helmfile-ref "git::https://github.com/stuttgart-things/helm.git@cicd/crossplane.yaml.gotmpl" \
   --operation apply \
@@ -39,6 +57,9 @@ EOF
 ```
 
 </details>
+
+
+
 
 
 
