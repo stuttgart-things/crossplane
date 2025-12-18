@@ -3,9 +3,9 @@ kind: XVMCloudInit  # Changed from VMCloudInit to XVMCloudInit
 metadata:
   name: dev2-vm
 spec:
-  providerConfigRef: harvester-cluster-01
+  providerConfigRef: dev
   vmName: dev2
-  namespace: vms
+  namespace: default
   hostname: dev2
   domain: example.com
   timezone: UTC

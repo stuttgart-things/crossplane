@@ -1,0 +1,18 @@
+---
+# Example 3: Minimal PVC with defaults
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: ClusterResourcePVC
+metadata:
+  name: simple-disk-claim
+spec:
+  compositionRef:
+    name: harvester-pvc
+  providerConfigRef: kubernetes-provider
+  name: simple-disk
+  storage: "10Gi"
+  storageClassName: longhorn-default
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Block
+  annotations:
+    harvesterhci.io/imageId: default/image-abc123

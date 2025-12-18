@@ -1,0 +1,20 @@
+---
+# Example 1: Basic PVC matching your example
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: ClusterResourcePVC
+metadata:
+  name: dev2-disk-0-claim
+  namespace: default
+spec:
+  compositionRef:
+    name: harvester-pvc
+  providerConfigRef: kubernetes-provider
+  name: dev2-disk-0
+  namespace: default
+  storage: "10Gi"
+  storageClassName: longhorn-image-t9w92
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Block
+  annotations:
+    harvesterhci.io/imageId: default/image-t9w92

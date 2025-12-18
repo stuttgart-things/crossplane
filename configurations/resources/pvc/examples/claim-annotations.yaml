@@ -1,0 +1,22 @@
+---
+# Example 2: PVC with additional annotations and labels
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: ClusterResourcePVC
+metadata:
+  name: app-data-claim
+  namespace: default
+spec:
+  compositionRef:
+    name: harvester-pvc
+  providerConfigRef: kubernetes-provider
+  name: app-data-disk
+  namespace: production
+  storage: "50Gi"
+  storageClassName: longhorn-image-ubuntu
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  annotations:
+    harvesterhci.io/imageId: default/ubuntu-22-04
+    description: "Application data volume"
+    backup-policy: "daily"

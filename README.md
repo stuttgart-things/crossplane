@@ -2,6 +2,47 @@
 
 crossplane configurations, apis and examples
 
+## DEV DEPLOYMENT & CONFIGURATION CROSSPLANE
+
+<details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
+
+```bash
+dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 helmfile-operation \
+  --helmfile-ref "git::https://github.com/stuttgart-things/helm.git@cicd/crossplane.yaml.gotmpl" \
+  --operation apply \
+  --state-values "version=2.1.3" \
+  --kube-config file:///home/sthings/.kube/config \
+  --progress plain -vv
+```
+
+</details>
+
+<details><summary><b>ADD LOCAL CLUSTER AS KUBERNETES PROVIDER (FILEBASED)</b></summary>
+
+```bash
+kubectl -n crossplane-system create secret generic dev --from-file=/home/sthings/.kube/config
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: dev
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: dev
+      key: kubeconfig
+EOF
+```
+
+</details>
+
+
+
+
 ## CONFIGURATIONS
 
 <details><summary><b>ANSIBLE-RUN</b></summary>

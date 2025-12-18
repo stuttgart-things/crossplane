@@ -1,0 +1,75 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: cluster-resource-pvc
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: ClusterResourcePVC
+  mode: Pipeline
+  pipeline:
+    - step: render-pvc
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation (print .observed.composite.resource.spec.name "-pvc") }}
+              labels:
+                app.kubernetes.io/name: cluster-resource-pvc
+                app.kubernetes.io/instance: {{ .observed.composite.resource.spec.name }}
+                app.kubernetes.io/managed-by: crossplane
+            spec:
+              deletionPolicy: Delete
+              providerConfigRef:
+                name: {{ .observed.composite.resource.spec.providerConfigRef }}
+              forProvider:
+                manifest:
+                  apiVersion: v1
+                  kind: PersistentVolumeClaim
+                  metadata:
+                    name: {{ .observed.composite.resource.spec.name }}
+                    namespace: {{ .observed.composite.resource.spec.namespace | default "default" }}
+                    {{- if .observed.composite.resource.spec.annotations }}
+                    annotations:
+                      {{- range $key, $value := .observed.composite.resource.spec.annotations }}
+                      {{ $key }}: {{ $value }}
+                      {{- end }}
+                    {{- end }}
+                    {{- if .observed.composite.resource.spec.additionalLabels }}
+                    labels:
+                      {{- range $key, $value := .observed.composite.resource.spec.additionalLabels }}
+                      {{ $key }}: {{ $value }}
+                      {{- end }}
+                    {{- end }}
+                  spec:
+                    accessModes:
+                      {{- range .observed.composite.resource.spec.accessModes }}
+                      - {{ . }}
+                      {{- end }}
+                    resources:
+                      requests:
+                        storage: {{ .observed.composite.resource.spec.storage | default "10Gi" | squote }}
+                    storageClassName: {{ .observed.composite.resource.spec.storageClassName }}
+                    volumeMode: {{ .observed.composite.resource.spec.volumeMode | default "Block" }}
+              managementPolicies:
+              - '*'
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: ClusterResourcePVC
+            status:
+              pvcName: {{ .observed.composite.resource.spec.name }}
+              namespace: {{ .observed.composite.resource.spec.namespace | default "default" }}
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready
