@@ -248,7 +248,7 @@ tasks:
         task ${task}
 
   apply-crossplane-packages:
-    desc: Manage Crossplane packages using Dagger Kubernetes module
+    desc: Manage Crossplane functions and configurations using Dagger Kubernetes module
     vars:
       MODULE: github.com/stuttgart-things/dagger/kubernetes
       VERSION: v0.57.0
@@ -263,12 +263,29 @@ tasks:
           else
             gum choose "apply" "delete"
           fi
+      PACKAGE_TYPE:
+        sh: |
+          gum choose \
+            "Functions" \
+            "Configurations" \
+            "Both"
       SELECTED_FUNCTIONS:
         sh: |
-          gum choose --no-limit \
-            "function-auto-ready" \
-            "function-go-templating" \
-            "function-kcl"
+          package_type="{{ .PACKAGE_TYPE }}"
+          if [[ "$package_type" == "Functions" || "$package_type" == "Both" ]]; then
+            gum choose --no-limit --header="Select Crossplane Functions:" \
+              "function-auto-ready" \
+              "function-go-templating" \
+              "function-kcl"
+          fi
+      SELECTED_CONFIGURATIONS:
+        sh: |
+          package_type="{{ .PACKAGE_TYPE }}"
+          if [[ "$package_type" == "Configurations" || "$package_type" == "Both" ]]; then
+            gum choose --no-limit --header="Select Crossplane Configurations:" \
+              "github-runner" \
+              "ansible-run"
+          fi
       KUBECONFIG_PATH:
         sh: |
           if [[ -n "${KUBECONFIG_PATH:-}" ]]; then
@@ -295,18 +312,30 @@ tasks:
     cmds:
       - |
         selected_functions="{{ .SELECTED_FUNCTIONS }}"
+        selected_configurations="{{ .SELECTED_CONFIGURATIONS }}"
 
-        if [[ -z "$selected_functions" ]]; then
-          echo "Error: No functions selected"
+        if [[ -z "$selected_functions" && -z "$selected_configurations" ]]; then
+          echo "Error: No packages selected"
           exit 1
         fi
 
         echo "Executing kubectl operation with the following configuration:"
         echo "  Operation: {{ .OPERATION }}"
-        echo "  Selected Functions:"
-        while IFS= read -r func; do
-          echo "    - $func"
-        done <<< "$selected_functions"
+
+        if [[ -n "$selected_functions" ]]; then
+          echo "  Selected Functions:"
+          while IFS= read -r func; do
+            [[ -n "$func" ]] && echo "    - $func"
+          done <<< "$selected_functions"
+        fi
+
+        if [[ -n "$selected_configurations" ]]; then
+          echo "  Selected Configurations:"
+          while IFS= read -r config; do
+            [[ -n "$config" ]] && echo "    - $config"
+          done <<< "$selected_configurations"
+        fi
+
         echo "  Kubeconfig: {{ .KUBECONFIG_FILE }}"
         echo ""
       - |
@@ -316,46 +345,90 @@ tasks:
         fi
       - |
         selected_functions="{{ .SELECTED_FUNCTIONS }}"
+        selected_configurations="{{ .SELECTED_CONFIGURATIONS }}"
         operation="{{ .OPERATION }}"
 
-        if gum confirm "Proceed with kubectl $operation for selected functions?"; then
-          while IFS= read -r function_name; do
-            [[ -z "$function_name" ]] && continue
+        if gum confirm "Proceed with kubectl $operation for selected packages?"; then
 
-            case "$function_name" in
-              "function-auto-ready")
-                func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/functions/function-auto-ready.yaml"
-                ;;
-              "function-go-templating")
-                func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/functions/function-go-templating.yaml"
-                ;;
-              "function-kcl")
-                func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/functions/function-kcl.yaml"
-                ;;
-              *)
-                echo "✗ Unknown function: $function_name"
-                continue
-                ;;
-            esac
-
+          # Process Functions
+          if [[ -n "$selected_functions" ]]; then
             echo ""
-            echo "Processing $function_name..."
+            echo "=== Processing Functions ==="
+            while IFS= read -r function_name; do
+              [[ -z "$function_name" ]] && continue
 
-            dagger call -m {{ .MODULE }}@{{ .VERSION }} kubectl \
-              --operation "$operation" \
-              --url-source "$func_url" \
-              --kube-config file://{{ .KUBECONFIG_FILE }}
+              case "$function_name" in
+                "function-auto-ready")
+                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-auto-ready.yaml"
+                  ;;
+                "function-go-templating")
+                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-go-templating.yaml"
+                  ;;
+                "function-kcl")
+                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-kcl.yaml"
+                  ;;
+                *)
+                  echo "✗ Unknown function: $function_name"
+                  continue
+                  ;;
+              esac
 
-            if [[ $? -eq 0 ]]; then
-              echo "✓ $function_name $operation completed successfully!"
-            else
-              echo "✗ $function_name $operation failed!"
-              exit 1
-            fi
-          done <<< "$selected_functions"
+              echo ""
+              echo "Processing function: $function_name..."
+
+              dagger call -m {{ .MODULE }}@{{ .VERSION }} kubectl \
+                --operation "$operation" \
+                --url-source "$func_url" \
+                --kube-config file://{{ .KUBECONFIG_FILE }}
+
+              if [[ $? -eq 0 ]]; then
+                echo "✓ Function $function_name $operation completed successfully!"
+              else
+                echo "✗ Function $function_name $operation failed!"
+                exit 1
+              fi
+            done <<< "$selected_functions"
+          fi
+
+          # Process Configurations
+          if [[ -n "$selected_configurations" ]]; then
+            echo ""
+            echo "=== Processing Configurations ==="
+            while IFS= read -r config_name; do
+              [[ -z "$config_name" ]] && continue
+
+              case "$config_name" in
+                "github-runner")
+                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/github-runner.yaml"
+                  ;;
+                "ansible-run")
+                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/ansible-run.yaml"
+                  ;;
+                *)
+                  echo "✗ Unknown configuration: $config_name"
+                  continue
+                  ;;
+              esac
+
+              echo ""
+              echo "Processing configuration: $config_name..."
+
+              dagger call -m {{ .MODULE }}@{{ .VERSION }} kubectl \
+                --operation "$operation" \
+                --url-source "$config_url" \
+                --kube-config file://{{ .KUBECONFIG_FILE }}
+
+              if [[ $? -eq 0 ]]; then
+                echo "✓ Configuration $config_name $operation completed successfully!"
+              else
+                echo "✗ Configuration $config_name $operation failed!"
+                exit 1
+              fi
+            done <<< "$selected_configurations"
+          fi
 
           echo ""
-          echo "✓ All selected functions processed successfully!"
+          echo "✓ All selected packages processed successfully!"
         else
           echo "Operation cancelled."
           exit 0
