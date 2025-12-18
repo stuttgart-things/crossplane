@@ -283,8 +283,10 @@ tasks:
           package_type="{{ .PACKAGE_TYPE }}"
           if [[ "$package_type" == "Configurations" || "$package_type" == "Both" ]]; then
             gum choose --no-limit --header="Select Crossplane Configurations:" \
-              "github-runner" \
-              "ansible-run"
+              "ansible-run" \
+              "cluster-pvc" \
+              "github-controller" \
+              "github-runner"
           fi
       KUBECONFIG_PATH:
         sh: |
