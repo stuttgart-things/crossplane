@@ -9,8 +9,8 @@ crossplane configurations, apis and examples
 ```bash
 export TASK_X_REMOTE_TASKFILES=1
 task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/kind.yaml create-kind-cluster
-task --taskfile /home/sthings/projects/tasks/kubernetes/crds.yaml kubectl-kustomize #apply+cilium
-task --taskfile /home/sthings/projects/tasks/kubernetes/helm.yaml helmfile-operation #apply+cilium
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/crds.yaml kubectl-kustomize #apply+cilium
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+cilium
 ```
 
 </details>
@@ -20,7 +20,7 @@ task --taskfile /home/sthings/projects/tasks/kubernetes/helm.yaml helmfile-opera
 ```bash
 # BY TASKFILE
 export TASK_X_REMOTE_TASKFILES=1
-task --taskfile /home/sthings/projects/tasks/kubernetes/helm.yaml helmfile-operation #capply+crossplane
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #capply+crossplane
 ```
 
 ```bash
@@ -58,10 +58,25 @@ EOF
 
 </details>
 
+<details><summary><b>APPLY CROSSPLANE FUNCTIONS</b></summary>
 
+```bash
+# BY TASKFILE
+export TASK_X_REMOTE_TASKFILES=1
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/Taskfile.yaml apply-crossplane-functions
+```
 
+</details>
 
+<details><summary><b>APPLY CROSSPLANE CONFIGURATIONS</b></summary>
 
+```bash
+# BY TASKFILE
+export TASK_X_REMOTE_TASKFILES=1
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/Taskfile.yaml apply-crossplane-functions
+```
+
+</details>
 
 
 ## CONFIGURATIONS
