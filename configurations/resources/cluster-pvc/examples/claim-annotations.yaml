@@ -6,7 +6,7 @@ metadata:
   namespace: default
 spec:
   compositionRef:
-    name: harvester-pvc
+    name: cluster-resource-pvc
   providerConfigRef: kubernetes-provider
   name: app-data-disk
   namespace: production

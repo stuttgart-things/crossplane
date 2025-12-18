@@ -5,7 +5,7 @@ metadata:
   name: simple-disk-claim
 spec:
   compositionRef:
-    name: harvester-pvc
+    name: cluster-resource-pvc
   providerConfigRef: kubernetes-provider
   name: simple-disk
   storage: "10Gi"

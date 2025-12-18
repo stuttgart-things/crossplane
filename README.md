@@ -52,7 +52,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: dev
-      key: kubeconfig
+      key: config
 EOF
 ```
 

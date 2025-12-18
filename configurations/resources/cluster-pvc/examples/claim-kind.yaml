@@ -6,7 +6,7 @@ metadata:
   namespace: default
 spec:
   compositionRef:
-    name: harvester-pvc
+    name: cluster-resource-pvc
   providerConfigRef: dev
   name: kind-data-disk
   namespace: default
