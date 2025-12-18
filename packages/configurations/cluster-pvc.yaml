@@ -2,6 +2,6 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: ansible-run
+  name: cluster-pvc
 spec:
   package: ghcr.io/stuttgart-things/crossplane/cluster-pvc:v0.1.0
