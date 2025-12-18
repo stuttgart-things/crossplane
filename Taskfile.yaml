@@ -340,14 +340,12 @@ tasks:
 
         echo "  Kubeconfig: {{ .KUBECONFIG_FILE }}"
         echo ""
-      - |
+
         if [[ ! -f "{{ .KUBECONFIG_FILE }}" ]]; then
           echo "Error: Kubeconfig file not found at {{ .KUBECONFIG_FILE }}"
           exit 1
         fi
-      - |
-        selected_functions="{{ .SELECTED_FUNCTIONS }}"
-        selected_configurations="{{ .SELECTED_CONFIGURATIONS }}"
+
         operation="{{ .OPERATION }}"
 
         if gum confirm "Proceed with kubectl $operation for selected packages?"; then

@@ -406,6 +406,12 @@ tasks:
                 "ansible-run")
                   config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/ansible-run.yaml"
                   ;;
+                "cluster-pvc")
+                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/cluster-pvc.yaml"
+                  ;;
+                "github-controller")
+                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/github-controller.yaml"
+                  ;;
                 *)
                   echo "✗ Unknown configuration: $config_name"
                   continue
