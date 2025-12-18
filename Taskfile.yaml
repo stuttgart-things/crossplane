@@ -247,8 +247,8 @@ tasks:
         task=$(yq e '.tasks | keys' Taskfile.yaml | sed 's/^- //' | gum choose)
         task ${task}
 
-  apply-crossplane-functions:
-    desc: Manage Crossplane functions using Dagger Kubernetes module
+  apply-crossplane-packages:
+    desc: Manage Crossplane packages using Dagger Kubernetes module
     vars:
       MODULE: github.com/stuttgart-things/dagger/kubernetes
       VERSION: v0.57.0
