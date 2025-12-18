@@ -1,5 +1,4 @@
 ---
-# Example: PVC for kind cluster with standard storage class
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: ClusterResourcePVC
 metadata:

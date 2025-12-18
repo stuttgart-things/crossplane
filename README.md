@@ -2,7 +2,7 @@
 
 crossplane configurations, apis and examples
 
-## DEV DEPLOYMENT & CONFIGURATION CROSSPLANE
+## DEV KIND CLUSTER DEPLOYMENT & CONFIGURATION OF CROSSPLANE
 
 <details><summary><b>CREATE KIND CLUSTER</b></summary>
 
@@ -68,12 +68,12 @@ task --taskfile https://raw.githubusercontent.com/stuttgart-things/crossplane/re
 
 </details>
 
-<details><summary><b>APPLY CROSSPLANE CONFIGURATIONS</b></summary>
+<details><summary><b>APPLY CROSSPLANE PACKAGES</b></summary>
 
 ```bash
 # BY TASKFILE
 export TASK_X_REMOTE_TASKFILES=1
-task --taskfile https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/Taskfile.yaml apply-crossplane-functions
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/Taskfile.yaml apply-crossplane-packages
 ```
 
 </details>

@@ -1,5 +1,4 @@
 ---
-# Example 3: Minimal PVC with defaults
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: ClusterResourcePVC
 metadata:

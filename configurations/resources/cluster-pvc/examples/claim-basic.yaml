@@ -1,5 +1,4 @@
 ---
-# Example 1: Basic PVC matching your example
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: ClusterResourcePVC
 metadata:

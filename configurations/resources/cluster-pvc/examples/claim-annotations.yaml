@@ -1,5 +1,4 @@
 ---
-# Example 2: PVC with additional annotations and labels
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: ClusterResourcePVC
 metadata:
