@@ -1,0 +1,9 @@
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: XHarvesterVM  # Use XHarvesterVM for crossplane render
+metadata:
+  name: my-vm
+spec:
+  providerConfigRef: harvester-cluster
+  vmName: my-vm
+  hostname: my-vm
+  storageClassName: harvester-longhorn

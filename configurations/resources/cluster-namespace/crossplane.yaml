@@ -2,7 +2,7 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: namespace
+  name: cluster-resource-namespace
   annotations:
     meta.crossplane.io/maintainer: patrick.hermann@sva.de
     meta.crossplane.io/source: github.com/stuttgart-things/crossplane
