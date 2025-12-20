@@ -1,5 +1,5 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: clusterresourcepvcs.resources.stuttgart-things.com
@@ -8,9 +8,6 @@ spec:
   names:
     kind: ClusterResourcePVC
     plural: clusterresourcepvcs
-  claimNames:
-    kind: PVC
-    plural: pvcs
   versions:
     - name: v1alpha1
       served: true

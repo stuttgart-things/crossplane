@@ -1,0 +1,10 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: my-vm
+spec:
+  providerConfigRef: dev
+  vmName: my-vm
+  hostname: my-vm
+  storageClassName: harvester-longhorn

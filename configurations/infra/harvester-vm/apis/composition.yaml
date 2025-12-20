@@ -1,0 +1,90 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: harvester-vm
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XHarvesterVM
+
+  mode: Pipeline
+  pipeline:
+  - step: create-pvc
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: vm-pvc
+        base:
+          apiVersion: resources.stuttgart-things.com/v1alpha1
+          kind: ClusterResourcePVC
+        patches:
+        # Provider config
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.providerConfigRef
+          toFieldPath: spec.providerConfigRef
+
+        # PVC name (used by the controller, not metadata)
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.vmName
+          toFieldPath: spec.name
+
+        # Namespace of the *PVC*
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.namespace
+          toFieldPath: spec.namespace
+
+        # Storage settings
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.storage
+          toFieldPath: spec.storage
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.storageClassName
+          toFieldPath: spec.storageClassName
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.imageId
+          toFieldPath: spec.imageId
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.accessModes
+          toFieldPath: spec.accessModes
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.volumeMode
+          toFieldPath: spec.volumeMode
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.pvcAnnotations
+          toFieldPath: spec.annotations
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.pvcLabels
+          toFieldPath: spec.additionalLabels
+
+        # Feedback to XR
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.pvcName
+          toFieldPath: status.pvcName
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.namespace
+          toFieldPath: status.namespace
+
+  - step: create-cloud-init
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: vm-cloud-init
+        base:
+          apiVersion: resources.stuttgart-things.com/v1alpha1
+          kind: XVMCloudInit
+        patches:
+        # Deterministic name is OK here (controller preserves it)
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+          - type: string
+            string:
+              type: Format
+              fmt: "%s-cloud-init"

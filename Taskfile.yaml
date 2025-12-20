@@ -276,7 +276,8 @@ tasks:
             gum choose --no-limit --header="Select Crossplane Functions:" \
               "function-auto-ready" \
               "function-go-templating" \
-              "function-kcl"
+              "function-kcl" \
+              "function-patch-and-transform"
           fi
       SELECTED_CONFIGURATIONS:
         sh: |
@@ -366,6 +367,9 @@ tasks:
                   ;;
                 "function-kcl")
                   func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-kcl.yaml"
+                  ;;
+                "function-patch-and-transform")
+                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-patch-and-transform.yaml"
                   ;;
                 *)
                   echo "✗ Unknown function: $function_name"
