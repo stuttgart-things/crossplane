@@ -4,4 +4,4 @@ kind: Configuration
 metadata:
   name: cluster-resource-namespace
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/cluster-resource-namespace:v0.1.0
+  package: ghcr.io/stuttgart-things/crossplane/cloud-config:v0.3.0

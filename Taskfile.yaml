@@ -7,7 +7,7 @@ vars:
     sh: if [ $(git rev-parse --abbrev-ref HEAD) != "main" ]; then echo $(git rev-parse --abbrev-ref HEAD); else echo main ; fi
   CROSSPLANE_PACKAGE_REGISTRY: ghcr.io
   DAGGER_CROSSPLANE_MODULE: github.com/stuttgart-things/dagger/crossplane #../dagger/crossplane #github.com/stuttgart-things/dagger/crossplane
-  DAGGER_CROSSPLANE_MODULE_VERSION: v0.10.0
+  DAGGER_CROSSPLANE_MODULE_VERSION: v0.59.0
 
 tasks:
   branch:
@@ -28,29 +28,71 @@ tasks:
     desc: Push crossplane configuration package
     cmds:
       - |
+        set -e
+
         CONFIGURATION_PACKAGE_PATH={{ .ALL_CONFIGURATION_PACKAGES }}
-        CONFIGURATION_PACKAGE=$(basename ${CONFIGURATION_PACKAGE_PATH})
+        CONFIGURATION_PACKAGE=$(basename "${CONFIGURATION_PACKAGE_PATH}")
 
-        TAG=$(gum input --placeholder "Tag" --value "v1.0.0")
+        IMAGE="{{ .DESTINATION }}/${CONFIGURATION_PACKAGE}"
 
-        echo "Pushing configuration package: ${CONFIGURATION_PACKAGE_PATH} with tag: ${TAG}"
+        echo "🔍 Checking existing versions for ${IMAGE}..."
 
-        dagger call -m {{ .DAGGER_CROSSPLANE_MODULE }}@{{ .DAGGER_CROSSPLANE_MODULE_VERSION }} push \
-        --src {{ .SOURCE_FOLDER }}/${CONFIGURATION_PACKAGE_PATH} \
-        --progress plain --username={{ .USER }} \
-        --password=env:GITHUB_TOKEN \
-        --registry={{ .CROSSPLANE_PACKAGE_REGISTRY }} \
-        --destination={{ .DESTINATION }}/${CONFIGURATION_PACKAGE}:${TAG}
+        TAGS=$(oras repo tags "${IMAGE}" 2>/dev/null || true)
+
+        SEMVER_TAGS=$(echo "$TAGS" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+
+        if [ -z "$SEMVER_TAGS" ]; then
+          echo "⚠️  No released versions found"
+          DEFAULT_TAG="v0.1.0"
+        else
+          echo
+          echo "📦 Released versions:"
+          echo "$SEMVER_TAGS" | sort -V | sed 's/^/  - /'
+
+          LATEST=$(echo "$SEMVER_TAGS" | sort -V | tail -n1)
+
+          echo
+          echo "✅ Latest released version: ${LATEST}"
+
+          DEFAULT_TAG=$(
+            echo "$LATEST" | awk -F. '{
+              sub(/^v/,"",$1);
+              printf("v%d.%d.0\n",$1,$2+1)
+            }'
+          )
+        fi
+
+        echo
+        TAG=$(gum input \
+          --prompt "Tag: " \
+          --value "${DEFAULT_TAG}")
+
+        echo
+        echo "🚀 Pushing configuration package:"
+        echo "  Package : ${CONFIGURATION_PACKAGE_PATH}"
+        echo "  Image   : ${IMAGE}"
+        echo "  Tag     : ${TAG}"
+
+        dagger call \
+          -m {{ .DAGGER_CROSSPLANE_MODULE }}@{{ .DAGGER_CROSSPLANE_MODULE_VERSION }} \
+          push \
+          --src {{ .SOURCE_FOLDER }}/${CONFIGURATION_PACKAGE_PATH} \
+          --progress plain \
+          --username={{ .USER }} \
+          --password=env:GITHUB_TOKEN \
+          --registry={{ .CROSSPLANE_PACKAGE_REGISTRY }} \
+          --destination="${IMAGE}:${TAG}"
     vars:
       DESTINATION: "{{ .CROSSPLANE_PACKAGE_REGISTRY }}/stuttgart-things/crossplane"
       USER: stuttgart-things
       SOURCE_FOLDER: "./configurations"
       ALL_CONFIGURATION_PACKAGES:
         sh: |
-          find {{ .SOURCE_FOLDER }}/k8s {{ .SOURCE_FOLDER }}/resources {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps -mindepth 1 -maxdepth 1 -type d | \
-          sed "s|^\./configurations/||" | \
-          sort | \
-          gum choose
+          find {{ .SOURCE_FOLDER }}/k8s {{ .SOURCE_FOLDER }}/cluster {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/config {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps \
+            -mindepth 1 -maxdepth 1 -type d | \
+            sed "s|^\./configurations/||" | \
+            sort | \
+            gum choose
 
   pr:
     desc: Create pull request into main

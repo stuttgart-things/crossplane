@@ -2,24 +2,24 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: clusterresourcenamespaces.resources.stuttgart-things.com
+  name: xnamespaces.resources.stuttgart-things.com
 spec:
   connectionSecretKeys:
     - kubeconfig
   group: resources.stuttgart-things.com
   names:
-    kind: ClusterResourceNamespace
-    plural: clusterresourcenamespaces
+    kind: XNamespace
+    plural: xnamespaces
   claimNames:
-    kind: ClusterResourceNamespace
-    plural: clusterresourcenamespaces
+    kind: Namespace
+    plural: namespaces
   versions:
     - name: v1alpha1
       served: true
       referenceable: true
       schema:
         openAPIV3Schema:
-          description: A ClusterResourceNamespace is a composite resource that represents a kubernetes namespace
+          description: A Namespace is a composite resource that represents a kubernetes namespace
           type: object
           properties:
             spec:

@@ -13,7 +13,7 @@ metadata:
       deploys namespace cni w/ config
 spec:
   crossplane:
-    version: ">=v1.18.1-0"
+    version: ">=v1.17.1-0"
   dependsOn:
     - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
       version: ">=v0.16.1"

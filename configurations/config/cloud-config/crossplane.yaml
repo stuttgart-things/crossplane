@@ -1,0 +1,19 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: cloud-config
+  annotations:
+    meta.crossplane.io/maintainer: patrick.hermann@sva.de
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      creates cloud-config
+    meta.crossplane.io/readme: |
+      creates cloud-config
+spec:
+  crossplane:
+    version: ">=v2.1.3"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v1.2.0"

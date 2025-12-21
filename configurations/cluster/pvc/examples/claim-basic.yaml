@@ -5,8 +5,6 @@ metadata:
   name: dev2-disk-0-claim
   namespace: default
 spec:
-  compositionRef:
-    name: cluster-resource-pvc
   providerConfigRef: kubernetes-provider
   name: dev2-disk-0
   namespace: default

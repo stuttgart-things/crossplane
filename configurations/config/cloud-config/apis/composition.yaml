@@ -2,11 +2,11 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: harvester-vm-cloud-init
+  name: cloud-init
 spec:
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
-    kind: XVMCloudInit
+    kind: CloudInit
   mode: Pipeline
   pipeline:
     - step: render-cloud-init-secret
@@ -19,7 +19,7 @@ spec:
         inline:
           template: |
             ---
-            apiVersion: kubernetes.crossplane.io/v1alpha2
+            apiVersion: kubernetes.m.crossplane.io/v1alpha1
             kind: Object
             metadata:
               annotations:
@@ -29,9 +29,9 @@ spec:
                 app.kubernetes.io/instance: {{ .observed.composite.resource.spec.vmName }}-cloud-init
                 app.kubernetes.io/managed-by: crossplane
             spec:
-              deletionPolicy: Delete
               providerConfigRef:
                 name: {{ .observed.composite.resource.spec.providerConfigRef }}
+                kind: ClusterProviderConfig
               forProvider:
                 manifest:
                   apiVersion: v1
@@ -39,6 +39,8 @@ spec:
                   metadata:
                     name: {{ .observed.composite.resource.spec.vmName }}-cloud-init
                     namespace: {{ .observed.composite.resource.spec.namespace | default "vms" }}
+                    annotations:
+                      gotemplating.fn.crossplane.io/composition-resource-name: cloud-init
                   type: Opaque
                   stringData:
                     userdata: |
@@ -136,7 +138,7 @@ spec:
               - '*'
             ---
             apiVersion: resources.stuttgart-things.com/v1alpha1
-            kind: XVMCloudInit
+            kind: CloudInit
             status:
               secretName: {{ .observed.composite.resource.spec.vmName }}-cloud-init
 

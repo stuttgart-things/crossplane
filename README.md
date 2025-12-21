@@ -38,21 +38,60 @@ dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 helmfile-operatio
 <details><summary><b>ADD LOCAL CLUSTER AS KUBERNETES PROVIDER (FILEBASED)</b></summary>
 
 ```bash
-kubectl -n crossplane-system create secret generic dev --from-file=/home/sthings/.kube/config
+NAMESPACE="crossplane-system"
+KUBECONFIG_DIR="$HOME/.kube"
+
+# Select kubeconfig file
+KUBECONFIG_FILE=$(ls -1 "$KUBECONFIG_DIR" \
+  | gum choose --header "Select kubeconfig file")
+
+KUBECONFIG_PATH="$KUBECONFIG_DIR/$KUBECONFIG_FILE"
+
+# Secret name
+SECRET_NAME=$(gum input \
+  --prompt "Secret name: " \
+  --value "dev")
+
+# Create or update secret (idempotent)
+kubectl -n "$NAMESPACE" create secret generic "$SECRET_NAME" \
+  --from-file=config="$KUBECONFIG_PATH" \
+  --dry-run=client -o yaml \
+  | kubectl apply -f -
+```
 
 ```bash
+NAMESPACE="crossplane-system"
+
+CONFIG_NAME=$(gum input \
+  --prompt "ClusterProviderConfig name: " \
+  --value "dev")
+
+SECRET_NAME=$(kubectl get secret -n "$NAMESPACE" \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
+  | gum choose --header "Select secret")
+
+SECRET_KEY=$(kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" \
+  -o json \
+  | jq -r '.data | keys[]' \
+  | gum choose --header "Select key from secret '$SECRET_NAME'")
+
+if ! gum confirm "Apply ClusterProviderConfig '$CONFIG_NAME' using $SECRET_NAME:$SECRET_KEY?"; then
+  echo "Aborted."
+  exit 0
+fi
+
 kubectl apply -f - <<EOF
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: ProviderConfig
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
 metadata:
-  name: dev
+  name: $CONFIG_NAME
 spec:
   credentials:
     source: Secret
     secretRef:
-      namespace: crossplane-system
-      name: dev
-      key: config
+      namespace: $NAMESPACE
+      name: $SECRET_NAME
+      key: $SECRET_KEY
 EOF
 ```
 

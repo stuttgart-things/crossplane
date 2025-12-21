@@ -1,8 +1,9 @@
+---
 apiVersion: resources.stuttgart-things.com/v1alpha1
-kind: ClusterResourceNamespace
+kind: Namespace
 metadata:
   name: volki-test
   namespace: crossplane-system
 spec:
-  clusterName: dev
+  clusterName: in-cluster
   name: volki

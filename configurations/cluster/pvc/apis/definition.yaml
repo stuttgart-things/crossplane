@@ -4,6 +4,7 @@ kind: CompositeResourceDefinition
 metadata:
   name: clusterresourcepvcs.resources.stuttgart-things.com
 spec:
+  scope: Cluster # LegacyCluster
   group: resources.stuttgart-things.com
   names:
     kind: ClusterResourcePVC
