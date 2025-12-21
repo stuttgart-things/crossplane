@@ -3,12 +3,12 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   labels:
-    crossplane.io/xrd: clusterresourcenamespaces.resources.stuttgart-things.com
-  name: clusterresourcenamespace
+    crossplane.io/xrd: xnamespaces.resources.stuttgart-things.com
+  name: namespace
 spec:
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
-    kind: ClusterResourceNamespace
+    kind: XNamespace
   mode: Pipeline
   pipeline:
   - functionRef:

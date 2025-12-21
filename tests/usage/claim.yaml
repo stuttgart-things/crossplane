@@ -15,7 +15,7 @@ spec:
     - name: ubuntu
       sshAuthorizedKeys:
         - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB...
-      sudo: "ALL=(ALL) NOPASSWD:ALL" # pragma: allowlist secret
+      sudo: "ALL=(ALL) NOPASSWD:ALL"
       groups: sudo,docker
       shell: /bin/bash
       lockPasswd: true

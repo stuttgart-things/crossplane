@@ -5,8 +5,6 @@ metadata:
   name: kind-data-claim
   namespace: default
 spec:
-  compositionRef:
-    name: cluster-resource-pvc
   providerConfigRef: dev
   name: kind-data-disk
   namespace: default
