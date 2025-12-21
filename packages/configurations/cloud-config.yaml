@@ -2,6 +2,6 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: ansible-run
+  name: cluster-resource-namespace
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/ansible-run:v0.3.1
+  package: ghcr.io/stuttgart-things/crossplane/cloud-config:v0.3.0
