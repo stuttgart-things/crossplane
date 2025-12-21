@@ -326,10 +326,7 @@ tasks:
           package_type="{{ .PACKAGE_TYPE }}"
           if [[ "$package_type" == "Configurations" || "$package_type" == "Both" ]]; then
             gum choose --no-limit --header="Select Crossplane Configurations:" \
-              "ansible-run" \
-              "cluster-pvc" \
-              "github-controller" \
-              "github-runner"
+              "cloud-config"
           fi
       KUBECONFIG_PATH:
         sh: |
@@ -400,24 +397,7 @@ tasks:
             while IFS= read -r function_name; do
               [[ -z "$function_name" ]] && continue
 
-              case "$function_name" in
-                "function-auto-ready")
-                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-auto-ready.yaml"
-                  ;;
-                "function-go-templating")
-                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-go-templating.yaml"
-                  ;;
-                "function-kcl")
-                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-kcl.yaml"
-                  ;;
-                "function-patch-and-transform")
-                  func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/function-patch-and-transform.yaml"
-                  ;;
-                *)
-                  echo "✗ Unknown function: $function_name"
-                  continue
-                  ;;
-              esac
+              func_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/functions/${function_name}.yaml"
 
               echo ""
               echo "Processing function: $function_name..."
@@ -443,24 +423,7 @@ tasks:
             while IFS= read -r config_name; do
               [[ -z "$config_name" ]] && continue
 
-              case "$config_name" in
-                "github-runner")
-                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/github-runner.yaml"
-                  ;;
-                "ansible-run")
-                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/ansible-run.yaml"
-                  ;;
-                "cluster-pvc")
-                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/cluster-pvc.yaml"
-                  ;;
-                "github-controller")
-                  config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/github-controller.yaml"
-                  ;;
-                *)
-                  echo "✗ Unknown configuration: $config_name"
-                  continue
-                  ;;
-              esac
+              config_url="https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/packages/configurations/${config_name}.yaml"
 
               echo ""
               echo "Processing configuration: $config_name..."

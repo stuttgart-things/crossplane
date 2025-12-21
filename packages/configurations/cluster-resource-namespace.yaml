@@ -1,7 +1,0 @@
----
-apiVersion: pkg.crossplane.io/v1
-kind: Configuration
-metadata:
-  name: cluster-resource-namespace
-spec:
-  package: ghcr.io/stuttgart-things/crossplane/cluster-resource-namespace:v0.2.0
