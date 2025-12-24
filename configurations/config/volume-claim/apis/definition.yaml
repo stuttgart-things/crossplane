@@ -1,0 +1,104 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: volumeclaims.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: VolumeClaim
+    plural: volumeclaims
+    singular: volumeclaim
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                providerConfigRef:
+                  type: string
+                  description: "Name of the ProviderConfig to use for the Kubernetes provider"
+                pvcName:
+                  type: string
+                  description: "Name of the PersistentVolumeClaim"
+                namespace:
+                  type: string
+                  description: "Namespace where PVC will be created"
+                  default: "default"
+                storageClassName:
+                  type: string
+                  description: "Storage class name to use"
+                storage:
+                  type: string
+                  description: "Storage size (e.g., 10Gi, 100Gi)"
+                  default: "10Gi"
+                accessModes:
+                  type: array
+                  description: "Access modes for the PVC"
+                  items:
+                    type: string
+                  default:
+                    - "ReadWriteOnce"
+                volumeMode:
+                  type: string
+                  description: "Volume mode (Filesystem or Block)"
+                  default: "Filesystem"
+                annotations:
+                  type: object
+                  description: "Annotations to add to the PVC"
+                  additionalProperties:
+                    type: string
+                labels:
+                  type: object
+                  description: "Labels to add to the PVC"
+                  additionalProperties:
+                    type: string
+                selector:
+                  type: object
+                  description: "Label selector for pre-provisioned PVs"
+                  properties:
+                    matchLabels:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    matchExpressions:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          key:
+                            type: string
+                          operator:
+                            type: string
+                          values:
+                            type: array
+                            items:
+                              type: string
+                dataSource:
+                  type: object
+                  description: "Data source for PVC cloning or restoration"
+                  properties:
+                    name:
+                      type: string
+                    kind:
+                      type: string
+                    apiGroup:
+                      type: string
+              required:
+                - providerConfigRef
+                - pvcName
+                - storageClassName
+            status:
+              type: object
+              properties:
+                pvcName:
+                  type: string
+                ready:
+                  type: boolean

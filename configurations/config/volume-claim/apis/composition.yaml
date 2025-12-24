@@ -1,0 +1,84 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: volume-claim
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: VolumeClaim
+  mode: Pipeline
+  pipeline:
+    - step: render-pvc
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            ---
+            apiVersion: kubernetes.m.crossplane.io/v1alpha1
+            kind: Object
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation (print .observed.composite.resource.spec.pvcName "-pvc") }}
+              labels:
+                app.kubernetes.io/name: managed-pvc
+                app.kubernetes.io/instance: {{ .observed.composite.resource.spec.pvcName }}
+                app.kubernetes.io/managed-by: crossplane
+            spec:
+              providerConfigRef:
+                name: {{ .observed.composite.resource.spec.providerConfigRef }}
+                kind: ClusterProviderConfig
+              forProvider:
+                manifest:
+                  apiVersion: v1
+                  kind: PersistentVolumeClaim
+                  metadata:
+                    name: {{ .observed.composite.resource.spec.pvcName }}
+                    namespace: {{ .observed.composite.resource.spec.namespace | default "default" }}
+                    {{- if .observed.composite.resource.spec.annotations }}
+                    annotations:
+                      {{- range $key, $value := .observed.composite.resource.spec.annotations }}
+                      {{ $key }}: {{ $value }}
+                      {{- end }}
+                    {{- end }}
+                    {{- if .observed.composite.resource.spec.labels }}
+                    labels:
+                      {{- range $key, $value := .observed.composite.resource.spec.labels }}
+                      {{ $key }}: {{ $value }}
+                      {{- end }}
+                    {{- end }}
+                  spec:
+                    storageClassName: {{ .observed.composite.resource.spec.storageClassName }}
+                    {{- if .observed.composite.resource.spec.accessModes }}
+                    accessModes:
+                      {{- range .observed.composite.resource.spec.accessModes }}
+                      - {{ . }}
+                      {{- end }}
+                    {{- end }}
+                    volumeMode: {{ .observed.composite.resource.spec.volumeMode | default "Filesystem" }}
+                    resources:
+                      requests:
+                        storage: {{ .observed.composite.resource.spec.storage | default "10Gi" }}
+                    {{- if .observed.composite.resource.spec.dataSource }}
+                    dataSource:
+                      name: {{ .observed.composite.resource.spec.dataSource.name }}
+                      kind: {{ .observed.composite.resource.spec.dataSource.kind }}
+                      {{- if .observed.composite.resource.spec.dataSource.apiGroup }}
+                      apiGroup: {{ .observed.composite.resource.spec.dataSource.apiGroup }}
+                      {{- end }}
+                    {{- end }}
+              managementPolicies:
+              - '*'
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: VolumeClaim
+            status:
+              pvcName: {{ .observed.composite.resource.spec.pvcName }}
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready

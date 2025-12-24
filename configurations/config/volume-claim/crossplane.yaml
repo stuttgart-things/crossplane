@@ -1,0 +1,78 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: volume-claim
+  annotations:
+    meta.crossplane.io/maintainer: Stuttgart Things <info@stuttgart-things.com>
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane-volume-claim
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      Generic PersistentVolumeClaim abstraction for Crossplane that works with any storage backend.
+      Supports custom annotations and labels for storage-specific configurations (e.g., Harvester, Longhorn, Rook-Ceph).
+    meta.crossplane.io/readme: |
+      # VolumeClaim Configuration
+
+      A DRY (Don't Repeat Yourself) Crossplane configuration for managing PersistentVolumeClaims across any storage backend.
+
+      ## Features
+
+      - **Universal Storage Support**: Works with Harvester, Longhorn, Rook-Ceph, and any Kubernetes storage provider
+      - **Custom Annotations**: Support for storage-specific annotations (e.g., `harvesterhci.io/imageId`)
+      - **Flexible Configuration**: Optional labels, selectors, and data sources for advanced use cases
+      - **Simple Interface**: Clean API that abstracts the complexity of PVC management
+
+      ## Usage
+
+      ### Simple Example
+      ```yaml
+      apiVersion: resources.stuttgart-things.com/v1alpha1
+      kind: VolumeClaim
+      metadata:
+        name: simple-storage
+      spec:
+        providerConfigRef: kubernetes-provider
+        pvcName: app-data
+        namespace: applications
+        storageClassName: standard
+        storage: "20Gi"
+      ```
+
+      ### Harvester VM Disk Example
+      ```yaml
+      apiVersion: resources.stuttgart-things.com/v1alpha1
+      kind: VolumeClaim
+      metadata:
+        name: ubuntu-vm-disk
+      spec:
+        providerConfigRef: kubernetes-provider
+        pvcName: ubuntu-vm-root
+        namespace: vms
+        storageClassName: longhorn-ubuntu-22.04
+        storage: "100Gi"
+        volumeMode: Block
+        annotations:
+          harvesterhci.io/imageId: "harvester-public/ubuntu-22.04"
+        labels:
+          app: web-server
+          environment: production
+      ```
+
+      ## Requirements
+
+      - Crossplane >= v1.14.1
+      - Provider Kubernetes
+      - Function Go Templating
+      - Function Auto Ready
+
+spec:
+  crossplane:
+    version: ">=v1.14.1-0"
+
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.14.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-go-templating
+      version: ">=v0.5.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.2.0"
