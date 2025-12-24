@@ -251,7 +251,8 @@ tasks:
           package_type="{{ .PACKAGE_TYPE }}"
           if [[ "$package_type" == "Configurations" || "$package_type" == "Both" ]]; then
             gum choose --no-limit --header="Select Crossplane Configurations:" \
-              "cloud-config"
+              "cloud-config" \
+              "volume-claim"
           fi
       KUBECONFIG_PATH:
         sh: |
