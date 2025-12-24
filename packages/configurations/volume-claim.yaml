@@ -2,6 +2,6 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: cloud-config
+  name: volume-claim
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/cloud-config:v0.3.0
+  package: ghcr.io/stuttgart-things/crossplane/volume-claim:v0.1.0
