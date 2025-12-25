@@ -14,6 +14,8 @@ includes:
     taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/git/git.yaml
   crossplane:
     taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/crossplane.yaml
+  k2n:
+    taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/k2n.yaml
 
 tasks:
   push-configuration-package:
@@ -83,6 +85,69 @@ tasks:
           find {{ .SOURCE_FOLDER }}/k8s {{ .SOURCE_FOLDER }}/cluster {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/config {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps \
             -mindepth 1 -maxdepth 1 -type d | \
             sed "s|^\./configurations/||" | \
+            sort | \
+            gum choose
+
+  push-module:
+    desc: Push KCL module to OCI registry
+    cmds:
+      - |
+        set -e
+
+        MODULE_PATH={{ .ALL_MODULES }}
+        MODULE=$(basename "${MODULE_PATH}")
+
+        IMAGE="{{ .DESTINATION }}/${MODULE}"
+
+        echo "🔍 Checking existing versions for ${IMAGE}..."
+
+        TAGS=$(oras repo tags "${IMAGE}" 2>/dev/null || true)
+
+        SEMVER_TAGS=$(echo "$TAGS" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+
+        if [ -z "$SEMVER_TAGS" ]; then
+          echo "⚠️  No released versions found"
+          DEFAULT_TAG="v0.1.0"
+        else
+          echo
+          echo "📦 Released versions:"
+          echo "$SEMVER_TAGS" | sort -V | sed 's/^/  - /'
+
+          LATEST=$(echo "$SEMVER_TAGS" | sort -V | tail -n1)
+
+          echo
+          echo "✅ Latest released version: ${LATEST}"
+
+          DEFAULT_TAG=$(
+            echo "$LATEST" | awk -F. '{
+              sub(/^v/,"",$1);
+              printf("v%d.%d.0\n",$1,$2+1)
+            }'
+          )
+        fi
+
+        echo
+        TAG=$(gum input \
+          --prompt "Tag: " \
+          --value "${DEFAULT_TAG}")
+
+        echo
+        echo "🚀 Pushing KCL module:"
+        echo "  Module : ${MODULE_PATH}"
+        echo "  Image  : ${IMAGE}"
+        echo "  Tag    : ${TAG}"
+
+        cd "${MODULE_PATH}"
+        kcl mod push "oci://${IMAGE}:${TAG}" \
+          --username={{ .USER }} \
+          --password=${GITHUB_TOKEN}
+    vars:
+      DESTINATION: "{{ .CROSSPLANE_PACKAGE_REGISTRY }}/stuttgart-things/xplane"
+      USER: stuttgart-things
+      ALL_MODULES:
+        sh: |
+          find . -maxdepth 1 -type d -name "xplane-*" | \
+            sed 's|^\./||' | \
             sort | \
             gum choose
 
