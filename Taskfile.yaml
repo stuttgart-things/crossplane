@@ -11,7 +11,9 @@ vars:
 
 includes:
   git:
-    taskfile: https://raw.githubusercontent.com/stuttgart-things/platform-engineering-showcase/refs/heads/main/taskfiles/git.yaml
+    taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/git/git.yaml
+  crossplane:
+    taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/crossplane.yaml
 
 tasks:
   push-configuration-package:

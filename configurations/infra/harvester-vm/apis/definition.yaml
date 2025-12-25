@@ -4,168 +4,198 @@ kind: CompositeResourceDefinition
 metadata:
   name: harvestervms.resources.stuttgart-things.com
 spec:
-  # Namespaced scope is the modern v2 approach (no claims support)
-  scope: Namespaced
   group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
   names:
     kind: HarvesterVM
     plural: harvestervms
-  # Note: claimNames removed - v2 namespaced XRs don't support claims
+    singular: harvestervm
   versions:
-  - name: v1alpha1
-    served: true
-    referenceable: true
-    schema:
-      openAPIV3Schema:
-        type: object
-        properties:
-          spec:
-            type: object
-            properties:
-              # Common properties
-              providerConfigRef:
-                type: string
-                description: "Name of the ProviderConfig to use for the Kubernetes provider"
-              vmName:
-                type: string
-                description: "Name of the VM"
-              namespace:
-                type: string
-                description: "Namespace for the VM resources"
-                default: "default"
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - providerConfigRef
+                - volume
+                - cloudInit
+              properties:
+                providerConfigRef:
+                  type: string
+                  description: "Name of the ProviderConfig for Kubernetes operations"
 
-              # PVC properties
-              storage:
-                type: string
-                description: "Storage size for the VM disk (e.g., 50Gi)"
-                default: "50Gi"
-              storageClassName:
-                type: string
-                description: "Storage class name for the PVC"
-              imageId:
-                type: string
-                description: "Harvester image ID for the annotation (e.g., default/image-t9w92)"
-              accessModes:
-                type: array
-                description: "Access modes for the PVC"
-                items:
-                  type: string
-                default:
-                  - ReadWriteMany
-              volumeMode:
-                type: string
-                description: "Volume mode (Block or Filesystem)"
-                default: "Block"
-              pvcAnnotations:
-                type: object
-                description: "Additional annotations for the PVC"
-                additionalProperties:
-                  type: string
-              pvcLabels:
-                type: object
-                description: "Additional labels for the PVC"
-                additionalProperties:
-                  type: string
-
-              # Cloud-init properties
-              hostname:
-                type: string
-                description: "Hostname for the VM"
-              domain:
-                type: string
-                description: "Domain name"
-                default: "local"
-              timezone:
-                type: string
-                description: "Timezone (e.g., UTC, Europe/Berlin)"
-              users:
-                type: array
-                description: "User configurations"
-                items:
+                # Volume Claim Configuration
+                volume:
                   type: object
+                  required:
+                    - pvcName
+                    - storageClassName
                   properties:
-                    name:
+                    pvcName:
                       type: string
-                    sshAuthorizedKeys:
+                      description: "Name of the PersistentVolumeClaim"
+                    namespace:
+                      type: string
+                      description: "PVC target namespace"
+                      default: "default"
+                    storageClassName:
+                      type: string
+                      description: "Storage class for PVC"
+                    storage:
+                      type: string
+                      description: "PVC size (e.g., 10Gi)"
+                      default: "10Gi"
+                    accessModes:
                       type: array
                       items:
                         type: string
-                    sudo:
+                      default:
+                        - "ReadWriteOnce"
+                    volumeMode:
                       type: string
-                    groups:
+                      default: "Filesystem"
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    labels:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    selector:
+                      type: object
+                      properties:
+                        matchLabels:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        matchExpressions:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              values:
+                                type: array
+                                items:
+                                  type: string
+                    dataSource:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        kind:
+                          type: string
+                        apiGroup:
+                          type: string
+                # Cloud-Init Configuration
+                cloudInit:
+                  type: object
+                  required:
+                    - vmName
+                    - hostname
+                  properties:
+                    vmName:
                       type: string
-                    shell:
+                      description: "VM identifier for secret naming"
+                    namespace:
                       type: string
-                    password:
+                      description: "Secret target namespace"
+                      default: "vms"
+                    hostname:
                       type: string
-                    lockPasswd:
+                      description: "VM hostname"
+                    domain:
+                      type: string
+                      default: "local"
+                    timezone:
+                      type: string
+                    users:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          sshAuthorizedKeys:
+                            type: array
+                            items:
+                              type: string
+                          sudo:
+                            type: string
+                          groups:
+                            type: string
+                          shell:
+                            type: string
+                          password:
+                            type: string
+                          lockPasswd:
+                            type: boolean
+                    packages:
+                      type: array
+                      items:
+                        type: string
+                    writeFiles:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          path:
+                            type: string
+                          content:
+                            type: string
+                          owner:
+                            type: string
+                          permissions:
+                            type: string
+                          encoding:
+                            type: string
+                    runcmd:
+                      type: array
+                      items:
+                        type: string
+                    bootcmd:
+                      type: array
+                      items:
+                        type: string
+                    packageUpdate:
                       type: boolean
-              packages:
-                type: array
-                description: "Packages to install"
-                items:
-                  type: string
-              writeFiles:
-                type: array
-                description: "Files to write"
-                items:
+                      default: true
+                    packageUpgrade:
+                      type: boolean
+                      default: false
+                    sshPasswordAuth:
+                      type: boolean
+                      default: false
+                    disableRoot:
+                      type: boolean
+                      default: true
+                    networkConfig:
+                      type: string
+
+            status:
+              type: object
+              properties:
+                volume:
                   type: object
                   properties:
-                    path:
+                    pvcName:
                       type: string
-                    content:
+                    ready:
+                      type: boolean
+                cloudInit:
+                  type: object
+                  properties:
+                    secretName:
                       type: string
-                    owner:
-                      type: string
-                    permissions:
-                      type: string
-                    encoding:
-                      type: string
-              runcmd:
-                type: array
-                description: "Commands to run after boot"
-                items:
-                  type: string
-              bootcmd:
-                type: array
-                description: "Commands to run during boot"
-                items:
-                  type: string
-              packageUpdate:
-                type: boolean
-                description: "Update package cache"
-                default: true
-              packageUpgrade:
-                type: boolean
-                description: "Upgrade packages"
-                default: false
-              sshPasswordAuth:
-                type: boolean
-                description: "Enable SSH password authentication"
-                default: false
-              disableRoot:
-                type: boolean
-                description: "Disable root login"
-                default: true
-              networkConfig:
-                type: string
-                description: "Network configuration in cloud-init format"
-            required:
-            - providerConfigRef
-            - vmName
-            - hostname
-            - storageClassName
-          status:
-            type: object
-            properties:
-              pvcName:
-                type: string
-                description: "Name of the created PVC"
-              secretName:
-                type: string
-                description: "Name of the created cloud-init secret"
-              namespace:
-                type: string
-                description: "Namespace of the created resources"
-              ready:
-                type: boolean
+                    ready:
+                      type: boolean
