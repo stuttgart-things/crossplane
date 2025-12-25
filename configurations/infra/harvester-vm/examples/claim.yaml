@@ -1,3 +1,4 @@
+---
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: HarvesterVM
 metadata:
@@ -5,6 +6,37 @@ metadata:
   namespace: default
 spec:
   providerConfigRef: dev
+
+  # ---------------------------------------------------------------------------
+  # VM Specification (NEW – required by updated XRD)
+  # ---------------------------------------------------------------------------
+  vm:
+    name: demo-harvester-vm
+    namespace: vms
+    vmName: demo-harvester-vm
+    hostname: demo
+    description: Demo Harvester VM managed by Crossplane
+
+    osLabel: ubuntu
+    runStrategy: RerunOnFailure
+
+    cpuCores: 4
+    cpuSockets: 1
+    cpuThreads: 1
+    memory: 8Gi
+
+    diskName: disk-0
+    machineType: q35
+
+    networkNamespace: default
+    networkName: default
+
+    evictionStrategy: LiveMigrateIfPossible
+    terminationGracePeriod: 120
+
+  # ---------------------------------------------------------------------------
+  # Volume Configuration
+  # ---------------------------------------------------------------------------
   volume:
     pvcName: demo-harvester-vm-root
     namespace: default
@@ -15,12 +47,17 @@ spec:
     volumeMode: Filesystem
     labels:
       app: demo-harvester-vm
+
+  # ---------------------------------------------------------------------------
+  # Cloud-Init Configuration
+  # ---------------------------------------------------------------------------
   cloudInit:
     vmName: demo-harvester-vm
     namespace: default
     hostname: demo
     domain: stuttgart-things.local
     timezone: Europe/Berlin
+
     users:
       - name: ubuntu
         groups: sudo
@@ -28,10 +65,12 @@ spec:
         sudo: "ALL=(ALL) NOPASSWD:ALL" # pragma: allowlist secret
         sshAuthorizedKeys:
           - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBEXAMPLEKEY user@laptop # pragma: allowlist secret
+
     packages:
       - qemu-guest-agent
       - curl
       - vim
+
     writeFiles:
       - path: /etc/motd
         owner: root:root
@@ -39,9 +78,11 @@ spec:
         content: |
           🚀 Welcome to your Harvester VM!
           Managed by Crossplane.
+
     runcmd:
       - systemctl enable qemu-guest-agent
       - systemctl start qemu-guest-agent
+
     packageUpdate: true
     packageUpgrade: false
     sshPasswordAuth: false

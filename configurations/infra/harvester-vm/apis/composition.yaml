@@ -193,3 +193,18 @@ spec:
             - fromFieldPath: status.ready
               toFieldPath: status.cloudInit.ready
               type: ToCompositeFieldPath
+
+  - step: vm
+    functionRef:
+      name: function-kcl
+    input:
+      apiVersion: krm.kcl.dev/v1alpha1
+      kind: KCLInput
+      metadata:
+        name: harvester-vm
+      spec:
+        source: oci://ghcr.io/stuttgart-things/harvester-vm:0.2.0
+
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: function-auto-ready

@@ -1,4 +1,3 @@
----
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
@@ -23,14 +22,88 @@ spec:
               type: object
               required:
                 - providerConfigRef
+                - vm
                 - volume
                 - cloudInit
               properties:
                 providerConfigRef:
                   type: string
-                  description: "Name of the ProviderConfig for Kubernetes operations"
+                  description: Name of the ProviderConfig for Kubernetes operations
 
+                # --------------------
+                # VM Configuration
+                # --------------------
+                vm:
+                  type: object
+                  required:
+                    - name
+                    - namespace
+                    - vmName
+                    - hostname
+                    - osLabel
+                    - cpuCores
+                    - memory
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                      default: vms
+                    vmName:
+                      type: string
+                    hostname:
+                      type: string
+                    description:
+                      type: string
+
+                    osLabel:
+                      type: string
+                      description: OS image label (e.g. ubuntu)
+
+                    runStrategy:
+                      type: string
+                      default: RerunOnFailure
+
+                    cpuCores:
+                      type: integer
+                      minimum: 1
+                    cpuSockets:
+                      type: integer
+                      default: 1
+                    cpuThreads:
+                      type: integer
+                      default: 1
+
+                    memory:
+                      type: string
+                      description: VM memory (e.g. 8Gi)
+
+                    diskName:
+                      type: string
+                      default: disk-0
+
+                    machineType:
+                      type: string
+                      default: q35
+
+                    networkNamespace:
+                      type: string
+                      default: default
+                    networkName:
+                      type: string
+                      default: default
+
+                    evictionStrategy:
+                      type: string
+                      default: LiveMigrateIfPossible
+
+                    terminationGracePeriod:
+                      type: integer
+                      default: 120
+
+                # --------------------
                 # Volume Claim Configuration
+                # --------------------
                 volume:
                   type: object
                   required:
@@ -39,27 +112,23 @@ spec:
                   properties:
                     pvcName:
                       type: string
-                      description: "Name of the PersistentVolumeClaim"
                     namespace:
                       type: string
-                      description: "PVC target namespace"
-                      default: "default"
+                      default: default
                     storageClassName:
                       type: string
-                      description: "Storage class for PVC"
                     storage:
                       type: string
-                      description: "PVC size (e.g., 10Gi)"
-                      default: "10Gi"
+                      default: 10Gi
                     accessModes:
                       type: array
                       items:
                         type: string
                       default:
-                        - "ReadWriteOnce"
+                        - ReadWriteOnce
                     volumeMode:
                       type: string
-                      default: "Filesystem"
+                      default: Filesystem
                     annotations:
                       type: object
                       additionalProperties:
@@ -68,36 +137,10 @@ spec:
                       type: object
                       additionalProperties:
                         type: string
-                    selector:
-                      type: object
-                      properties:
-                        matchLabels:
-                          type: object
-                          additionalProperties:
-                            type: string
-                        matchExpressions:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              key:
-                                type: string
-                              operator:
-                                type: string
-                              values:
-                                type: array
-                                items:
-                                  type: string
-                    dataSource:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                        kind:
-                          type: string
-                        apiGroup:
-                          type: string
+
+                # --------------------
                 # Cloud-Init Configuration
+                # --------------------
                 cloudInit:
                   type: object
                   required:
@@ -106,17 +149,14 @@ spec:
                   properties:
                     vmName:
                       type: string
-                      description: "VM identifier for secret naming"
                     namespace:
                       type: string
-                      description: "Secret target namespace"
-                      default: "vms"
+                      default: vms
                     hostname:
                       type: string
-                      description: "VM hostname"
                     domain:
                       type: string
-                      default: "local"
+                      default: local
                     timezone:
                       type: string
                     users:
@@ -185,6 +225,13 @@ spec:
             status:
               type: object
               properties:
+                vm:
+                  type: object
+                  properties:
+                    ready:
+                      type: boolean
+                    id:
+                      type: string
                 volume:
                   type: object
                   properties:
