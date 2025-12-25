@@ -25,9 +25,9 @@ spec:
       - name: ubuntu
         groups: sudo
         shell: /bin/bash
-        sudo: "ALL=(ALL) NOPASSWD:ALL"
+        sudo: "ALL=(ALL) NOPASSWD:ALL" # pragma: allowlist secret
         sshAuthorizedKeys:
-          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBEXAMPLEKEY user@laptop
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBEXAMPLEKEY user@laptop # pragma: allowlist secret
     packages:
       - qemu-guest-agent
       - curl

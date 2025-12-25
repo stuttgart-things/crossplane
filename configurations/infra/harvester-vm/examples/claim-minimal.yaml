@@ -3,11 +3,14 @@ apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: HarvesterVM
 metadata:
   name: minimal-harvester-vm
+  namespace: default
 spec:
   providerConfigRef: dev
   volume:
+    namespace: default
     pvcName: minimal-harvester-vm-disk
     storageClassName: harvester-longhorn
   cloudInit:
+    namespace: default
     vmName: minimal-harvester-vm
     hostname: minimal

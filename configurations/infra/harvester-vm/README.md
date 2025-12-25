@@ -10,5 +10,5 @@ examples/functions.yaml \
 ```
 
 ```bash
-crossplane beta trace volumeclaim simple-storage
+crossplane beta trace HarvesterVM minimal-harvester-vm
 ```
