@@ -1,0 +1,92 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: harvester-vm
+  annotations:
+    meta.crossplane.io/maintainer: Stuttgart-Things <platform@stuttgart-things.com>
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane-harvester-vm
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      Combined Crossplane configuration for provisioning Harvester virtual machines.
+
+      This configuration composes multiple reusable composites into a single
+      higher-level API:
+        - VolumeClaim (persistent storage)
+        - CloudInit (VM bootstrap configuration)
+
+      The resulting HarvesterVM resource provides a simple, declarative
+      interface for VM provisioning while keeping storage and bootstrap
+      logic reusable and independently evolvable.
+
+    meta.crossplane.io/readme: |
+      # Harvester VM Configuration
+
+      This Crossplane configuration provides the **HarvesterVM** composite
+      resource. It acts as a thin orchestration layer that combines existing
+      building blocks into a single, user-friendly API.
+
+      ## What this configuration does
+
+      When a `HarvesterVM` claim is created, this configuration:
+
+      1. Creates a `VolumeClaim` composite to provision persistent storage
+      2. Creates a `CloudInit` composite to generate cloud-init user data
+      3. Aggregates readiness and status information on the parent resource
+
+      ## Provided API
+
+      ```yaml
+      apiVersion: resources.stuttgart-things.com/v1alpha1
+      kind: HarvesterVM
+      ```
+
+      ## Minimal Example
+
+      ```yaml
+      apiVersion: resources.stuttgart-things.com/v1alpha1
+      kind: HarvesterVM
+      metadata:
+        name: minimal-vm
+      spec:
+        providerConfigRef: kubernetes-provider
+        volume:
+          pvcName: minimal-vm-disk
+          storageClassName: longhorn
+        cloudInit:
+          vmName: minimal-vm
+          hostname: minimal
+      ```
+
+      ## Design Notes
+
+      - Uses **Pipeline compositions**
+      - Uses **function-patch-and-transform**
+      - Does not pass secrets through claims
+      - Reuses existing composite resources
+      - Aggregates child status for observability
+
+      ## Requirements
+
+      - Crossplane v1.14+
+      - Kubernetes provider configured
+      - Underlying `VolumeClaim` and `CloudInit` configurations installed
+
+spec:
+  crossplane:
+    version: ">=v1.14.1-0"
+
+  dependsOn:
+    # Required to create Kubernetes resources (PVCs, Secrets)
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.12.1"
+
+    # Required for Pipeline compositions
+    - function: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
+      version: ">=v0.3.0"
+
+    # Base composite configurations this module depends on
+    - configuration: xpkg.upbound.io/stuttgart-things/configuration-volume-claim
+      version: ">=v1.0.0"
+
+    - configuration: xpkg.upbound.io/stuttgart-things/configuration-cloud-init
+      version: ">=v1.0.0"

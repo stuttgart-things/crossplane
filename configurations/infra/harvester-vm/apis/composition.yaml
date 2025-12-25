@@ -2,89 +2,194 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   name: harvester-vm
+  labels:
+    crossplane.io/xrd: harvestervms.resources.stuttgart-things.com
 spec:
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
-    kind: XHarvesterVM
+    kind: HarvesterVM
 
   mode: Pipeline
   pipeline:
-  - step: create-pvc
+
+  # ---------------------------------------------------------------------------
+  # Step 1: Create VolumeClaim Composite
+  # ---------------------------------------------------------------------------
+  - step: create-volume-claim
     functionRef:
       name: function-patch-and-transform
     input:
       apiVersion: pt.fn.crossplane.io/v1beta1
       kind: Resources
+      environment: null
+      patchSets: []
       resources:
-      - name: vm-pvc
-        base:
-          apiVersion: resources.stuttgart-things.com/v1alpha1
-          kind: ClusterResourcePVC
-        patches:
-        # Provider config
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.providerConfigRef
-          toFieldPath: spec.providerConfigRef
+        - name: volume-claim
+          base:
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: VolumeClaim
+          patches:
+            # Metadata
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.name
+              toFieldPath: metadata.name
 
-        # PVC name (used by the controller, not metadata)
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.vmName
-          toFieldPath: spec.name
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.namespace
+              toFieldPath: metadata.namespace
 
-        # Namespace of the *PVC*
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.namespace
-          toFieldPath: spec.namespace
+            # Provider
+            - type: FromCompositeFieldPath
+              fromFieldPath: spec.providerConfigRef
+              toFieldPath: spec.providerConfigRef
 
-        # Storage settings
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.storage
-          toFieldPath: spec.storage
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.storageClassName
-          toFieldPath: spec.storageClassName
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.imageId
-          toFieldPath: spec.imageId
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.accessModes
-          toFieldPath: spec.accessModes
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.volumeMode
-          toFieldPath: spec.volumeMode
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.pvcAnnotations
-          toFieldPath: spec.annotations
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.pvcLabels
-          toFieldPath: spec.additionalLabels
+            # Volume spec mapping
+            - fromFieldPath: spec.volume.pvcName
+              toFieldPath: spec.pvcName
+              type: FromCompositeFieldPath
 
-        # Feedback to XR
-        - type: ToCompositeFieldPath
-          fromFieldPath: status.pvcName
-          toFieldPath: status.pvcName
-        - type: ToCompositeFieldPath
-          fromFieldPath: status.namespace
-          toFieldPath: status.namespace
+            - fromFieldPath: spec.volume.namespace
+              toFieldPath: spec.namespace
+              type: FromCompositeFieldPath
 
+            - fromFieldPath: spec.volume.storageClassName
+              toFieldPath: spec.storageClassName
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.storage
+              toFieldPath: spec.storage
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.accessModes
+              toFieldPath: spec.accessModes
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.volumeMode
+              toFieldPath: spec.volumeMode
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.annotations
+              toFieldPath: spec.annotations
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.labels
+              toFieldPath: spec.labels
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.selector
+              toFieldPath: spec.selector
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.dataSource
+              toFieldPath: spec.dataSource
+              type: FromCompositeFieldPath
+
+            # Status back-propagation
+            - fromFieldPath: status.pvcName
+              toFieldPath: status.volume.pvcName
+              type: ToCompositeFieldPath
+
+            - fromFieldPath: status.ready
+              toFieldPath: status.volume.ready
+              type: ToCompositeFieldPath
+
+  # ---------------------------------------------------------------------------
+  # Step 2: Create CloudInit Composite
+  # ---------------------------------------------------------------------------
   - step: create-cloud-init
     functionRef:
       name: function-patch-and-transform
     input:
       apiVersion: pt.fn.crossplane.io/v1beta1
       kind: Resources
+      environment: null
+      patchSets: []
       resources:
-      - name: vm-cloud-init
-        base:
-          apiVersion: resources.stuttgart-things.com/v1alpha1
-          kind: XVMCloudInit
-        patches:
-        # Deterministic name is OK here (controller preserves it)
-        - type: FromCompositeFieldPath
-          fromFieldPath: metadata.name
-          toFieldPath: metadata.name
-          transforms:
-          - type: string
-            string:
-              type: Format
-              fmt: "%s-cloud-init"
+        - name: cloud-init
+          base:
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: CloudInit
+          patches:
+            # Metadata
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.name
+              toFieldPath: metadata.name
+
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.namespace
+              toFieldPath: metadata.namespace
+
+            # Provider
+            - type: FromCompositeFieldPath
+              fromFieldPath: spec.providerConfigRef
+              toFieldPath: spec.providerConfigRef
+
+            # Cloud-init spec mapping
+            - fromFieldPath: spec.cloudInit.vmName
+              toFieldPath: spec.vmName
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.namespace
+              toFieldPath: spec.namespace
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.hostname
+              toFieldPath: spec.hostname
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.domain
+              toFieldPath: spec.domain
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.timezone
+              toFieldPath: spec.timezone
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.users
+              toFieldPath: spec.users
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.packages
+              toFieldPath: spec.packages
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.writeFiles
+              toFieldPath: spec.writeFiles
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.runcmd
+              toFieldPath: spec.runcmd
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.bootcmd
+              toFieldPath: spec.bootcmd
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.packageUpdate
+              toFieldPath: spec.packageUpdate
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.packageUpgrade
+              toFieldPath: spec.packageUpgrade
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.sshPasswordAuth
+              toFieldPath: spec.sshPasswordAuth
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.disableRoot
+              toFieldPath: spec.disableRoot
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.networkConfig
+              toFieldPath: spec.networkConfig
+              type: FromCompositeFieldPath
+
+            # Status back-propagation
+            - fromFieldPath: status.secretName
+              toFieldPath: status.cloudInit.secretName
+              type: ToCompositeFieldPath
+
+            - fromFieldPath: status.ready
+              toFieldPath: status.cloudInit.ready
+              type: ToCompositeFieldPath

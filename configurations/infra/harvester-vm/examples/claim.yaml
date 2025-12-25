@@ -1,0 +1,48 @@
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: demo-harvester-vm
+  namespace: default
+spec:
+  providerConfigRef: dev
+  volume:
+    pvcName: demo-harvester-vm-root
+    namespace: default
+    storageClassName: harvester-longhorn
+    storage: 20Gi
+    accessModes:
+      - ReadWriteOnce
+    volumeMode: Filesystem
+    labels:
+      app: demo-harvester-vm
+  cloudInit:
+    vmName: demo-harvester-vm
+    namespace: default
+    hostname: demo
+    domain: stuttgart-things.local
+    timezone: Europe/Berlin
+    users:
+      - name: ubuntu
+        groups: sudo
+        shell: /bin/bash
+        sudo: "ALL=(ALL) NOPASSWD:ALL"
+        sshAuthorizedKeys:
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBEXAMPLEKEY user@laptop
+    packages:
+      - qemu-guest-agent
+      - curl
+      - vim
+    writeFiles:
+      - path: /etc/motd
+        owner: root:root
+        permissions: "0644"
+        content: |
+          🚀 Welcome to your Harvester VM!
+          Managed by Crossplane.
+    runcmd:
+      - systemctl enable qemu-guest-agent
+      - systemctl start qemu-guest-agent
+    packageUpdate: true
+    packageUpgrade: false
+    sshPasswordAuth: false
+    disableRoot: true
