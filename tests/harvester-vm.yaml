@@ -1,0 +1,75 @@
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  name: dev2-vm
+  annotations:
+    krm.kcl.dev/composition-resource-name: harvester-vm-dev2-vm
+spec:
+  deletionPolicy: Delete
+  providerConfigRef:
+    name: harvester
+  forProvider:
+    manifest:
+      apiVersion: kubevirt.io/v1
+      kind: VirtualMachine
+      metadata:
+        name: dev2-vm
+        namespace: vms
+        labels:
+          os: ubuntu
+        annotations:
+          description: Development VM
+      spec:
+        runStrategy: RerunOnFailure
+        template:
+          metadata:
+            labels:
+              vmName: dev2-vm
+          spec:
+            hostname: dev2
+            terminationGracePeriodSeconds: 120
+            evictionStrategy: LiveMigrateIfPossible
+            domain:
+              machine:
+                type: q35
+              cpu:
+                cores: 4
+                sockets: 1
+                threads: 1
+              resources:
+                limits:
+                  memory: '8Gi'
+                  cpu: '4'
+              devices:
+                disks:
+                - name: disk-0
+                  disk:
+                    bus: virtio
+                  bootOrder: 1
+                - name: cloudinitdisk
+                  disk:
+                    bus: virtio
+                interfaces:
+                - name: default
+                  bridge: {}
+                  model: virtio
+              features:
+                acpi:
+                  enabled: true
+            networks:
+            - name: default
+              multus:
+                networkName: default/default
+            volumes:
+            - name: disk-0
+              persistentVolumeClaim:
+                claimName: dev2-vm-disk-0
+            - name: cloudinitdisk
+              cloudInitNoCloud:
+                secretRef:
+                  name: dev2-vm-cloud-init
+                networkDataSecretRef:
+                  name: dev2-vm-cloud-init
+  managementPolicies:
+  - '*'

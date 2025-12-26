@@ -194,17 +194,104 @@ spec:
               toFieldPath: status.cloudInit.ready
               type: ToCompositeFieldPath
 
-  - step: vm
+  # ---------------------------------------------------------------------------
+  # Step 3: Create VirtualMachine (Harvester / KubeVirt)
+  # ---------------------------------------------------------------------------
+  - step: create-vm
     functionRef:
-      name: function-kcl
+      name: function-go-templating
     input:
-      apiVersion: krm.kcl.dev/v1alpha1
-      kind: KCLInput
-      metadata:
-        name: harvester-vm
-      spec:
-        source: oci://ghcr.io/stuttgart-things/harvester-vm:0.2.0
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: | # pragma: allowlist secret
+          ---
+          apiVersion: kubernetes.m.crossplane.io/v1alpha1
+          kind: Object
+          metadata:
+            annotations:
+              {{ setResourceNameAnnotation (print .observed.composite.resource.spec.cloudInit.vmName "-vm") }}
+            labels:
+              app.kubernetes.io/name: harvester-vm
+              app.kubernetes.io/instance: {{ .observed.composite.resource.spec.cloudInit.vmName }}
+              app.kubernetes.io/managed-by: crossplane
+          spec:
+            deletionPolicy: Delete
+            providerConfigRef:
+              name: {{ .observed.composite.resource.spec.providerConfigRef }}
+              kind: ClusterProviderConfig
+            forProvider:
+              manifest:
+                apiVersion: kubevirt.io/v1
+                kind: VirtualMachine
+                metadata:
+                  name: {{ .observed.composite.resource.spec.cloudInit.vmName }}
+                  namespace: {{ .observed.composite.resource.spec.cloudInit.namespace | default "vms" }}
+                  labels:
+                    os: {{ .observed.composite.resource.spec.vm.os | default "ubuntu" }}
+                  annotations:
+                    description: {{ .observed.composite.resource.spec.vm.description | default "VM managed by Crossplane" }}
+                spec:
+                  runStrategy: {{ .observed.composite.resource.spec.vm.runStrategy | default "RerunOnFailure" }}
+                  template:
+                    metadata:
+                      labels:
+                        vmName: {{ .observed.composite.resource.spec.cloudInit.vmName }}
+                    spec:
+                      hostname: {{ .observed.composite.resource.spec.cloudInit.hostname }}
+                      terminationGracePeriodSeconds: {{ .observed.composite.resource.spec.vm.terminationGracePeriodSeconds | default 120 }}
+                      evictionStrategy: {{ .observed.composite.resource.spec.vm.evictionStrategy | default "LiveMigrateIfPossible" }}
+                      domain:
+                        machine:
+                          type: {{ .observed.composite.resource.spec.vm.machineType | default "q35" }}
+                        cpu:
+                          cores: {{ .observed.composite.resource.spec.vm.cpu.cores }}
+                          sockets: {{ .observed.composite.resource.spec.vm.cpu.sockets | default 1 }}
+                          threads: {{ .observed.composite.resource.spec.vm.cpu.threads | default 1 }}
+                        resources:
+                          limits:
+                            memory: {{ .observed.composite.resource.spec.vm.resources.memory }}
+                            cpu: {{ .observed.composite.resource.spec.vm.resources.cpu }}
+                        devices:
+                          disks:
+                            # Root disk (PVC from step 1)
+                            - name: rootdisk
+                              disk:
+                                bus: virtio
+                              bootOrder: 1
 
-  - step: automatically-detect-ready-composed-resources
-    functionRef:
-      name: function-auto-ready
+                            # Cloud-init disk (Secret from step 2)
+                            - name: cloudinitdisk
+                              disk:
+                                bus: virtio
+                          interfaces:
+                            - name: default
+                              bridge: {}
+                              model: virtio
+                        features:
+                          acpi:
+                            enabled: true
+                      networks:
+                        - name: default
+                          multus:
+                            networkName: default/default
+                      volumes:
+                        - name: rootdisk
+                          persistentVolumeClaim:
+                            claimName: {{ .observed.composite.resource.spec.volume.pvcName }}
+
+                        - name: cloudinitdisk
+                          cloudInitNoCloud:
+                            secretRef:
+                              name: {{ .observed.composite.resource.spec.cloudInit.vmName }}-cloud-init
+                            networkDataSecretRef:
+                              name: {{ .observed.composite.resource.spec.cloudInit.vmName }}-cloud-init
+            managementPolicies:
+              - '*'
+          ---
+          apiVersion: resources.stuttgart-things.com/v1alpha1
+          kind: HarvesterVM
+          status:
+            vm:
+              name: {{ .observed.composite.resource.spec.cloudInit.vmName }}
