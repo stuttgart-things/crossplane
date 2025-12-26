@@ -1,4 +1,3 @@
----
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: HarvesterVM
 metadata:
@@ -6,11 +5,45 @@ metadata:
   namespace: default
 spec:
   providerConfigRef: dev
+
+  #################################
+  # Volume (PVC)
+  #################################
   volume:
-    namespace: default
     pvcName: minimal-harvester-vm-disk
-    storageClassName: harvester-longhorn
-  cloudInit:
     namespace: default
+    storageClassName: harvester-longhorn
+    # optional: storage, accessModes, volumeMode will use XRD defaults
+
+  #################################
+  # Cloud-Init
+  #################################
+  cloudInit:
     vmName: minimal-harvester-vm
+    namespace: default
     hostname: minimal
+    # optional: domain, timezone, users, packages, runcmd will use XRD defaults
+
+  #################################
+  # VM (KubeVirt)
+  #################################
+  vm:
+    # optional fields with defaults
+    os: ubuntu
+    description: Minimal Harvester VM managed by Crossplane
+    runStrategy: RerunOnFailure
+    evictionStrategy: LiveMigrateIfPossible
+    terminationGracePeriodSeconds: 120
+    cpu:
+      cores: 1
+      sockets: 1
+      threads: 1
+    resources:
+      memory: 1Gi
+      cpu: "1"
+    disks:
+      - name: rootdisk
+      - name: cloudinitdisk
+    networks:
+      - name: default
+        networkName: default/default
