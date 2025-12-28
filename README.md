@@ -9,6 +9,8 @@ crossplane configurations, apis and examples
 ```bash
 export TASK_X_REMOTE_TASKFILES=1
 task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/kind.yaml create-kind-cluster
+
+export KUBECONFIG=/home/sthings/.kube/<CLUSTER-NAME>
 task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/crds.yaml kubectl-kustomize #apply+cilium
 task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+cilium
 ```
@@ -18,9 +20,11 @@ task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/he
 <details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
 
 ```bash
+kubectl apply --server-side -k https://github.com/stuttgart-things/helm/cicd/crds/crossplane
+
 # BY TASKFILE
 export TASK_X_REMOTE_TASKFILES=1
-task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #capply+crossplane
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+crossplane
 ```
 
 ```bash

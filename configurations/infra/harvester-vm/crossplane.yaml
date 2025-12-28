@@ -85,8 +85,8 @@ spec:
       version: ">=v0.3.0"
 
     # Base composite configurations this module depends on
-    - configuration: xpkg.upbound.io/stuttgart-things/configuration-volume-claim
-      version: ">=v1.0.0"
+    - configuration: ghcr.io/stuttgart-things/crossplane/volume-claim
+      version: ">=v0.1.1"
 
-    - configuration: xpkg.upbound.io/stuttgart-things/configuration-cloud-init
-      version: ">=v1.0.0"
+    - configuration: ghcr.io/stuttgart-things/crossplane/cloud-config
+      version: ">=v0.4.1"

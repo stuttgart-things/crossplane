@@ -4,4 +4,4 @@ kind: Configuration
 metadata:
   name: harvester-vm
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/harvester-vm:v0.1.1
+  package: ghcr.io/stuttgart-things/crossplane/harvester-vm:v0.2.3
