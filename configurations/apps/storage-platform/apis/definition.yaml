@@ -1,15 +1,15 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: harvestervms.resources.stuttgart-things.com
+  name: storageplatforms.storage.platform.example.org
 spec:
-  group: resources.stuttgart-things.com
-  defaultCompositeDeletePolicy: Foreground
+  group: storage.platform.example.org
   scope: Namespaced
+  defaultCompositeDeletePolicy: Foreground
   names:
-    kind: HarvesterVM
-    plural: harvestervms
-    singular: harvestervm
+    kind: StoragePlatform
+    plural: storageplatforms
+    singular: storageplatform
   versions:
     - name: v1alpha1
       served: true
@@ -17,279 +17,94 @@ spec:
       schema:
         openAPIV3Schema:
           type: object
+          description: Platform-level storage offering
           properties:
             spec:
               type: object
               required:
-                - providerConfigRef
-                - volume
-                - cloudInit
-                - vm
+                - engine
               properties:
-                providerConfigRef:
+                engine:
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      type: string
+                      description: Storage engine type
+                      enum:
+                        - openebs
+                        - nfs
+                        - ceph
+
+                  providerConfigRef:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        default: helm-provider-cluster
+
+                  kubernetesProviderConfigRef:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        default: kubernetes-provider-cluster
+
+                namespace:
                   type: string
-                  description: "Name of the ProviderConfig for Kubernetes operations"
+                  description: Target namespace for storage components
 
-                #################################
-                # Volume Claim Configuration
-                #################################
-                volume:
+                version:
+                  type: string
+                  description: Helm chart version
+
+                openebs:
                   type: object
-                  required:
-                    - pvcName
-                    - storageClassName
                   properties:
-                    pvcName:
+                    profile:
                       type: string
-                    namespace:
-                      type: string
-                      default: "default"
-                    storageClassName:
-                      type: string
-                    storage:
-                      type: string
-                      default: "10Gi"
-                    accessModes:
-                      type: array
-                      items:
-                        type: string
-                      default:
-                        - "ReadWriteOnce"
-                    volumeMode:
-                      type: string
-                      default: "Filesystem"
-                    annotations:
-                      type: object
-                      additionalProperties:
-                        type: string
-                    labels:
-                      type: object
-                      additionalProperties:
-                        type: string
-                    selector:
+                      enum: [localpv, mayastor, custom]
+                    features:
                       type: object
                       properties:
-                        matchLabels:
+                        volumeSnapshots:
+                          type: boolean
+                        csiNodeInitContainers:
+                          type: boolean
+                    engines:
+                      type: object
+                      properties:
+                        local:
                           type: object
-                          additionalProperties:
-                            type: string
-                        matchExpressions:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              key:
-                                type: string
-                              operator:
-                                type: string
-                              values:
-                                type: array
-                                items:
-                                  type: string
-                    dataSource:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                        kind:
-                          type: string
-                        apiGroup:
-                          type: string
+                          properties:
+                            lvm:
+                              type: boolean
+                            zfs:
+                              type: boolean
+                        replicated:
+                          type: object
+                          properties:
+                            mayastor:
+                              type: boolean
 
-                #################################
-                # Cloud-Init Configuration
-                #################################
-                cloudInit:
+                nfs:
                   type: object
-                  required:
-                    - vmName
-                    - hostname
                   properties:
-                    vmName:
+                    serverFQDN:
                       type: string
-                    namespace:
+                    sharePath:
                       type: string
-                      default: "vms"
-                    hostname:
+                    storageClass:
                       type: string
-                    domain:
+                    reclaimPolicy:
                       type: string
-                      default: "local"
-                    timezone:
-                      type: string
-                    users:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          name:
-                            type: string
-                          sshAuthorizedKeys:
-                            type: array
-                            items:
-                              type: string
-                          sudo:
-                            type: string
-                          groups:
-                            type: string
-                          shell:
-                            type: string
-                          password:
-                            type: string
-                          lockPasswd:
-                            type: boolean
-                    packages:
-                      type: array
-                      items:
-                        type: string
-                    writeFiles:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          path:
-                            type: string
-                          content:
-                            type: string
-                          owner:
-                            type: string
-                          permissions:
-                            type: string
-                          encoding:
-                            type: string
-                    runcmd:
-                      type: array
-                      items:
-                        type: string
-                    bootcmd:
-                      type: array
-                      items:
-                        type: string
-                    packageUpdate:
-                      type: boolean
-                      default: true
-                    packageUpgrade:
-                      type: boolean
-                      default: false
-                    sshPasswordAuth:
-                      type: boolean
-                      default: false
-                    disableRoot:
-                      type: boolean
-                      default: true
-                    networkConfig:
-                      type: string
+                      enum: [Delete, Retain]
 
-                #################################
-                # VirtualMachine Configuration (NEW)
-                #################################
-                vm:
-                  type: object
-                  description: "KubeVirt / Harvester VirtualMachine configuration"
-                  required:
-                    - cpu
-                    - resources
-                  properties:
-                    description:
-                      type: string
-
-                    runStrategy:
-                      type: string
-                      default: "RerunOnFailure"
-
-                    evictionStrategy:
-                      type: string
-                      default: "LiveMigrateIfPossible"
-
-                    terminationGracePeriodSeconds:
-                      type: integer
-                      default: 120
-
-                    os:
-                      type: string
-                      default: "ubuntu"
-
-                    machineType:
-                      type: string
-                      default: "q35"
-
-                    cpu:
-                      type: object
-                      required:
-                        - cores
-                      properties:
-                        cores:
-                          type: integer
-                        sockets:
-                          type: integer
-                          default: 1
-                        threads:
-                          type: integer
-                          default: 1
-
-                    resources:
-                      type: object
-                      required:
-                        - memory
-                        - cpu
-                      properties:
-                        memory:
-                          type: string
-                        cpu:
-                          type: string
-
-                    disks:
-                      type: array
-                      items:
-                        type: object
-                        required:
-                          - name
-                        properties:
-                          name:
-                            type: string
-                          bus:
-                            type: string
-                            default: "virtio"
-                          bootOrder:
-                            type: integer
-
-                    networks:
-                      type: array
-                      items:
-                        type: object
-                        required:
-                          - name
-                          - networkName
-                        properties:
-                          name:
-                            type: string
-                          networkName:
-                            type: string
-
-            #################################
-            # Status
-            #################################
             status:
               type: object
               properties:
-                volume:
-                  type: object
-                  properties:
-                    pvcName:
-                      type: string
-                    ready:
-                      type: boolean
-                cloudInit:
-                  type: object
-                  properties:
-                    secretName:
-                      type: string
-                    ready:
-                      type: boolean
-                vm:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-                    ready:
-                      type: boolean
+                installed:
+                  type: boolean
+                observedVersion:
+                  type: string

@@ -1,0 +1,20 @@
+---
+apiVersion: storage.platform.example.org/v1alpha1
+kind: StoragePlatform
+metadata:
+  name: nfs-storage
+spec:
+  engine:
+    type: nfs
+  providerConfigRef:
+    name: helm-provider-prod
+  kubernetesProviderConfigRef:
+    name: kubernetes-provider-prod
+  nfs:
+    serverFQDN: nfs.example.com
+    sharePath: /exports/k8s
+    storageClass: nfs-client
+    mountOptions:
+      - vers=4.1
+      - rsize=1048576
+      - wsize=1048576

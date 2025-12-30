@@ -1,0 +1,115 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: storageplatform-nfs
+  labels:
+    crossplane.io/xrd: storageplatforms.storage.platform.example.org
+    storage.platform.example.org/engine: nfs
+spec:
+  compositeTypeRef:
+    apiVersion: storage.platform.example.org/v1alpha1
+    kind: StoragePlatform
+  mode: Pipeline
+  pipeline:
+    - step: deploy-nfs-csi
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: | # pragma: allowlist secret
+            {{- $spec := .observed.composite.resource.spec -}}
+            {{- $nfs := $spec.nfs -}}
+
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "nfs-csi-driver" }}
+              labels:
+                app.kubernetes.io/name: nfs-csi
+                app.kubernetes.io/managed-by: crossplane
+                storage.platform.example.org/engine: nfs
+            spec:
+              deletionPolicy: Delete
+
+              providerConfigRef:
+                name: {{ $spec.providerConfigRef.name | default "helm-provider-cluster" }}
+                kind: ClusterProviderConfig
+
+              forProvider:
+                namespace: {{ $nfs.namespace | default "kube-system" }}
+
+                chart:
+                  name: csi-driver-nfs
+                  repository: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+                  version: {{ $nfs.version | default "v4.11.0" }}
+
+                values:
+                  serviceAccount:
+                    create: {{ $nfs.serviceAccountCreate | default true }}
+                    controller: {{ $nfs.serviceAccountController | default "csi-nfs-controller-sa" }}
+
+                  rbac:
+                    create: {{ $nfs.rbacCreate | default true }}
+                    name: {{ $nfs.rbacName | default "nfs" }}
+
+                  driver:
+                    name: {{ $nfs.driverName | default "nfs.csi.k8s.io" }}
+                    mountPermissions: {{ $nfs.mountPermissions | default 0 }}
+
+                  feature:
+                    enableFSGroupPolicy: {{ $nfs.enableFSGroupPolicy | default true }}
+                    enableInlineVolume: {{ $nfs.enableInlineVolume | default false }}
+
+                  kubeletDir: {{ $nfs.kubeletDir | default "/var/lib/kubelet" }}
+
+                  externalSnapshotter:
+                    enabled: {{ $nfs.externalSnapshotterEnabled | default false }}
+
+            ---
+            apiVersion: kubernetes.m.crossplane.io/v1alpha1
+            kind: Object
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "nfs-storageclass" }}
+              labels:
+                app.kubernetes.io/name: nfs-storageclass
+                app.kubernetes.io/managed-by: crossplane
+                storage.platform.example.org/engine: nfs
+            spec:
+              deletionPolicy: Delete
+
+              providerConfigRef:
+                name: {{ $spec.kubernetesProviderConfigRef.name | default "kubernetes-provider-cluster" }}
+                kind: ClusterProviderConfig
+
+              forProvider:
+                manifest:
+                  apiVersion: storage.k8s.io/v1
+                  kind: StorageClass
+                  metadata:
+                    name: {{ $nfs.storageClass | default "nfs-client" }}
+                  provisioner: {{ $nfs.driverName | default "nfs.csi.k8s.io" }}
+                  reclaimPolicy: {{ $nfs.reclaimPolicy | default "Delete" }}
+                  volumeBindingMode: {{ $nfs.volumeBindingMode | default "Immediate" }}
+                  allowVolumeExpansion: true
+                  parameters:
+                    server: {{ $nfs.serverFQDN }}
+                    share: {{ $nfs.sharePath }}
+                    subDir: {{ $nfs.subDir | default "cluster" }}
+                  mountOptions:
+                  {{- range $nfs.mountOptions | default (list "nfsvers=4.1") }}
+                    - {{ . }}
+                  {{- end }}
+
+            ---
+            apiVersion: storage.platform.example.org/v1alpha1
+            kind: StoragePlatform
+            status:
+              installed: true
+              observedVersion: {{ $nfs.version | default "v4.11.0" }}

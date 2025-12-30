@@ -1,0 +1,79 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: storageplatform-openebs
+  labels:
+    crossplane.io/xrd: storageplatforms.storage.platform.example.org
+    storage.platform.example.org/engine: openebs
+spec:
+  compositeTypeRef:
+    apiVersion: storage.platform.example.org/v1alpha1
+    kind: StoragePlatform
+  mode: Pipeline
+  pipeline:
+    - step: deploy-openebs
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: | # pragma: allowlist secret
+            {{- $spec := .observed.composite.resource.spec -}}
+
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "openebs-release" }}
+              labels:
+                app.kubernetes.io/name: openebs
+                app.kubernetes.io/managed-by: crossplane
+                storage.platform.example.org/engine: openebs
+            spec:
+              deletionPolicy: Delete
+
+              providerConfigRef:
+                name: {{ $spec.providerConfigRef.name | default "helm-provider-cluster" }}
+                kind: ClusterProviderConfig
+
+              forProvider:
+                namespace: {{ $spec.namespace | default "openebs-system" }}
+
+                chart:
+                  name: openebs
+                  repository: https://openebs.github.io/openebs
+                  version: {{ $spec.version | default "4.2.0" }}
+
+                values:
+                  openebs-crds:
+                    csi:
+                      volumeSnapshots:
+                        enabled: {{ $spec.openebs.features.volumeSnapshots | default false }}
+
+                  mayastor:
+                    csi:
+                      node:
+                        initContainers:
+                          enabled: {{ $spec.openebs.features.csiNodeInitContainers | default false }}
+
+                  engines:
+                    local:
+                      lvm:
+                        enabled: {{ $spec.openebs.engines.local.lvm | default false }}
+                      zfs:
+                        enabled: {{ $spec.openebs.engines.local.zfs | default false }}
+
+                    replicated:
+                      mayastor:
+                        enabled: {{ $spec.openebs.engines.replicated.mayastor | default false }}
+
+            ---
+            apiVersion: storage.platform.example.org/v1alpha1
+            kind: StoragePlatform
+            status:
+              installed: true
+              observedVersion: {{ $spec.version | default "4.2.0" }}

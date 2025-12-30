@@ -1,4 +1,3 @@
----
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
@@ -8,12 +7,29 @@ metadata:
     meta.crossplane.io/source: https://github.com/stuttgart-things
     meta.crossplane.io/license: Apache-2.0
     meta.crossplane.io/description: |
-      storage-platform
+      Storage Platform Configuration supporting multiple storage backends (OpenEBS, NFS)
     meta.crossplane.io/readme: |
-      storage-platform
+      This configuration provides a unified StoragePlatform XRD and multiple
+      compositions for OpenEBS and NFS CSI.
 spec:
   crossplane:
     version: ">=2.13.0"
   dependsOn:
     - provider: xpkg.upbound.io/crossplane-contrib/provider-helm
       version: ">=v0.19.0"
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.18.0"
+  package:
+    # APIs (XRDs)
+    apis:
+      - apis/definition.yaml
+
+    # Compositions
+    compositions:
+      - compositions/storageplatform-openebs.yaml
+      - compositions/storageplatform-nfs.yaml
+
+    # Optional: example claims or functions for testing
+    examples:
+      - examples/claim.yaml
+      - examples/functions.yaml

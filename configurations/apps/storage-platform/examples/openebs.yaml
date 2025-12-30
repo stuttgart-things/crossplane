@@ -1,0 +1,21 @@
+---
+apiVersion: storage.platform.example.org/v1alpha1
+kind: StoragePlatform
+metadata:
+  name: openebs-local
+spec:
+  engine:
+    type: openebs
+  providerConfigRef:
+    name: helm-provider-prod
+  namespace: openebs-system
+  version: 4.2.0
+  openebs:
+    profile: localpv
+    features:
+      volumeSnapshots: false
+      csiNodeInitContainers: false
+    engines:
+      local:
+        lvm: true
+        zfs: false
