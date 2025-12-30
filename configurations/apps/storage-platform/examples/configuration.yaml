@@ -1,0 +1,7 @@
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: storage-platform
+spec:
+  package: ghcr.io/stuttgart-things/crossplane/storage-platform:v0.2.0
