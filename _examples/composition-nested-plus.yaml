@@ -1,0 +1,297 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: harvester-vm
+  labels:
+    crossplane.io/xrd: harvestervms.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: HarvesterVM
+  mode: Pipeline
+  pipeline:
+
+  # ---------------------------------------------------------------------------
+  # Step 1: Create VolumeClaim Composite
+  # ---------------------------------------------------------------------------
+  - step: create-volume-claim
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      environment: null
+      patchSets: []
+      resources:
+        - name: volume-claim
+          base:
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: VolumeClaim
+          patches:
+            # Metadata
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.name
+              toFieldPath: metadata.name
+
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.namespace
+              toFieldPath: metadata.namespace
+
+            # Provider
+            - type: FromCompositeFieldPath
+              fromFieldPath: spec.providerConfigRef
+              toFieldPath: spec.providerConfigRef
+
+            # Volume spec mapping
+            - fromFieldPath: spec.volume.pvcName
+              toFieldPath: spec.pvcName
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.namespace
+              toFieldPath: spec.namespace
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.storageClassName
+              toFieldPath: spec.storageClassName
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.storage
+              toFieldPath: spec.storage
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.accessModes
+              toFieldPath: spec.accessModes
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.volumeMode
+              toFieldPath: spec.volumeMode
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.annotations
+              toFieldPath: spec.annotations
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.labels
+              toFieldPath: spec.labels
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.selector
+              toFieldPath: spec.selector
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.volume.dataSource
+              toFieldPath: spec.dataSource
+              type: FromCompositeFieldPath
+
+            # Status back-propagation
+            - fromFieldPath: status.pvcName
+              toFieldPath: status.volume.pvcName
+              type: ToCompositeFieldPath
+
+            - fromFieldPath: status.ready
+              toFieldPath: status.volume.ready
+              type: ToCompositeFieldPath
+
+  # ---------------------------------------------------------------------------
+  # Step 2: Create CloudInit Composite
+  # ---------------------------------------------------------------------------
+  - step: create-cloud-init
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      environment: null
+      patchSets: []
+      resources:
+        - name: cloud-init
+          base:
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: CloudInit
+          patches:
+            # Metadata
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.name
+              toFieldPath: metadata.name
+
+            - type: FromCompositeFieldPath
+              fromFieldPath: metadata.namespace
+              toFieldPath: metadata.namespace
+
+            # Provider
+            - type: FromCompositeFieldPath
+              fromFieldPath: spec.providerConfigRef
+              toFieldPath: spec.providerConfigRef
+
+            # Cloud-init spec mapping
+            - fromFieldPath: spec.cloudInit.vmName
+              toFieldPath: spec.vmName
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.namespace
+              toFieldPath: spec.namespace
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.hostname
+              toFieldPath: spec.hostname
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.domain
+              toFieldPath: spec.domain
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.timezone
+              toFieldPath: spec.timezone
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.users
+              toFieldPath: spec.users
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.packages
+              toFieldPath: spec.packages
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.writeFiles
+              toFieldPath: spec.writeFiles
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.runcmd
+              toFieldPath: spec.runcmd
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.bootcmd
+              toFieldPath: spec.bootcmd
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.packageUpdate
+              toFieldPath: spec.packageUpdate
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.packageUpgrade
+              toFieldPath: spec.packageUpgrade
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.sshPasswordAuth
+              toFieldPath: spec.sshPasswordAuth
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.disableRoot
+              toFieldPath: spec.disableRoot
+              type: FromCompositeFieldPath
+
+            - fromFieldPath: spec.cloudInit.networkConfig
+              toFieldPath: spec.networkConfig
+              type: FromCompositeFieldPath
+
+            # Status back-propagation
+            - fromFieldPath: status.secretName
+              toFieldPath: status.cloudInit.secretName
+              type: ToCompositeFieldPath
+
+            - fromFieldPath: status.ready
+              toFieldPath: status.cloudInit.ready
+              type: ToCompositeFieldPath
+
+  # ---------------------------------------------------------------------------
+  # Step 3: Create VirtualMachine (Harvester / KubeVirt)
+  # ---------------------------------------------------------------------------
+  - step: create-vm
+    functionRef:
+      name: function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: | # pragma: allowlist secret
+          ---
+          apiVersion: kubernetes.m.crossplane.io/v1alpha1
+          kind: Object
+          metadata:
+            annotations:
+              {{ setResourceNameAnnotation (print .observed.composite.resource.spec.cloudInit.vmName "-vm") }}
+            labels:
+              app.kubernetes.io/name: harvester-vm
+              app.kubernetes.io/instance: {{ .observed.composite.resource.spec.cloudInit.vmName }}
+              app.kubernetes.io/managed-by: crossplane
+          spec:
+            deletionPolicy: Delete
+            providerConfigRef:
+              name: {{ .observed.composite.resource.spec.providerConfigRef }}
+              kind: ClusterProviderConfig
+            forProvider:
+              manifest:
+                apiVersion: kubevirt.io/v1
+                kind: VirtualMachine
+                metadata:
+                  name: {{ .observed.composite.resource.spec.cloudInit.vmName }}
+                  namespace: {{ .observed.composite.resource.spec.cloudInit.namespace | default "vms" }}
+                  labels:
+                    os: {{ .observed.composite.resource.spec.vm.os | default "ubuntu" }}
+                  annotations:
+                    description: {{ .observed.composite.resource.spec.vm.description | default "VM managed by Crossplane" }}
+                spec:
+                  runStrategy: {{ .observed.composite.resource.spec.vm.runStrategy | default "RerunOnFailure" }}
+                  template:
+                    metadata:
+                      labels:
+                        vmName: {{ .observed.composite.resource.spec.cloudInit.vmName }}
+                    spec:
+                      hostname: {{ .observed.composite.resource.spec.cloudInit.hostname }}
+                      terminationGracePeriodSeconds: {{ .observed.composite.resource.spec.vm.terminationGracePeriodSeconds | default 120 }}
+                      evictionStrategy: {{ .observed.composite.resource.spec.vm.evictionStrategy | default "LiveMigrateIfPossible" }}
+                      domain:
+                        machine:
+                          type: {{ .observed.composite.resource.spec.vm.machineType | default "q35" }}
+                        cpu:
+                          cores: {{ .observed.composite.resource.spec.vm.cpu.cores }}
+                          sockets: {{ .observed.composite.resource.spec.vm.cpu.sockets | default 1 }}
+                          threads: {{ .observed.composite.resource.spec.vm.cpu.threads | default 1 }}
+                        resources:
+                          limits:
+                            memory: {{ .observed.composite.resource.spec.vm.resources.memory }}
+                            cpu: {{ .observed.composite.resource.spec.vm.resources.cpu }}
+                        devices:
+                          disks:
+                            # Root disk (PVC from step 1)
+                            - name: rootdisk
+                              disk:
+                                bus: virtio
+                              bootOrder: 1
+
+                            # Cloud-init disk (Secret from step 2)
+                            - name: cloudinitdisk
+                              disk:
+                                bus: virtio
+                          interfaces:
+                            - name: default
+                              bridge: {}
+                              model: virtio
+                        features:
+                          acpi:
+                            enabled: true
+                      networks:
+                        - name: default
+                          multus:
+                            networkName: default/default
+                      volumes:
+                        - name: rootdisk
+                          persistentVolumeClaim:
+                            claimName: {{ .observed.composite.resource.spec.volume.pvcName }}
+
+                        - name: cloudinitdisk
+                          cloudInitNoCloud:
+                            secretRef:
+                              name: {{ .observed.composite.resource.spec.cloudInit.vmName }}-cloud-init
+                            networkDataSecretRef:
+                              name: {{ .observed.composite.resource.spec.cloudInit.vmName }}-cloud-init
+            managementPolicies:
+              - '*'
+          ---
+          apiVersion: resources.stuttgart-things.com/v1alpha1
+          kind: HarvesterVM
+          status:
+            vm:
+              name: {{ .observed.composite.resource.spec.cloudInit.vmName }}
