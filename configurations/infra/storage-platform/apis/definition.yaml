@@ -1,0 +1,209 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: storageplatforms.storage.platform.example.org
+spec:
+  group: storage.platform.example.org
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+
+  names:
+    kind: StoragePlatform
+    plural: storageplatforms
+    singular: storageplatform
+
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: Platform-level storage offering with pluggable storage engines
+          properties:
+            spec:
+              type: object
+              required:
+                - engine
+              properties:
+
+                engine:
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - openebs
+                        - nfs
+                      description: Selected storage engine
+
+                providerConfigRef:
+                  type: object
+                  description: Helm provider override
+                  properties:
+                    name:
+                      type: string
+                      default: helm-provider-cluster
+
+                kubernetesProviderConfigRef:
+                  type: object
+                  description: Kubernetes provider override
+                  properties:
+                    name:
+                      type: string
+                      default: kubernetes-provider-cluster
+
+                # --------------------
+                # OpenEBS configuration
+                # --------------------
+                openebs:
+                  type: object
+                  properties:
+                    namespace:
+                      type: string
+                      default: openebs-system
+
+                    version:
+                      type: string
+                      default: "4.2.0"
+
+                    features:
+                      type: object
+                      properties:
+                        volumeSnapshots:
+                          type: boolean
+                          default: false
+                        csiNodeInitContainers:
+                          type: boolean
+                          default: false
+
+                    engines:
+                      type: object
+                      properties:
+                        local:
+                          type: object
+                          properties:
+                            lvm:
+                              type: boolean
+                              default: false
+                            zfs:
+                              type: boolean
+                              default: false
+                        replicated:
+                          type: object
+                          properties:
+                            mayastor:
+                              type: boolean
+                              default: false
+
+                # --------------------
+                # NFS configuration
+                # --------------------
+                nfs:
+                  type: object
+                  properties:
+                    namespace:
+                      type: string
+                      default: kube-system
+
+                    version:
+                      type: string
+                      default: v4.11.0
+
+                    serverFQDN:
+                      type: string
+                      description: DNS name or IP of the NFS server
+
+                    sharePath:
+                      type: string
+                      description: Exported NFS share path
+
+                    storageClass:
+                      type: string
+                      default: nfs-client
+
+                    reclaimPolicy:
+                      type: string
+                      enum: [Delete, Retain]
+                      default: Delete
+
+                    volumeBindingMode:
+                      type: string
+                      enum: [Immediate, WaitForFirstConsumer]
+                      default: Immediate
+
+                    mountOptions:
+                      type: array
+                      items:
+                        type: string
+
+                    serviceAccountCreate:
+                      type: boolean
+                      default: true
+
+                    serviceAccountController:
+                      type: string
+                      default: csi-nfs-controller-sa
+
+                    rbacCreate:
+                      type: boolean
+                      default: true
+
+                    rbacName:
+                      type: string
+                      default: nfs
+
+                    driverName:
+                      type: string
+                      default: nfs.csi.k8s.io
+
+                    mountPermissions:
+                      type: integer
+                      default: 0
+
+                    enableFSGroupPolicy:
+                      type: boolean
+                      default: true
+
+                    enableInlineVolume:
+                      type: boolean
+                      default: false
+
+                    kubeletDir:
+                      type: string
+                      default: /var/lib/kubelet
+
+                    externalSnapshotterEnabled:
+                      type: boolean
+                      default: false
+
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                observedVersion:
+                  type: string
+
+          # --------------------
+          # CEL VALIDATIONS
+          # --------------------
+          x-kubernetes-validations:
+
+            # OpenEBS requires openebs block
+            - rule: "self.spec.engine.type != 'openebs' || has(self.spec.openebs)"
+              message: "spec.openebs must be defined when engine.type is 'openebs'"
+
+            # NFS requires nfs block
+            - rule: "self.spec.engine.type != 'nfs' || has(self.spec.nfs)"
+              message: "spec.nfs must be defined when engine.type is 'nfs'"
+
+            # NFS requires serverFQDN
+            - rule: "self.spec.engine.type != 'nfs' || has(self.spec.nfs.serverFQDN)"
+              message: "spec.nfs.serverFQDN is required when engine.type is 'nfs'"
+
+            # NFS requires sharePath
+            - rule: "self.spec.engine.type != 'nfs' || has(self.spec.nfs.sharePath)"
+              message: "spec.nfs.sharePath is required when engine.type is 'nfs'"
