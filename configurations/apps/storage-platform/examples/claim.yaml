@@ -1,0 +1,7 @@
+---
+apiVersion: resources.stuttgart-things.com/v1
+kind: OpenEBS
+metadata:
+  name: demo
+  namespace: default
+spec:

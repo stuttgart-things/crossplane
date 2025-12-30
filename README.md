@@ -39,6 +39,36 @@ dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 helmfile-operatio
 
 </details>
 
+<details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
+
+```bash
+kubectl apply -k https://github.com/stuttgart-things/helm/cicd/crds/tekton
+```
+
+```bash
+# DEPLOY OPENEBS w/ DAGGER
+dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 \
+  helmfile-operation \
+  --helmfile-ref "git::https://github.com/stuttgart-things/helm.git@infra/openebs.yaml.gotmpl" \
+  --operation apply \
+  --state-values "namespace=openebs-system,profile=localpv,openebs_volumesnapshots_enabled=false,openebs_csi_node_init_containers_enabled=false,openebs_local_lvm_enabled=false,openebs_local_zfs_enabled=false,openebs_replicated_mayastor_enabled=false" \
+  --kube-config file://~/.kube/config \
+  --progress plain -vv
+```
+
+```bash
+# DEPLOY TEKTON w/ DAGGER
+dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 \
+  helmfile-operation \
+  --helmfile-ref "git::https://github.com/stuttgart-things/helm.git@cicd/tekton.yaml.gotmpl" \
+  --operation apply \
+  --state-values "namespace=tekton-operator,pipelineNamespace=tekton-pipelines,version=0.77.5" \
+  --kube-config file://~/.kube/config \
+  --progress plain -vv
+```
+
+</details>
+
 <details><summary><b>ADD LOCAL CLUSTER AS KUBERNETES PROVIDER (FILEBASED)</b></summary>
 
 ```bash
