@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+apiGroup: resources.stuttgart-things.com
+maintainer: patrick.hermann@sva.de
+source: https://github.com/stuttgart-things/crossplane
+license: Apache-2.0
+crossplaneVersion: "2.13.0"
+claimNamespace: default
+claimName: demo
+xrdScope: Namespaced
+xrdDeletePolicy: Foreground
+claimApiVersion: v1alpha1
+compositionApiVersion: v1beta1
+
+dependencies:
+  - provider: xpkg.upbound.io/crossplane-contrib/provider-helm
+    version: ">=v0.19.0"
+
+functions:
+  - Name: function-patch-and-transform
+    ApiVersion: pt.fn.crossplane.io/v1beta1
+    PackageURL: xpkg.upbound.io/function-patch-and-transform
+    Version: v0.1.0
+  - Name: function-go-templating
+    ApiVersion: gotemplating.fn.crossplane.io/v1beta1
+    PackageURL: xpkg.upbound.io/function-go-templating
+    Version: v0.1.0

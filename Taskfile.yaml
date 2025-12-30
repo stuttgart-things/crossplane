@@ -18,6 +18,125 @@ includes:
     taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/k2n.yaml
 
 tasks:
+  create-new-configuration:
+    desc: Interactive wizard-style generation with smart defaults
+    vars:
+      BLUEPRINT_CROSSPLANE_MODULE: github.com/stuttgart-things/blueprints/crossplane-configuration
+      BLUEPRINT_CROSSPLANE_MODULE_VERSION: "@v1.35.0"
+    cmds:
+      - |
+        set -e  # Exit on error
+
+        gum style --foreground 212 --bold "🚀 Crossplane Configuration Generator"
+        echo ""
+
+        # Step 1: Get name (with validation)
+        while true; do
+          NAME=$(gum input --placeholder "e.g., storage-platform" --prompt "📝 Name: ")
+          if [ -n "$NAME" ]; then
+            break
+          else
+            gum style --foreground 9 "Name cannot be empty. Please try again."
+          fi
+        done
+
+        # Auto-generate suggested values based on name
+        GUESSED_KIND=$(echo "$NAME" | awk -F'-' '{for(i=1;i<=NF;i++){$i=toupper(substr($i,1,1)) tolower(substr($i,2))}}1' OFS='')
+        GUESSED_SINGULAR=$(echo "$NAME" | sed 's/-//g')
+        GUESSED_PLURAL="${GUESSED_SINGULAR}s"
+        GUESSED_CLAIM="${GUESSED_KIND}Claim"
+
+        # Step 2: Get Kind with auto-generated default
+        KIND=$(gum input --placeholder "e.g., $GUESSED_KIND" --prompt "🏷️  Kind (PascalCase): " --value "$GUESSED_KIND")
+
+        # Step 3: Get XRD Singular with auto-generated default
+        XRD_SINGULAR=$(gum input --placeholder "e.g., $GUESSED_SINGULAR" --prompt "📦 XRD Singular (lowercase): " --value "$GUESSED_SINGULAR")
+
+        # Step 4: Get XRD Plural with auto-generated default
+        XRD_PLURAL=$(gum input --placeholder "e.g., $GUESSED_PLURAL" --prompt "📦 XRD Plural (lowercase): " --value "$GUESSED_PLURAL")
+
+        # Auto-generate Claim name
+        CLAIM_NAME="$GUESSED_CLAIM"
+
+        # Step 5: Select base output location
+        echo ""
+        echo "📁 Select base folder for configurations:"
+        BASE_FOLDER=$(gum file --directory)
+        if [ -z "$BASE_FOLDER" ]; then
+          gum style --foreground 9 "No folder selected. Using current directory."
+          BASE_FOLDER="."
+        fi
+
+        # Create final output path
+        OUTPUT_FOLDER="${BASE_FOLDER}/${NAME}"
+
+        # Step 6: Preview
+        echo ""
+        gum style --border thick --border-foreground 212 --padding "1 2" --margin "1" \
+          "Configuration Preview" \
+          "Name: $NAME" \
+          "Kind: $KIND" \
+          "XRD Singular: $XRD_SINGULAR" \
+          "XRD Plural: $XRD_PLURAL" \
+          "Claim Name: $CLAIM_NAME" \
+          "Base Folder: $BASE_FOLDER" \
+          "Output: $OUTPUT_FOLDER"
+
+        # Step 7: Confirm generation
+        echo ""
+        if gum confirm "Generate configuration?" --affirmative "Yes" --negative "No"; then
+          echo ""
+          echo "🚀 Starting generation..."
+
+          # Create the output folder if it doesn't exist
+          mkdir -p "$OUTPUT_FOLDER"
+
+          # Check if .configuration-defaults.yaml exists in repo root
+          DEFAULTS_FILE=".configuration-defaults.yaml"
+
+          if [ -f "$DEFAULTS_FILE" ]; then
+            DEFAULTS_FLAG="--defaults-file ${DEFAULTS_FILE}"
+            echo "✓ Using defaults file: $DEFAULTS_FILE"
+            echo ""
+          else
+            gum style --foreground 9 "⚠️  Warning: .configuration-defaults.yaml not found in repo root"
+            if ! gum confirm "Continue without defaults file?"; then
+              gum style --foreground 9 "❌ Cancelled"
+              exit 0
+            fi
+            DEFAULTS_FLAG=""
+            echo ""
+          fi
+
+          # Run the generation (show output for debugging)
+          echo "Running: dagger call -m {{ .BLUEPRINT_CROSSPLANE_MODULE }}{{ .BLUEPRINT_CROSSPLANE_MODULE_VERSION }} \\"
+          echo "  --name \"${NAME}\" \\"
+          echo "  ${DEFAULTS_FLAG} \\"
+          echo "  --variables=\"name=${NAME},kind=${KIND},xrdSingular=${XRD_SINGULAR},xrdPlural=${XRD_PLURAL},claimName=${CLAIM_NAME}\" \\"
+          echo "  export --path=\"${OUTPUT_FOLDER}\""
+          echo ""
+
+            if dagger call -m {{ .BLUEPRINT_CROSSPLANE_MODULE }}{{ .BLUEPRINT_CROSSPLANE_MODULE_VERSION }} create \
+              --name "${NAME}" \
+              ${DEFAULTS_FLAG} \
+              --variables="name=${NAME},kind=${KIND},xrdSingular=${XRD_SINGULAR},xrdPlural=${XRD_PLURAL},claimName=${CLAIM_NAME}" \
+              export --path="${OUTPUT_FOLDER}"; then
+
+            echo ""
+            gum style --foreground 10 --bold "✅ Successfully generated!"
+            echo "Output location: $OUTPUT_FOLDER"
+          else
+            echo ""
+            gum style --foreground 9 --bold "❌ Generation failed!"
+            echo "Check the error messages above for details."
+            exit 1
+          fi
+        else
+          echo ""
+          gum style --foreground 9 "❌ Cancelled"
+          exit 0
+        fi
+
   push-configuration-package:
     desc: Push crossplane configuration package
     cmds:
