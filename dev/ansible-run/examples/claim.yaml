@@ -26,9 +26,9 @@ spec:
   gitWorkspaceSubdirectory: /ansible/workdir/
 
   # Credentials
-  ansibleCredentialsSecretName: ansible-credentials
-  ansibleCredentialsUserKey: ANSIBLE_USER
-  ansibleCredentialsPasswordKey: ANSIBLE_PASSWORD
+  ansibleCredentialsSecretName: ansible-credentials # pragma: allowlist secret
+  ansibleCredentialsUserKey: ANSIBLE_USER # pragma: allowlist secret
+  ansibleCredentialsPasswordKey: ANSIBLE_PASSWORD # pragma: allowlist secret
 
   # Ansible Roles and Collections
   installExtraRoles: "true"

@@ -1,0 +1,26 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: AnsibleRun
+metadata:
+  name: run-ansible-test1
+  namespace: default
+spec:
+  # CROSSPLANE CONFIGURATION
+  wrapInCrossplane: true
+  crossplaneObjectName: run-ansible-test-xplane
+  crossplaneNamespace: default
+  crossplaneProviderConfig: dev
+  # PIPELINRUN CONFIGURATION
+  pipelineRunName: run-ansible-xplane
+  namespace: tekton-ci
+  # ANSIBLE CONFIGURATION
+  ansibleCredentialsSecretName: ansible-credentials
+  ansiblePlaybooks:
+    - sthings.baseos.setup
+  ansibleVarsFile:
+    - manage_filesystem+-true
+    - update_packages+-true
+    - ansible_become+-true
+    - ansible_become_method+-sudo
+  ansibleVarsInventory:
+    - all+["10.31.102.107"]
