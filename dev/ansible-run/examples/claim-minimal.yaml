@@ -14,7 +14,7 @@ spec:
   pipelineRunName: run-ansible-xplane
   namespace: tekton-ci
   # ANSIBLE CONFIGURATION
-  ansibleCredentialsSecretName: ansible-credentials
+  ansibleCredentialsSecretName: ansible-credentials # pragma: allowlist secret
   ansiblePlaybooks:
     - sthings.baseos.setup
   ansibleVarsFile:

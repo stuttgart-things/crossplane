@@ -1,0 +1,25 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: PipelineIntegration
+metadata:
+  name: tekton-pipelines
+  namespace: default
+spec:
+  # CROSSPLANE
+  providerConfigRef:
+    name: dev
+  kubernetesProviderConfigRef:
+    name: dev
+  # TECHNOLOGY SELECTION
+  engine:
+    type: tekton
+  # TEKTON-PIPELINES CONFIGURATION
+  tekton:
+    namespace: tekton-operator
+    pipelineNamespace: tekton-pipelines
+    version: "0.77.5"
+    autoInstallComponents: false
+    enableTektonPipeline: true
+    enableTektonTriggers: true
+    enableTektonDashboard: false
+    enableTektonPruner: false

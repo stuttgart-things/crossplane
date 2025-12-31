@@ -22,7 +22,7 @@ tasks:
     desc: Interactive wizard-style generation with smart defaults
     vars:
       BLUEPRINT_CROSSPLANE_MODULE: github.com/stuttgart-things/blueprints/crossplane-configuration
-      BLUEPRINT_CROSSPLANE_MODULE_VERSION: "@v1.35.0"
+      BLUEPRINT_CROSSPLANE_MODULE_VERSION: "@v1.36.0"
     cmds:
       - |
         set -e  # Exit on error
