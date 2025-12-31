@@ -1,0 +1,196 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: pipelineintegrations.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: PipelineIntegration
+    plural: pipelineintegrations
+    singular: pipelineintegration
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: Platform-level pipeline offering with pluggable pipeline engines
+          properties:
+            spec:
+              type: object
+              required:
+                - engine
+              properties:
+                engine:
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - tekton
+                        - argo-workflows
+                        - jenkins
+                      description: Selected pipeline engine
+                providerConfigRef:
+                  type: object
+                  description: Helm provider override
+                  properties:
+                    name:
+                      type: string
+                      default: helm-provider-cluster
+                kubernetesProviderConfigRef:
+                  type: object
+                  description: Kubernetes provider override
+                  properties:
+                    name:
+                      type: string
+                      default: kubernetes-provider-cluster
+                # --------------------
+                # Tekton configuration
+                # --------------------
+                tekton:
+                  type: object
+                  properties:
+                    namespace:
+                      type: string
+                      default: tekton-operator
+                      description: Namespace for Tekton operator
+
+                    pipelineNamespace:
+                      type: string
+                      default: tekton-pipelines
+                      description: Default namespace for Tekton pipelines
+
+                    version:
+                      type: string
+                      default: "0.77.5"
+                      description: Tekton chart version
+
+                    autoInstallComponents:
+                      type: boolean
+                      default: false
+                      description: Automatically install Tekton components
+
+                    imagePullPolicy:
+                      type: string
+                      enum: [Always, IfNotPresent, Never]
+                      default: Always
+                      description: Image pull policy for Tekton components
+
+                    disableInlineSpec:
+                      type: string
+                      default: ""
+                      description: Disable inline spec in Tekton
+
+                    enableTektonPipeline:
+                      type: boolean
+                      default: true
+                      description: Enable Tekton Pipeline component
+
+                    enableTektonTriggers:
+                      type: boolean
+                      default: false
+                      description: Enable Tekton Triggers component
+
+                    enableTektonDashboard:
+                      type: boolean
+                      default: false
+                      description: Enable Tekton Dashboard component
+
+                    enableTektonPruner:
+                      type: boolean
+                      default: false
+                      description: Enable automatic pruning of old pipeline runs
+
+                    chartRepository:
+                      type: string
+                      default: "ghcr.io/stuttgart-things/tekton"
+                      description: OCI Helm chart repository
+
+                # --------------------
+                # Argo Workflows configuration
+                # --------------------
+                # argo:
+                #   type: object
+                #   properties:
+                #     namespace:
+                #       type: string
+                #       default: argo-workflows
+                #       description: Namespace for Argo Workflows
+
+                #     version:
+                #       type: string
+                #       default: "0.44.0"
+                #       description: Argo Workflows chart version
+
+                #     server:
+                #       type: object
+                #       properties:
+                #         enabled:
+                #           type: boolean
+                #           default: true
+                #           description: Enable Argo Workflows server
+
+                #         serviceType:
+                #           type: string
+                #           enum: [ClusterIP, NodePort, LoadBalancer]
+                #           default: ClusterIP
+
+                #     controller:
+                #       type: object
+                #       properties:
+                #         workflowNamespaces:
+                #           type: array
+                #           items:
+                #             type: string
+                #           description: Namespaces where workflows can run
+
+                #         persistence:
+                #           type: object
+                #           properties:
+                #             archive:
+                #               type: boolean
+                #               default: false
+                #               description: Enable workflow archiving
+
+                #     artifactRepository:
+                #       type: object
+                #       properties:
+                #         enabled:
+                #           type: boolean
+                #           default: false
+                #           description: Enable artifact repository
+
+                #         type:
+                #           type: string
+                #           enum: [s3, gcs, minio]
+                #           default: s3
+
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                observedVersion:
+                  type: string
+                endpoint:
+                  type: string
+
+          # --------------------
+          # CEL VALIDATIONS
+          # --------------------
+          x-kubernetes-validations:
+
+            # Tekton requires tekton block
+            - rule: "self.spec.engine.type != 'tekton' || has(self.spec.tekton)"
+              message: "spec.tekton must be defined when engine.type is 'tekton'"
+
+            # Argo requires argo block
+            # - rule: "self.spec.engine.type != 'argo-workflows' || has(self.spec.argo)"
+            #   message: "spec.argo must be defined when engine.type is 'argo-workflows'"
