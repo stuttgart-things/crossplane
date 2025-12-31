@@ -64,11 +64,11 @@ spec:
                   description: Whether to validate the inventory
                   default: "true"
                   enum: ["true", "false"]
-
                 # Git Configuration
                 gitRepoUrl:
                   type: string
                   description: Git repository URL
+                  default: https://github.com/stuttgart-things/stage-time.git
                 gitRevision:
                   type: string
                   description: Git branch or revision

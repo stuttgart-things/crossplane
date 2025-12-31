@@ -13,7 +13,7 @@ spec:
   pipeline:
   - step: create-ansiblerun
     functionRef:
-      name: function-kcl
+      name: crossplane-contrib-function-kcl
     input:
       apiVersion: krm.kcl.dev/v1alpha1
       kind: KCLInput
@@ -23,4 +23,4 @@ spec:
         source: oci://ghcr.io/stuttgart-things/kcl-tekton-pr:0.4.1
   - step: automatically-detect-ready-composed-resources
     functionRef:
-      name: function-auto-ready
+      name: crossplane-contrib-function-auto-ready
