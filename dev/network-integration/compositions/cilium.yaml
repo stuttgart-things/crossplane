@@ -1,0 +1,149 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: networkintegration-cilium
+  labels:
+    crossplane.io/xrd: networkintegrations.resources.stuttgart-things.com
+    resources.stuttgart-things.com/engine: cilium
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: NetworkIntegration
+  mode: Pipeline
+  pipeline:
+    - step: deploy-cilium
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: | # pragma: allowlist secret
+            {{- $spec := .observed.composite.resource.spec -}}
+            {{- $cilium := $spec.cilium -}}
+
+            {{- $provider := $spec.providerConfigRef.name | default "helm-provider-cluster" -}}
+
+            {{- $namespace := $cilium.namespace | default "kube-system" -}}
+            {{- $clusterName := $cilium.clusterName -}}
+
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "cilium" }}
+              labels:
+                app.kubernetes.io/name: cilium
+                app.kubernetes.io/managed-by: crossplane
+                resources.stuttgart-things.com/engine: cilium
+            spec:
+              providerConfigRef:
+                name: {{ $provider }}
+                kind: ClusterProviderConfig
+
+              forProvider:
+                namespace: {{ $namespace }}
+
+                chart:
+                  name: cilium
+                  repository: https://helm.cilium.io
+                  version: {{ $cilium.version | default "1.18.5" }}
+
+                values:
+                  kubeProxyReplacement: {{ $cilium.kubeProxyReplacement | default true }}
+                  k8sServiceHost: {{ $cilium.k8sServiceHost | default (printf "%s-control-plane" $clusterName) }}
+                  k8sServicePort: {{ $cilium.k8sServicePort | default 6443 }}
+
+                  routingMode: {{ $cilium.routingMode | default "native" }}
+                  ipv4NativeRoutingCIDR: {{ $cilium.ipv4NativeRoutingCIDR | default "10.244.0.0/16" }}
+
+                  externalIPs:
+                    enabled: {{ $cilium.externalIPs.enabled | default true }}
+
+                  ingressController:
+                    enabled: {{ $cilium.ingressController.enabled | default false }}
+
+                  k8sClientRateLimit:
+                    qps: {{ $cilium.k8sClientRateLimit.qps | default 50 }}
+                    burst: {{ $cilium.k8sClientRateLimit.burst | default 200 }}
+
+                  rollOutCiliumPods: {{ $cilium.rollOutCiliumPods | default true }}
+
+                  operator:
+                    replicas: {{ $cilium.operator.replicas | default 2 }}
+                    rollOutPods: {{ $cilium.operator.rollOutPods | default true }}
+
+            {{- if and $cilium.loadBalancer $cilium.loadBalancer.enabled }}
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "cilium-configuration" }}
+              labels:
+                app.kubernetes.io/name: cilium-lb
+                app.kubernetes.io/managed-by: crossplane
+                resources.stuttgart-things.com/engine: cilium
+            spec:
+              deletionPolicy: Delete
+
+              providerConfigRef:
+                name: {{ $provider }}
+                kind: ClusterProviderConfig
+
+              forProvider:
+                namespace: {{ $namespace }}
+
+                chart:
+                  name: sthings-cluster
+                  repository: ghcr.io/stuttgart-things
+                  version: 0.3.15
+
+                values:
+                  kubeProxyReplacement: {{ $cilium.kubeProxyReplacement | default true }}
+
+                  l2announcements:
+                    enabled: {{ $cilium.loadBalancer.l2Announcements.enabled | default true }}
+
+                  devices:
+                    {{- range $cilium.loadBalancer.devices }}
+                    - {{ . }}
+                    {{- end }}
+
+                  customresources:
+                    loadBalancerIPPool:
+                      apiVersion: cilium.io/v2alpha1
+                      kind: CiliumLoadBalancerIPPool
+                      metadata:
+                        name: ip-pool
+                      spec:
+                        blocks:
+                          - start: "{{ $cilium.loadBalancer.ipRange.start }}"
+                            stop: "{{ $cilium.loadBalancer.ipRange.end }}"
+
+                    ciliumL2AnnouncementPolicy:
+                      apiVersion: cilium.io/v2alpha1
+                      kind: CiliumL2AnnouncementPolicy
+                      metadata:
+                        name: default-l2-announcement-policy
+                        namespace: {{ $namespace }}
+                      spec:
+                        externalIPs: false
+                        loadBalancerIPs: true
+                        interfaces:
+                          - ^eth[0-9]+
+                        nodeSelector:
+                          matchExpressions:
+                            - key: node-role.kubernetes.io/control-plane
+                              operator: DoesNotExist
+            {{- end }}
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: NetworkIntegration
+            status:
+              installed: true
+              observedVersion: {{ $cilium.version | default "1.18.5" }}

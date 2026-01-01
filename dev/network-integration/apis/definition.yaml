@@ -1,0 +1,197 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: networkintegrations.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: NetworkIntegration
+    plural: networkintegrations
+    singular: networkintegration
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: Platform-level network integration with pluggable CNI stacks
+          properties:
+            spec:
+              type: object
+              required:
+                - type
+              properties:
+
+                # ============================================================
+                # Crossplane plumbing (matches PipelineIntegration)
+                # ============================================================
+                providerConfigRef:
+                  type: object
+                  description: Helm provider override
+                  properties:
+                    name:
+                      type: string
+
+                # ============================================================
+                # Network engine selector
+                # ============================================================
+                type:
+                  type: string
+                  enum:
+                    - cilium
+                  description: Selected network integration engine
+
+                # ============================================================
+                # Cilium configuration
+                # ============================================================
+                cilium:
+                  type: object
+                  required:
+                    - clusterName
+                  properties:
+
+                    # --------------------
+                    # Cluster identity
+                    # --------------------
+                    clusterName:
+                      type: string
+                      description: Logical cluster name used for templating
+
+                    namespace:
+                      type: string
+                      default: kube-system
+
+                    version:
+                      type: string
+                      default: "1.18.5"
+                      description: Cilium Helm chart version
+
+                    configProfile:
+                      type: string
+                      enum: [kind, native]
+                      default: kind
+                      description: Values file selector
+
+                    # --------------------
+                    # Core behavior
+                    # --------------------
+                    kubeProxyReplacement:
+                      type: boolean
+                      default: true
+
+                    k8sServiceHost:
+                      type: string
+                      description: API server hostname override
+
+                    k8sServicePort:
+                      type: integer
+                      default: 6443
+
+                    routingMode:
+                      type: string
+                      enum: [native, tunnel]
+                      default: native
+
+                    ipv4NativeRoutingCIDR:
+                      type: string
+                      default: "10.244.0.0/16"
+
+                    # --------------------
+                    # External connectivity
+                    # --------------------
+                    externalIPs:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+
+                    ingressController:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+
+                    # --------------------
+                    # Client rate limiting
+                    # --------------------
+                    k8sClientRateLimit:
+                      type: object
+                      properties:
+                        qps:
+                          type: integer
+                          default: 50
+                        burst:
+                          type: integer
+                          default: 200
+
+                    # --------------------
+                    # Operator settings
+                    # --------------------
+                    operator:
+                      type: object
+                      properties:
+                        replicas:
+                          type: integer
+                          default: 2
+                        rollOutPods:
+                          type: boolean
+                          default: true
+
+                    rollOutCiliumPods:
+                      type: boolean
+                      default: true
+
+                    # --------------------
+                    # LoadBalancer & L2
+                    # --------------------
+                    loadBalancer:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+
+                        ipRange:
+                          type: object
+                          required:
+                            - start
+                            - end
+                          properties:
+                            start:
+                              type: string
+                            end:
+                              type: string
+
+                        l2Announcements:
+                          type: object
+                          properties:
+                            enabled:
+                              type: boolean
+                              default: true
+
+                        devices:
+                          type: array
+                          items:
+                            type: string
+                          default:
+                            - eth0
+                            - net0
+
+            # ================================================================
+            # Status (for Pipeline composition output)
+            # ================================================================
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                  description: Whether the network integration is installed
+                observedVersion:
+                  type: string
+                  description: Installed Cilium version
