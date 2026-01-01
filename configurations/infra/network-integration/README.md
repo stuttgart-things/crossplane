@@ -4,9 +4,15 @@ This Crossplane Configuration provisions a `NetworkIntegration` Composite Resour
 
 ## DEV
 
+
 ```bash
 crossplane render examples/claim-kind.yaml \
 compositions/cilium.yaml \
 examples/functions.yaml \
 --include-function-results
+```
+
+
+```bash
+crossplane beta trace NetworkIntegration test-cilium
 ```

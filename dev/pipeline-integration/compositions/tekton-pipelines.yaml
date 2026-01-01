@@ -102,3 +102,7 @@ spec:
             status:
               installed: true
               observedVersion: {{ $tekton.version | default "0.77.5" }}
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready

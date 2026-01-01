@@ -7,9 +7,9 @@ metadata:
 spec:
   # CROSSPLANE
   providerConfigRef:
-    name: dev
+    name: target
   kubernetesProviderConfigRef:
-    name: dev
+    name: target
   # TECHNOLOGY SELECTION
   engine:
     type: tekton

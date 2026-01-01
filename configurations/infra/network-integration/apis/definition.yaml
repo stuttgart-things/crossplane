@@ -29,7 +29,7 @@ spec:
                 # ============================================================
                 # Crossplane plumbing (matches PipelineIntegration)
                 # ============================================================
-                providerConfigRef:
+                targetCluster:
                   type: object
                   description: Helm provider override
                   properties:
