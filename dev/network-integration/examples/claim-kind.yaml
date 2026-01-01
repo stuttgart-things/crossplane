@@ -1,0 +1,12 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: NetworkIntegration
+metadata:
+  name: test-cilium
+spec:
+  providerConfigRef:
+    name: target
+  type: cilium
+  cilium:
+    clusterName: target
+    version: "1.18.5"
