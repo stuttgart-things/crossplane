@@ -4,9 +4,9 @@ kind: NetworkIntegration
 metadata:
   name: test-cilium
 spec:
-  providerConfigRef:
-    name: target
   type: cilium
+  targetCluster:
+    name: target
   cilium:
     clusterName: target
     version: "1.18.5"

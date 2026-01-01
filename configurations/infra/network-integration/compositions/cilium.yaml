@@ -24,7 +24,7 @@ spec:
             {{- $spec := .observed.composite.resource.spec -}}
             {{- $cilium := $spec.cilium -}}
 
-            {{- $provider := $spec.providerConfigRef.name | default "helm-provider-cluster" -}}
+            {{- $provider := $spec.targetCluster.name | default "helm-provider-cluster" -}}
 
             {{- $namespace := $cilium.namespace | default "kube-system" -}}
             {{- $clusterName := $cilium.clusterName -}}
@@ -40,7 +40,7 @@ spec:
                 app.kubernetes.io/managed-by: crossplane
                 resources.stuttgart-things.com/engine: cilium
             spec:
-              providerConfigRef:
+              targetCluster:
                 name: {{ $provider }}
                 kind: ClusterProviderConfig
 
@@ -90,7 +90,7 @@ spec:
             spec:
               deletionPolicy: Delete
 
-              providerConfigRef:
+              targetCluster:
                 name: {{ $provider }}
                 kind: ClusterProviderConfig
 
@@ -147,3 +147,7 @@ spec:
             status:
               installed: true
               observedVersion: {{ $cilium.version | default "1.18.5" }}
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready
