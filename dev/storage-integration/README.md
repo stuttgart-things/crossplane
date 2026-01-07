@@ -10,4 +10,3 @@ apis/composition.yaml \
 examples/functions.yaml \
 --include-function-results
 ```
-
