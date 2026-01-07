@@ -24,11 +24,13 @@ spec:
             {{- $spec := .observed.composite.resource.spec -}}
             {{- $cilium := $spec.cilium -}}
 
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
+
             {{- $provider := $spec.targetCluster.name | default "helm-provider-cluster" -}}
-
-            {{- $namespace := $cilium.namespace | default "kube-system" -}}
-            {{- $clusterName := $cilium.clusterName -}}
-
             ---
             apiVersion: helm.m.crossplane.io/v1beta1
             kind: Release
@@ -40,9 +42,9 @@ spec:
                 app.kubernetes.io/managed-by: crossplane
                 resources.stuttgart-things.com/engine: cilium
             spec:
-              targetCluster:
+              providerConfigRef:
                 name: {{ $provider }}
-                kind: ClusterProviderConfig
+                kind: {{ $pcKind }}
 
               forProvider:
                 namespace: {{ $namespace }}
@@ -53,9 +55,10 @@ spec:
                   version: {{ $cilium.version | default "1.18.5" }}
 
                 values:
-                  kubeProxyReplacement: {{ $cilium.kubeProxyReplacement | default true }}
+                  kubeProxyReplacement: {{ $cilium.kubeProxyReplacement | default "strict" }}
                   k8sServiceHost: {{ $cilium.k8sServiceHost | default (printf "%s-control-plane" $clusterName) }}
                   k8sServicePort: {{ $cilium.k8sServicePort | default 6443 }}
+                  enableHostServices: {{ $cilium.enableHostServices | default true }}
 
                   routingMode: {{ $cilium.routingMode | default "native" }}
                   ipv4NativeRoutingCIDR: {{ $cilium.ipv4NativeRoutingCIDR | default "10.244.0.0/16" }}

@@ -10,3 +10,7 @@ compositions/tekton-pipelines.yaml \
 examples/functions.yaml \
 --include-function-results
 ```
+
+kubectl get clusterproviderconfig.helm.m.crossplane.io -A
+kubectl get providerconfig.helm.m.crossplane.io -A
+kubectl get release.helm.m.crossplane.io

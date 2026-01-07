@@ -16,3 +16,7 @@ examples/functions.yaml \
 ```bash
 crossplane beta trace NetworkIntegration test-cilium
 ```
+
+```bash
+kubectl get releases.helm.m.crossplane.io -A
+```

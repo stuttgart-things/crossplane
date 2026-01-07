@@ -1,4 +1,3 @@
----
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -14,58 +13,21 @@ spec:
   pipeline:
     - step: deploy-tekton
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
         source: Inline
         inline:
-          template: | # pragma: allowlist secret
+          template: |
             {{- $spec := .observed.composite.resource.spec -}}
             {{- $tekton := $spec.tekton -}}
 
-            ---
-            apiVersion: helm.m.crossplane.io/v1beta1
-            kind: Release
-            metadata:
-              annotations:
-                {{ setResourceNameAnnotation "tekton-operator" }}
-              labels:
-                app.kubernetes.io/name: tekton
-                app.kubernetes.io/managed-by: crossplane
-                resources.stuttgart-things.com/engine: tekton
-            spec:
-              deletionPolicy: Delete
-
-              providerConfigRef:
-                name: {{ $spec.providerConfigRef.name | default "helm-provider-cluster" }}
-                kind: ClusterProviderConfig
-
-              forProvider:
-                namespace: {{ $tekton.namespace | default "tekton-operator" }}
-
-                chart:
-                  name: tekton
-                  repository: {{ $tekton.chartRepository | default "ghcr.io/stuttgart-things/tekton" }}
-                  version: {{ $tekton.version | default "0.77.5" }}
-
-                values:
-                  autoInstallComponents: {{ $tekton.autoInstallComponents | default false }}
-                  defaultNamespace: {{ $tekton.pipelineNamespace | default "tekton-pipelines" }}
-                  imagePullPolicy: {{ $tekton.imagePullPolicy | default "Always" }}
-                  disableInlineSpec: "{{ $tekton.disableInlineSpec | default "" }}"
-                  enableTektonPipeline: {{ $tekton.enableTektonPipeline | default true }}
-
-                  {{- if $tekton.enableTektonTriggers }}
-                  enableTektonTriggers: {{ $tekton.enableTektonTriggers }}
-                  {{- end }}
-
-                  {{- if $tekton.enableTektonDashboard }}
-                  enableTektonDashboard: {{ $tekton.enableTektonDashboard }}
-                  {{- end }}
-
-                  tektonPruner:
-                    enabled: {{ $tekton.enableTektonPruner | default false }}
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
 
             {{- if $tekton.pipelineNamespace }}
             ---
@@ -74,27 +36,51 @@ spec:
             metadata:
               annotations:
                 {{ setResourceNameAnnotation "tekton-pipeline-namespace" }}
-              labels:
-                app.kubernetes.io/name: tekton-namespace
-                app.kubernetes.io/managed-by: crossplane
-                resources.stuttgart-things.com/engine: tekton
             spec:
-              deletionPolicy: Delete
-
               providerConfigRef:
-                name: {{ $spec.kubernetesProviderConfigRef.name | default "kubernetes-provider-cluster" }}
-                kind: ClusterProviderConfig
-
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
               forProvider:
                 manifest:
                   apiVersion: v1
                   kind: Namespace
                   metadata:
                     name: {{ $tekton.pipelineNamespace }}
-                    labels:
-                      app.kubernetes.io/managed-by: crossplane
-                      resources.stuttgart-things.com/engine: tekton
             {{- end }}
+
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "tekton-operator" }}
+            spec:
+              providerConfigRef:
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
+              forProvider:
+                namespace: {{ $tekton.namespace | default "tekton-operator" }}
+                chart:
+                  name: tekton
+                  repository: {{ $tekton.chartRepository | default "oci://ghcr.io/stuttgart-things/tekton" }}
+                  version: {{ $tekton.version | default "0.77.5" }}
+                values:
+                  autoInstallComponents: {{ $tekton.autoInstallComponents | default false }}
+                  defaultNamespace: {{ $tekton.pipelineNamespace | default "tekton-pipelines" }}
+                  imagePullPolicy: {{ $tekton.imagePullPolicy | default "Always" }}
+                  disableInlineSpec: "{{ $tekton.disableInlineSpec | default "" }}"
+                  enableTektonPipeline: {{ $tekton.enableTektonPipeline | default true }}
+
+                  {{- if $tekton.enableTektonTriggers }}
+                  enableTektonTriggers: true
+                  {{- end }}
+
+                  {{- if $tekton.enableTektonDashboard }}
+                  enableTektonDashboard: true
+                  {{- end }}
+
+                  tektonPruner:
+                    enabled: {{ $tekton.enableTektonPruner | default false }}
 
             ---
             apiVersion: resources.stuttgart-things.com/v1alpha1

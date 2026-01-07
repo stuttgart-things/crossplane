@@ -37,20 +37,23 @@ spec:
                         - argo-workflows
                         - jenkins
                       description: Selected pipeline engine
-                providerConfigRef:
+                targetCluster:
                   type: object
-                  description: Helm provider override
+                  required:
+                    - name
                   properties:
                     name:
                       type: string
-                      default: helm-provider-cluster
-                kubernetesProviderConfigRef:
-                  type: object
-                  description: Kubernetes provider override
-                  properties:
-                    name:
+                      description: Name of the ProviderConfig / ClusterProviderConfig
+                    scope:
                       type: string
-                      default: kubernetes-provider-cluster
+                      enum:
+                        - Namespaced
+                        - Cluster
+                      default: Namespaced
+                      description: |
+                        Whether to use ProviderConfig (Namespaced)
+                        or ClusterProviderConfig (Cluster)
                 # --------------------
                 # Tekton configuration
                 # --------------------
@@ -110,7 +113,7 @@ spec:
 
                     chartRepository:
                       type: string
-                      default: "ghcr.io/stuttgart-things/tekton"
+                      default: "oci://ghcr.io/stuttgart-things/tekton"
                       description: OCI Helm chart repository
 
                 # --------------------
@@ -186,11 +189,101 @@ spec:
           # CEL VALIDATIONS
           # --------------------
           x-kubernetes-validations:
+            # targetCluster.scope must be valid
+            - rule: |
+                !has(self.spec.targetCluster.scope)
+                || self.spec.targetCluster.scope in ['Namespaced', 'Cluster']
+              message: "targetCluster.scope must be one of: Namespaced, Cluster"
 
-            # Tekton requires tekton block
+            # name is always required
+            - rule: |
+                has(self.spec.targetCluster.name) && self.spec.targetCluster.name != ''
+              message: "spec.targetCluster.name must be set"
+
+            # ------------------------------------------------------------------
+            # Engine-specific configuration requirements
+            # ------------------------------------------------------------------
+
+            # Tekton requires spec.tekton to be defined
             - rule: "self.spec.engine.type != 'tekton' || has(self.spec.tekton)"
               message: "spec.tekton must be defined when engine.type is 'tekton'"
 
-            # Argo requires argo block
+            # (Future-proof) Argo requires spec.argo when enabled
             # - rule: "self.spec.engine.type != 'argo-workflows' || has(self.spec.argo)"
             #   message: "spec.argo must be defined when engine.type is 'argo-workflows'"
+
+            # ------------------------------------------------------------------
+            # Target cluster validation
+            # ------------------------------------------------------------------
+
+            # Target cluster reference must exist
+            - rule: "has(self.spec.targetCluster)"
+              message: "spec.targetCluster must be defined"
+
+            # Target cluster name must be set
+            - rule: "has(self.spec.targetCluster.name) && self.spec.targetCluster.name != ''"
+              message: "spec.targetCluster.name must be set and non-empty"
+
+            # ------------------------------------------------------------------
+            # Tekton Pipeline component rules
+            # ------------------------------------------------------------------
+
+            # Tekton Pipelines enabled → pipelineNamespace must be set
+            - rule: |
+                self.spec.engine.type != 'tekton'
+                || !self.spec.tekton.enableTektonPipeline
+                || has(self.spec.tekton.pipelineNamespace)
+              message: "tekton.pipelineNamespace must be set when Tekton Pipeline is enabled"
+
+            # ------------------------------------------------------------------
+            # Tekton Triggers rules
+            # ------------------------------------------------------------------
+
+            # Triggers require Tekton Pipelines
+            - rule: |
+                self.spec.engine.type != 'tekton'
+                || !self.spec.tekton.enableTektonTriggers
+                || self.spec.tekton.enableTektonPipeline
+              message: "Tekton Triggers require enableTektonPipeline=true"
+
+            # ------------------------------------------------------------------
+            # Tekton Dashboard rules
+            # ------------------------------------------------------------------
+
+            # Dashboard requires Tekton Pipelines
+            - rule: |
+                self.spec.engine.type != 'tekton'
+                || !self.spec.tekton.enableTektonDashboard
+                || self.spec.tekton.enableTektonPipeline
+              message: "Tekton Dashboard requires enableTektonPipeline=true"
+
+            # ------------------------------------------------------------------
+            # Tekton Pruner rules
+            # ------------------------------------------------------------------
+
+            # Pruner requires Tekton Pipelines
+            - rule: |
+                self.spec.engine.type != 'tekton'
+                || !self.spec.tekton.enableTektonPruner
+                || self.spec.tekton.enableTektonPipeline
+              message: "Tekton Pruner requires enableTektonPipeline=true"
+
+            # ------------------------------------------------------------------
+            # Tekton version validation
+            # ------------------------------------------------------------------
+
+            # Version must be non-empty when Tekton is used
+            - rule: |
+                self.spec.engine.type != 'tekton'
+                || (has(self.spec.tekton.version) && self.spec.tekton.version != '')
+              message: "tekton.version must be set when engine.type is 'tekton'"
+
+            # ------------------------------------------------------------------
+            # Image pull policy validation (defensive, even with enum)
+            # ------------------------------------------------------------------
+
+            - rule: |
+                self.spec.engine.type != 'tekton'
+                || !has(self.spec.tekton.imagePullPolicy)
+                || self.spec.tekton.imagePullPolicy in ['Always', 'IfNotPresent', 'Never']
+              message: "tekton.imagePullPolicy must be one of: Always, IfNotPresent, Never"

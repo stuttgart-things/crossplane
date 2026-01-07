@@ -5,7 +5,7 @@ metadata:
   name: dev2-vm
   namespace: default
 spec:
-  providerConfigRef: dev
+  providerConfigRef: in-cluster
   vmName: dev2
   namespace: default
   hostname: dev2
