@@ -15,8 +15,8 @@ spec:
   crossplane:
     version: ">=v2.1.3"
   dependsOn:
-    - provider: xpkg.upbound.io/crossplane-contrib/provider-helm
-      version: ">=v1.0.6"
+    # - provider: xpkg.upbound.io/crossplane-contrib/provider-helm
+    #   version: ">=v1.0.6"
     - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
       version: ">=v1.2.0"
     # Required for Pipeline compositions
