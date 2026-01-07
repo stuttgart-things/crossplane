@@ -28,6 +28,9 @@ subjects:
   - kind: ServiceAccount
     name: crossplane-contrib-provider-kubernetes-0be7cab050e9
     namespace: crossplane-system
+  - kind: ServiceAccount
+    name: crossplane-contrib-provider-helm-9a0591f0f59e
+    namespace: crossplane-system
 roleRef:
   kind: ClusterRole
   name: cluster-admin

@@ -4,7 +4,7 @@ crossplane configurations, apis and examples
 
 ## DEV KIND CLUSTER DEPLOYMENT & CONFIGURATION OF CROSSPLANE
 
-<details><summary><b>CREATE KIND CLUSTER</b></summary>
+<details><summary><b>CREATE KIND CLUSTER w/ DAGGER (DOCKER MUST RUN ON THE MACHINE)</b></summary>
 
 ```bash
 export TASK_X_REMOTE_TASKFILES=1
@@ -16,6 +16,22 @@ task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/he
 ```
 
 </details>
+
+<details><summary><b>CREATE KIND CLUSTER w/ DAGGER+ANSIBLE</b></summary>
+
+```bash
+dagger call -m github.com/stuttgart-things/blueprints/vm \
+execute-ansible \
+--playbooks "sthings.baseos.setup,sthings.container.kind_xplane" \
+--hosts "10.31.103.23" \
+--ssh-user=env:SSH_USER \
+--ssh-password=env:SSH_PASSWORD \
+--requirements /tmp/requirements.yaml \
+--progress plain -vv
+```
+
+</details>
+
 
 <details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
 

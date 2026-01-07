@@ -34,19 +34,17 @@ spec:
                 app.kubernetes.io/managed-by: crossplane
                 storage.platform.example.org/engine: openebs
             spec:
-              deletionPolicy: Delete
-
               providerConfigRef:
                 name: {{ $spec.providerConfigRef.name | default "helm-provider-cluster" }}
-                kind: ClusterProviderConfig
+                kind: ProviderConfig
 
               forProvider:
-                namespace: {{ $spec.namespace | default "openebs-system" }}
+                namespace: {{ $spec.openebs.namespace | default "openebs-system" }}
 
                 chart:
                   name: openebs
                   repository: https://openebs.github.io/openebs
-                  version: {{ $spec.version | default "4.2.0" }}
+                  version: {{ $spec.openebs.version | default "4.2.0" }}
 
                 values:
                   openebs-crds:
@@ -70,10 +68,3 @@ spec:
                     replicated:
                       mayastor:
                         enabled: {{ $spec.openebs.engines.replicated.mayastor | default false }}
-
-            ---
-            apiVersion: storage.platform.example.org/v1alpha1
-            kind: StoragePlatform
-            status:
-              installed: true
-              observedVersion: {{ $spec.version | default "4.2.0" }}

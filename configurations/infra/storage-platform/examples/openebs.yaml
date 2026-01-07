@@ -8,10 +8,9 @@ spec:
     type: openebs
   providerConfigRef:
     name: in-cluster
-  namespace: openebs-system
-  version: 4.2.0
   openebs:
-    profile: localpv
+    namespace: openebs-system
+    version: "4.2.0"
     features:
       volumeSnapshots: false
       csiNodeInitContainers: false
@@ -19,3 +18,5 @@ spec:
       local:
         lvm: true
         zfs: false
+      replicated:
+        mayastor: false
