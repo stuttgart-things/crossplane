@@ -25,16 +25,23 @@ spec:
               required:
                 - type
               properties:
-
-                # ============================================================
-                # Crossplane plumbing (matches PipelineIntegration)
-                # ============================================================
                 targetCluster:
                   type: object
-                  description: Helm provider override
+                  required:
+                    - name
                   properties:
                     name:
                       type: string
+                      description: Name of the ProviderConfig / ClusterProviderConfig
+                    scope:
+                      type: string
+                      enum:
+                        - Namespaced
+                        - Cluster
+                      default: Namespaced
+                      description: |
+                        Whether to use ProviderConfig (Namespaced)
+                        or ClusterProviderConfig (Cluster)
 
                 # ============================================================
                 # Network engine selector
@@ -61,6 +68,13 @@ spec:
                       type: string
                       description: Logical cluster name used for templating
 
+                    enableHostServices:
+                      type: boolean
+                      default: true
+                      description: |
+                        Enable host-reachable services.
+                        Required for kind clusters with kube-proxy replacement.
+
                     namespace:
                       type: string
                       default: kube-system
@@ -80,8 +94,9 @@ spec:
                     # Core behavior
                     # --------------------
                     kubeProxyReplacement:
-                      type: boolean
-                      default: true
+                      type: string
+                      enum: [strict, disabled]
+                      default: strict
 
                     k8sServiceHost:
                       type: string

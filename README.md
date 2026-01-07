@@ -22,7 +22,7 @@ task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/he
 ```bash
 kubectl apply --server-side -k https://github.com/stuttgart-things/helm/cicd/crds/crossplane
 
-# BY TASKFILE
+# BY TASKFILE (IS USING GUM+DAGGER)
 export TASK_X_REMOTE_TASKFILES=1
 task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+crossplane
 ```
@@ -72,61 +72,13 @@ dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 \
 <details><summary><b>ADD LOCAL CLUSTER AS KUBERNETES PROVIDER (FILEBASED)</b></summary>
 
 ```bash
-NAMESPACE="crossplane-system"
-KUBECONFIG_DIR="$HOME/.kube"
-
-# Select kubeconfig file
-KUBECONFIG_FILE=$(ls -1 "$KUBECONFIG_DIR" \
-  | gum choose --header "Select kubeconfig file")
-
-KUBECONFIG_PATH="$KUBECONFIG_DIR/$KUBECONFIG_FILE"
-
-# Secret name
-SECRET_NAME=$(gum input \
-  --prompt "Secret name: " \
-  --value "dev")
-
-# Create or update secret (idempotent)
-kubectl -n "$NAMESPACE" create secret generic "$SECRET_NAME" \
-  --from-file=config="$KUBECONFIG_PATH" \
-  --dry-run=client -o yaml \
-  | kubectl apply -f -
-```
-
-```bash
-NAMESPACE="crossplane-system"
-
-CONFIG_NAME=$(gum input \
-  --prompt "ClusterProviderConfig name: " \
-  --value "dev")
-
-SECRET_NAME=$(kubectl get secret -n "$NAMESPACE" \
-  -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
-  | gum choose --header "Select secret")
-
-SECRET_KEY=$(kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" \
-  -o json \
-  | jq -r '.data | keys[]' \
-  | gum choose --header "Select key from secret '$SECRET_NAME'")
-
-if ! gum confirm "Apply ClusterProviderConfig '$CONFIG_NAME' using $SECRET_NAME:$SECRET_KEY?"; then
-  echo "Aborted."
-  exit 0
-fi
-
-kubectl apply -f - <<EOF
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: ClusterProviderConfig
-metadata:
-  name: $CONFIG_NAME
-spec:
-  credentials:
-    source: Secret
-    secretRef:
-      namespace: $NAMESPACE
-      name: $SECRET_NAME
-      key: $SECRET_KEY
-EOF
+dagger call -m github.com/stuttgart-things/blueprints/crossplane-configuration add-cluster \
+--clusterName=in-cluster \
+--kubeconfig-cluster file:///home/sthings/.kube/xplane \ --kubeconfig-crossplane-cluster file:///home/sthings/.kube/xplane \
+--deploy-to-cluster=false \
+--progress plain \
+-vv export \
+--path=/tmp/xplane
 ```
 
 </details>
@@ -154,24 +106,13 @@ task --taskfile https://raw.githubusercontent.com/stuttgart-things/crossplane/re
 
 ## CONFIGURATIONS
 
-<details><summary><b>ANSIBLE-RUN</b></summary>
-
-* [SEE-HOW-TO-USE](configurations/ansible-run/README.md)
-
-* INSTALL
+<details><summary><b>APPLY CROSSPLANE PACKAGES</b></summary>
 
 ```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: pkg.crossplane.io/v1
-kind: Configuration
-metadata:
-  name: ansible-run
-spec:
-  package: ghcr.io/stuttgart-things/crossplane/ansible-run:11.0.0
-EOF
+export TASK_X_REMOTE_TASKFILES=1
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/crossplane/refs/heads/main/Taskfile.yaml create-new-configuration
 ```
 
-</details>
 
 
 ## DEVELOPMENT

@@ -7,7 +7,7 @@ spec:
   engine:
     type: openebs
   providerConfigRef:
-    name: helm-provider-prod
+    name: in-cluster
   namespace: openebs-system
   version: 4.2.0
   openebs:

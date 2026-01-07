@@ -3,10 +3,11 @@ apiVersion: helm.m.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: target
+  namespace: default
 spec:
   credentials:
-    source: Secret
     secretRef:
-      namespace: crossplane-system
-      name: target
       key: config
+      name: target
+      namespace: crossplane-system
+    source: Secret

@@ -1,0 +1,8 @@
+---
+apiVersion: resources.stuttgart-things.com/v1
+kind: StorageIntegration
+metadata:
+  name: StorageIntegrationClaim
+  namespace: default
+spec:
+  # add spec fields here

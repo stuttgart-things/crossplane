@@ -4,4 +4,4 @@ kind: Configuration
 metadata:
   name: cloud-config
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/cloud-config:v0.4.1
+  package: ghcr.io/stuttgart-things/crossplane/cloud-config:v0.5.0

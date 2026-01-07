@@ -2,16 +2,16 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: run-ansible-test1
+  name: run-ansible-baseos
   namespace: default
 spec:
   # CROSSPLANE CONFIGURATION
   wrapInCrossplane: true
-  crossplaneObjectName: run-ansible-test-xplane
+  crossplaneObjectName: run-ansible-baseos
   crossplaneNamespace: default
   crossplaneProviderConfig: dev
   # PIPELINRUN CONFIGURATION
-  pipelineRunName: run-ansible-xplane
+  pipelineRunName: run-ansible-baseos
   namespace: tekton-ci
   # ANSIBLE CONFIGURATION
   ansibleCredentialsSecretName: ansible-credentials # pragma: allowlist secret
@@ -23,4 +23,4 @@ spec:
     - ansible_become+-true
     - ansible_become_method+-sudo
   ansibleVarsInventory:
-    - all+["10.31.102.107"]
+    - all+["10.100.136.150"]
