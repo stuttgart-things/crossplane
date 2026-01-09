@@ -5,7 +5,7 @@
 ```bash
 # RENDER NFS
 crossplane render examples/nfs.yaml \
-./compositions/storageplatform-openebs.yaml \
+./compositions/storageplatform-nfs.yaml \
 examples/functions.yaml \
 --include-function-results
 ```

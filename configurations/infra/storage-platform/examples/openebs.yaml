@@ -1,13 +1,14 @@
 ---
-apiVersion: storage.platform.example.org/v1alpha1
+apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: StoragePlatform
 metadata:
   name: openebs-local
 spec:
   engine:
     type: openebs
-  providerConfigRef:
+  targetCluster:
     name: in-cluster
+    scope: Cluster
   openebs:
     namespace: openebs-system
     version: "4.2.0"

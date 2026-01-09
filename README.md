@@ -4,7 +4,7 @@ crossplane configurations, apis and examples
 
 ## DEV KIND CLUSTER DEPLOYMENT & CONFIGURATION OF CROSSPLANE
 
-<details><summary><b>CREATE KIND CLUSTER w/ DAGGER (DOCKER MUST RUN ON THE MACHINE)</b></summary>
+<details><summary><b>CREATE KIND CLUSTER w/ DAGGER (DOCKER+KIND ARE REQUIRED)</b></summary>
 
 ```bash
 export TASK_X_REMOTE_TASKFILES=1
@@ -31,7 +31,6 @@ execute-ansible \
 ```
 
 </details>
-
 
 <details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
 
@@ -62,7 +61,6 @@ kubectl apply -k https://github.com/stuttgart-things/helm/cicd/crds/tekton
 ```
 
 ```bash
-# DEPLOY OPENEBS w/ DAGGER
 dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 \
   helmfile-operation \
   --helmfile-ref "git::https://github.com/stuttgart-things/helm.git@infra/openebs.yaml.gotmpl" \

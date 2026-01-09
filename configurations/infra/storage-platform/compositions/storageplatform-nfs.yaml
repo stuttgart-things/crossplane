@@ -4,11 +4,11 @@ kind: Composition
 metadata:
   name: storageplatform-nfs
   labels:
-    crossplane.io/xrd: storageplatforms.storage.platform.example.org
+    crossplane.io/xrd: storageplatforms.resources.stuttgart-things.com
     storage.platform.example.org/engine: nfs
 spec:
   compositeTypeRef:
-    apiVersion: storage.platform.example.org/v1alpha1
+    apiVersion: resources.stuttgart-things.com/v1alpha1
     kind: StoragePlatform
   mode: Pipeline
   pipeline:
@@ -24,6 +24,13 @@ spec:
             {{- $spec := .observed.composite.resource.spec -}}
             {{- $nfs := $spec.nfs -}}
 
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
+
+            {{- if $nfs.namespace }}
             ---
             apiVersion: helm.m.crossplane.io/v1beta1
             kind: Release
@@ -36,38 +43,29 @@ spec:
                 storage.platform.example.org/engine: nfs
             spec:
               deletionPolicy: Delete
-
               providerConfigRef:
-                name: {{ $spec.providerConfigRef.name | default "helm-provider-cluster" }}
-                kind: ClusterProviderConfig
-
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
               forProvider:
                 namespace: {{ $nfs.namespace | default "kube-system" }}
-
                 chart:
                   name: csi-driver-nfs
                   repository: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
                   version: {{ $nfs.version | default "v4.11.0" }}
-
                 values:
                   serviceAccount:
                     create: {{ $nfs.serviceAccountCreate | default true }}
                     controller: {{ $nfs.serviceAccountController | default "csi-nfs-controller-sa" }}
-
                   rbac:
                     create: {{ $nfs.rbacCreate | default true }}
                     name: {{ $nfs.rbacName | default "nfs" }}
-
                   driver:
                     name: {{ $nfs.driverName | default "nfs.csi.k8s.io" }}
                     mountPermissions: {{ $nfs.mountPermissions | default 0 }}
-
                   feature:
                     enableFSGroupPolicy: {{ $nfs.enableFSGroupPolicy | default true }}
                     enableInlineVolume: {{ $nfs.enableInlineVolume | default false }}
-
                   kubeletDir: {{ $nfs.kubeletDir | default "/var/lib/kubelet" }}
-
                   externalSnapshotter:
                     enabled: {{ $nfs.externalSnapshotterEnabled | default false }}
 
@@ -83,11 +81,9 @@ spec:
                 storage.platform.example.org/engine: nfs
             spec:
               deletionPolicy: Delete
-
               providerConfigRef:
-                name: {{ $spec.kubernetesProviderConfigRef.name | default "kubernetes-provider-cluster" }}
-                kind: ClusterProviderConfig
-
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
               forProvider:
                 manifest:
                   apiVersion: storage.k8s.io/v1
@@ -106,10 +102,8 @@ spec:
                   {{- range $nfs.mountOptions | default (list "nfsvers=4.1") }}
                     - {{ . }}
                   {{- end }}
+            {{- end }}
 
-            ---
-            apiVersion: storage.platform.example.org/v1alpha1
-            kind: StoragePlatform
-            status:
-              installed: true
-              observedVersion: {{ $nfs.version | default "v4.11.0" }}
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready
