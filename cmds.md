@@ -1,5 +1,14 @@
 # COMMANDS/TROUBLESHOOTING
 
+<details><summary><b>HELM RELEASES</b></summary>
+
+```bash
+kubectl get releases.helm.m.crossplane.io -A
+kubectl get releases.helm.crossplane.io -A
+```
+
+</details>
+
 <details><summary><b>DEBUG CROSSPLANE PROVIDER</b></summary>
 
 ```bash
@@ -36,6 +45,19 @@ roleRef:
   name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
 EOF
+```
+
+</details>
+
+<details><summary><b>CREATE KCL SCHEMAS FROM XRD</b></summary>
+
+```bash
+# APPLY AGAINST K8S
+kubectl apply -f ./definition.yaml
+# READ CRD
+kubectl get crd volumeclaims.resources.stuttgart-things.com -o yaml > /tmp/generated-crd-vc.yaml
+# CREATE SCHEMA w/ KCL
+kcl import -m crd /tmp/generated-crd-vc.yaml -o /tmp/schema
 ```
 
 </details>

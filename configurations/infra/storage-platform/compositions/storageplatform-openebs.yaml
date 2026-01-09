@@ -4,11 +4,11 @@ kind: Composition
 metadata:
   name: storageplatform-openebs
   labels:
-    crossplane.io/xrd: storageplatforms.storage.platform.example.org
+    crossplane.io/xrd: storageplatforms.resources.stuttgart-things.com
     storage.platform.example.org/engine: openebs
 spec:
   compositeTypeRef:
-    apiVersion: storage.platform.example.org/v1alpha1
+    apiVersion: resources.stuttgart-things.com/v1alpha1
     kind: StoragePlatform
   mode: Pipeline
   pipeline:
@@ -20,8 +20,34 @@ spec:
         kind: GoTemplate
         source: Inline
         inline:
-          template: | # pragma: allowlist secret
+          template: |
             {{- $spec := .observed.composite.resource.spec -}}
+            {{- $openebs := $spec.openebs -}}
+
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
+
+            {{- if $openebs.namespace }}
+            ---
+            apiVersion: kubernetes.m.crossplane.io/v1alpha1
+            kind: Object
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "openebs-namespace" }}
+            spec:
+              providerConfigRef:
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
+              forProvider:
+                manifest:
+                  apiVersion: v1
+                  kind: Namespace
+                  metadata:
+                    name: {{ $openebs.namespace }}
+            {{- end }}
 
             ---
             apiVersion: helm.m.crossplane.io/v1beta1
@@ -29,42 +55,46 @@ spec:
             metadata:
               annotations:
                 {{ setResourceNameAnnotation "openebs-release" }}
-              labels:
-                app.kubernetes.io/name: openebs
-                app.kubernetes.io/managed-by: crossplane
-                storage.platform.example.org/engine: openebs
             spec:
               providerConfigRef:
-                name: {{ $spec.providerConfigRef.name | default "helm-provider-cluster" }}
-                kind: ProviderConfig
-
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
               forProvider:
-                namespace: {{ $spec.openebs.namespace | default "openebs-system" }}
-
+                namespace: {{ $openebs.namespace | default "openebs-system" }}
                 chart:
                   name: openebs
-                  repository: https://openebs.github.io/openebs
-                  version: {{ $spec.openebs.version | default "4.2.0" }}
-
+                  repository: {{ $openebs.chartRepository | default "https://openebs.github.io/openebs" }}
+                  version: {{ $openebs.version | default "4.2.0" }}
                 values:
                   openebs-crds:
                     csi:
                       volumeSnapshots:
-                        enabled: {{ $spec.openebs.features.volumeSnapshots | default false }}
+                        enabled: {{ $openebs.features.volumeSnapshots | default false }}
 
                   mayastor:
                     csi:
                       node:
                         initContainers:
-                          enabled: {{ $spec.openebs.features.csiNodeInitContainers | default false }}
+                          enabled: {{ $openebs.features.csiNodeInitContainers | default false }}
 
                   engines:
                     local:
                       lvm:
-                        enabled: {{ $spec.openebs.engines.local.lvm | default false }}
+                        enabled: {{ $openebs.engines.local.lvm | default false }}
                       zfs:
-                        enabled: {{ $spec.openebs.engines.local.zfs | default false }}
+                        enabled: {{ $openebs.engines.local.zfs | default false }}
 
                     replicated:
                       mayastor:
-                        enabled: {{ $spec.openebs.engines.replicated.mayastor | default false }}
+                        enabled: {{ $openebs.engines.replicated.mayastor | default false }}
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: StoragePlatform
+            status:
+              installed: true
+              observedVersion: {{ $openebs.version | default "4.2.0" }}
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready

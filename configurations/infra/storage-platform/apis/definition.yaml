@@ -1,17 +1,16 @@
+---
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: storageplatforms.storage.platform.example.org
+  name: storageplatforms.resources.stuttgart-things.com
 spec:
-  group: storage.platform.example.org
+  group: resources.stuttgart-things.com
   defaultCompositeDeletePolicy: Foreground
   scope: Namespaced
-
   names:
     kind: StoragePlatform
     plural: storageplatforms
     singular: storageplatform
-
   versions:
     - name: v1alpha1
       served: true
@@ -26,7 +25,6 @@ spec:
               required:
                 - engine
               properties:
-
                 engine:
                   type: object
                   required:
@@ -38,22 +36,23 @@ spec:
                         - openebs
                         - nfs
                       description: Selected storage engine
-
-                providerConfigRef:
+                targetCluster:
                   type: object
-                  description: Helm provider override
+                  required:
+                    - name
                   properties:
                     name:
                       type: string
-                      default: helm-provider-cluster
-
-                kubernetesProviderConfigRef:
-                  type: object
-                  description: Kubernetes provider override
-                  properties:
-                    name:
+                      description: Name of the ProviderConfig / ClusterProviderConfig
+                    scope:
                       type: string
-                      default: kubernetes-provider-cluster
+                      enum:
+                        - Namespaced
+                        - Cluster
+                      default: Namespaced
+                      description: |
+                        Whether to use ProviderConfig (Namespaced)
+                        or ClusterProviderConfig (Cluster)
 
                 # --------------------
                 # OpenEBS configuration

@@ -20,8 +20,6 @@ includes:
     taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/k2n.yaml
 
 tasks:
-
-
   push-configuration-package:
     desc: Push crossplane configuration package
     cmds:
@@ -86,7 +84,7 @@ tasks:
       SOURCE_FOLDER: "./configurations"
       ALL_CONFIGURATION_PACKAGES:
         sh: |
-          find {{ .SOURCE_FOLDER }}/k8s {{ .SOURCE_FOLDER }}/cluster {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/config {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps \
+          find {{ .SOURCE_FOLDER }}/claims {{ .SOURCE_FOLDER }}/k8s {{ .SOURCE_FOLDER }}/infra {{ .SOURCE_FOLDER }}/config {{ .SOURCE_FOLDER }}/terraform {{ .SOURCE_FOLDER }}/apps \
             -mindepth 1 -maxdepth 1 -type d | \
             sed "s|^\./configurations/||" | \
             sort | \
