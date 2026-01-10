@@ -1,43 +1,61 @@
 ---
-# BASE-OS
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: AnsibleRun
 metadata:
-  name: install-golang
-  namespace: crossplane-system
+  name: ansible-pipeline-test-6
+  namespace: default
 spec:
-  pipelineRunName: install-golang-6
-  createInventory: "false"
-  varsFile: bmFtZToga29sbGUK # pragma: allowlist secret
-  inventoryFile: MTAuMzEuMTAxLjE1OAo= # pragma: allowlist secret
-  playbooks:
-    - "sthings.baseos.prepare_env"
-    - "sthings.baseos.golang"
-  ansibleVarsFile:
-    - golang_version+-1.24.0
-    - manage_filesystem+-true
-    - update_packages+-true
-    - install_requirements+-true
-    - install_motd+-true
-    - username+-sthings
-    - lvm_home_sizing+-'15%'
-    - lvm_root_sizing+-'35%'
-    - lvm_var_sizing+-'50%'
-    - send_to_msteams+-true
-    - reboot_all+-false
-  gitRepoUrl: https://github.com/stuttgart-things/ansible.git
+  pipelineRunName: run-ansible-test-6
+  namespace: tekton-ci
+
+  # Storage Configuration
+  storageSize: "20Mi"
+  storageAccessModes: ReadWriteOnce
+
+  # Ansible Configuration
+  ansibleWorkingImage: ghcr.io/stuttgart-things/sthings-ansible:11.11.0
+  createInventory: "true"
+  ansibleTargetHost: all
+  ansibleVerbosity: "2"
+  validateInventory: "true"
+
+  # Git Configuration
+  gitRepoUrl: https://github.com/stuttgart-things/stage-time.git
   gitRevision: main
-  providerRef:
-    name: kubernetes-incluster
-  vaultSecretName: vault # pragma: allowlist secret
-  pipelineNamespace: tekton-pipelines
-  workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
-  collections:
-    - community.crypto:2.22.3
-    - community.hashi_vault:6.2.0
-    - ansible.netcommon:7.1.0
-    - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.1202.tar.gz/sthings-baseos-25.3.1202.tar.gz
-    - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.6.1311.tar.gz/sthings-container-25.6.1311.tar.gz
-    # - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-deploy_rke-24.2843.39.tar.gz
-    # - https://github.com/stuttgart-things/stuttgart-things/releases/download/0.0.86/sthings-awx-0.0.86.tar.gz
-    # - https://artifacts.homerun-dev.sthings-vsphere.labul.sva.de/ansible-collections/sthings-base_os-24.21.29.tar.gz
+  gitPath: pipelines/execute-ansible-playbooks.yaml
+  gitWorkspaceSubdirectory: /ansible/workdir/
+
+  # Credentials
+  ansibleCredentialsSecretName: ansible-credentials # pragma: allowlist secret
+  ansibleCredentialsUserKey: ANSIBLE_USER # pragma: allowlist secret
+  ansibleCredentialsPasswordKey: ANSIBLE_PASSWORD # pragma: allowlist secret
+
+  # Ansible Roles and Collections
+  installExtraRoles: "true"
+  ansibleExtraRoles:
+    - "https://github.com/stuttgart-things/install-requirements.git,2024.05.11"
+
+  installExtraCollections: "true"
+  ansibleExtraCollections:
+    - "community.general:10.1.0"
+    - "https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.4.118.tar.gz/sthings-baseos-25.4.118.tar.gz"
+
+  # Playbooks and Variables
+  ansiblePlaybooks:
+    - "sthings.baseos.setup"
+
+  ansibleVarsFile:
+    - "manage_filesystem+-true"
+    - "update_packages+-true"
+    - "ansible_become+-true"
+    - "ansible_become_method+-sudo"
+
+  ansibleVarsInventory:
+    - "all+[\"10.31.102.107\"]"
+
+  # Crossplane Configuration
+  wrapInCrossplane: true
+  crossplaneObjectName: ansible-pipeline-test-6
+  crossplaneNamespace: default
+  crossplaneProviderConfig: kubernetes-provider
+  crossplaneTimeout: "60"

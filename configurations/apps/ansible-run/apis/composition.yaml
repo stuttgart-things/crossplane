@@ -2,115 +2,25 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: ansible-run
   labels:
-    crossplane.io/xrd: xansibleruns.resources.stuttgart-things.com
+    crossplane.io/xrd: ansibleruns.resources.stuttgart-things.com
+  name: ansible-run
 spec:
-  writeConnectionSecretsToNamespace: crossplane-system # pragma: allowlist secret
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
-    kind: XAnsibleRun
-  resources:
-    - base:
-        apiVersion: kubernetes.crossplane.io/v1alpha2
-        kind: Object
-        spec:
-          providerConfigRef:
-            name: kubernetes-labul-bootstrap
-          forProvider:
-            readinessChecks:
-              - type: MatchString
-                fieldPath: "status.conditions[?(@.type=='Succeeded')].status"
-                matchString: "True"
-            manifest:
-              apiVersion: tekton.dev/v1
-              kind: PipelineRun
-              metadata:
-                name: ansible-setup
-                namespace: tektoncd
-              spec:
-                pipelineRef:
-                  resolver: git
-                  params:
-                    - name: url
-                      value: https://github.com/stuttgart-things/stage-time.git
-                    - name: revision
-                      value: main
-                    - name: pathInRepo
-                      value: pipelines/execute-ansible-playbooks.yaml
-                workspaces:
-                  - name: shared-workspace
-                    volumeClaimTemplate:
-                      spec:
-                        storageClassName: openebs-hostpath
-                        accessModes:
-                          - ReadWriteOnce
-                        resources:
-                          requests:
-                            storage: 20Mi
-                params:
-                  - name: ansibleWorkingImage
-                  - name: createInventory
-                    value: "true"
-                  - name: gitRepoUrl
-                  - name: gitRevision
-                  - name: gitWorkspaceSubdirectory
-                    value: "/ansible/workdir/"
-                  - name: vaultSecretName
-                    value: vault
-                  - name: installExtraRoles
-                    value: "true"
-                  - name: ansibleExtraRoles
-                  - name: ansiblePlaybooks
-                  - name: ansibleVarsFile
-                  - name: ansibleVarsInventory
-                  - name: ansibleExtraCollections
-                    value:
-                    - community.crypto:2.10.0
-                  - name: installExtraCollections
-                    value: "true"
-                  - name: inventory
-                    value: ""
-      patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.pipelineRunName
-          toFieldPath: spec.forProvider.manifest.metadata.name
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.pipelineNamespace
-          toFieldPath: spec.forProvider.manifest.metadata.namespace
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.workingImage
-          toFieldPath: spec.forProvider.manifest.spec.params[0].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.createInventory
-          toFieldPath: spec.forProvider.manifest.spec.params[1].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.gitRepoUrl
-          toFieldPath: spec.forProvider.manifest.spec.params[2].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.gitRevision
-          toFieldPath: spec.forProvider.manifest.spec.params[3].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.vaultSecretName
-          toFieldPath: spec.forProvider.manifest.spec.params[5].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.roles
-          toFieldPath: spec.forProvider.manifest.spec.params[7].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.playbooks
-          toFieldPath: spec.forProvider.manifest.spec.params[8].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.ansibleVarsFile
-          toFieldPath: spec.forProvider.manifest.spec.params[9].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.inventory
-          toFieldPath: spec.forProvider.manifest.spec.params[10].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.collections
-          toFieldPath: spec.forProvider.manifest.spec.params[11].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.inventoryFile
-          toFieldPath: spec.forProvider.manifest.spec.params[13].value
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.providerRef.name
-          toFieldPath: spec.providerConfigRef.name
+    kind: AnsibleRun
+  mode: Pipeline
+  pipeline:
+  - step: create-ansiblerun
+    functionRef:
+      name: function-kcl
+    input:
+      apiVersion: krm.kcl.dev/v1alpha1
+      kind: KCLInput
+      metadata:
+        name: ansiblerun
+      spec:
+        source: oci://ghcr.io/stuttgart-things/kcl-tekton-pr:0.4.6
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: function-auto-ready

@@ -4,4 +4,4 @@ kind: Configuration
 metadata:
   name: pipeline-integration
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/pipeline-integration:v0.1.0
+  package: ghcr.io/stuttgart-things/crossplane/pipeline-integration:v0.1.2

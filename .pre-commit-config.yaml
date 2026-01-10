@@ -45,4 +45,4 @@ repos:
         files: .*  # all files
         args:
           - "--exclude-files"
-          - "dev/ansible-run/README.md"
+          - "configurations/apps/ansible-run/README.md"
