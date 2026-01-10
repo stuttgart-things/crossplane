@@ -9,10 +9,6 @@ crossplane configurations, apis and examples
 ```bash
 export TASK_X_REMOTE_TASKFILES=1
 task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/kind.yaml create-kind-cluster
-
-export KUBECONFIG=/home/sthings/.kube/<CLUSTER-NAME>
-task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/crds.yaml kubectl-kustomize #apply+cilium
-task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+cilium
 ```
 
 </details>
@@ -32,6 +28,16 @@ execute-ansible \
 
 </details>
 
+<details><summary><b>DEPLOY CILIUM</b></summary>
+
+```bash
+export KUBECONFIG=/home/sthings/.kube/<CLUSTER-NAME>
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/crds.yaml kubectl-kustomize #apply+cilium
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+cilium
+```
+
+</details>
+
 <details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
 
 ```bash
@@ -40,9 +46,7 @@ kubectl apply --server-side -k https://github.com/stuttgart-things/helm/cicd/crd
 # BY TASKFILE (IS USING GUM+DAGGER)
 export TASK_X_REMOTE_TASKFILES=1
 task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+crossplane
-```
 
-```bash
 # OR BY DIRECT DAGGER CALL
 dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 helmfile-operation \
   --helmfile-ref "git::https://github.com/stuttgart-things/helm.git@cicd/crossplane.yaml.gotmpl" \
@@ -57,7 +61,9 @@ dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 helmfile-operatio
 <details><summary><b>CROSSPLANE DEPLOYMENT w/ DAGGER/HELMFILE</b></summary>
 
 ```bash
-kubectl apply -k https://github.com/stuttgart-things/helm/cicd/crds/tekton
+export KUBECONFIG=/home/sthings/.kube/<CLUSTER-NAME>
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/crds.yaml kubectl-kustomize #apply+cilium
+task --taskfile https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/kubernetes/helm.yaml helmfile-operation #apply+cilium
 ```
 
 ```bash
