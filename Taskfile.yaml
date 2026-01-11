@@ -20,6 +20,13 @@ includes:
     taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/k2n.yaml
 
 tasks:
+  apply-configuration-packages:
+    desc: Apply crossplane configuration packages
+    cmds:
+      - |
+        set -e
+
+
   push-configuration-package:
     desc: Push crossplane configuration package
     cmds:

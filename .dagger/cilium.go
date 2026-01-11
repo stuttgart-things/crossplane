@@ -11,6 +11,9 @@ func (m *Dagger) DeployCilium(
 	// +default=true
 	deployCRDs bool,
 	// +optional
+	// +default="https://github.com/stuttgart-things/helm/infra/crds/cilium"
+	crdSource string,
+	// +optional
 	// +default="git::https://github.com/stuttgart-things/helm.git@infra/cilium.yaml.gotmpl"
 	helmfileRef string,
 	// +optional
@@ -22,7 +25,7 @@ func (m *Dagger) DeployCilium(
 ) error {
 	// Deploy CRDs first if requested
 	if deployCRDs {
-		_, err := m.DeployCiliumCRDS(ctx, "", kubeConfig)
+		_, err := m.DeployCiliumCRDS(ctx, crdSource, kubeConfig)
 		if err != nil {
 			return err
 		}
