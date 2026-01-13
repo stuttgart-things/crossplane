@@ -191,16 +191,3 @@ source .container-use/container-use.sh
 cu-spec                           # Show available specs
 cu-new my-config apps            # Create new config with guidance
 ```
-
-### Available Tasks
-
-```bash
-task: Available tasks for this project:
-* branch:                    Create branch from main
-* check:                     Run pre-commit hooks
-* commit:                    Commit + push code into branch
-* do:                        Select a task to run
-* pr:                        Create pull request into main
-* run-pre-commit-hook:       Run the pre-commit hook script to replace .example.com with .example.com
-* xplane-push:               Push crossplane package
-```

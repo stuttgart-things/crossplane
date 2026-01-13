@@ -1,0 +1,194 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: postgresservers.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: PostgresServer
+    plural: postgresservers
+    singular: postgresserver
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - targetCluster
+                - postgres
+              properties:
+                targetCluster:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    scope:
+                      type: string
+                      enum: ["Namespaced", "Cluster"]
+                      default: "Namespaced"
+                postgres:
+                  type: object
+                  required:
+                    - profile
+                  properties:
+                    name:
+                      type: string
+                      default: postgres
+                    namespace:
+                      type: string
+                      default: postgres
+                    version:
+                      type: string
+                      default: "0.13.8"
+                    profile:
+                      type: string
+                      enum: ["small", "medium", "large"]
+                      default: small
+                    auth:
+                      type: object
+                      properties:
+                        username:
+                          type: string
+                        database:
+                          type: string
+                        existingSecret:
+                          type: string
+                    persistence:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                        size:
+                          type: string
+                          default: 8Gi
+                        storageClass:
+                          type: string
+                        accessModes:
+                          type: array
+                          items:
+                            type: string
+                          default:
+                            - ReadWriteOnce
+                        existingClaim:
+                          type: string
+                    resources:
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          properties:
+                            cpu:
+                              type: string
+                            memory:
+                              type: string
+                        limits:
+                          type: object
+                          properties:
+                            cpu:
+                              type: string
+                            memory:
+                              type: string
+                    config:
+                      type: object
+                      properties:
+                        maxConnections:
+                          type: integer
+                        sharedBuffers:
+                          type: string
+                        effectiveCacheSize:
+                          type: string
+                        logStatement:
+                          type: string
+                        logMinDurationStatement:
+                          type: string
+                    service:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          default: ClusterIP
+                        port:
+                          type: integer
+                          default: 5432
+                        annotations:
+                          type: object
+                          additionalProperties:
+                            type: string
+                    ingress:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        className:
+                          type: string
+                        hosts:
+                          type: array
+                          items:
+                            type: string
+                        tls:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              secretName:
+                                type: string
+                              hosts:
+                                type: array
+                                items:
+                                  type: string
+                    metrics:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        serviceMonitor:
+                          type: object
+                          properties:
+                            enabled:
+                              type: boolean
+                              default: false
+                            interval:
+                              type: string
+                              default: 30s
+                            namespace:
+                              type: string
+
+                    nodeSelector:
+                      type: object
+                      additionalProperties:
+                        type: string
+
+                    tolerations:
+                      type: array
+                      items:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+
+                    affinity:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+
+                    values:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                observedVersion:
+                  type: string
