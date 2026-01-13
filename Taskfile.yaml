@@ -14,19 +14,14 @@ vars:
 includes:
   git:
     taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/git/git.yaml
-  #crossplane:
-   # taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/crossplane.yaml
+  crossplane:
+   taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/crossplane.yaml
   k2n:
     taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/configuration/k2n.yaml
+  dagger:
+    taskfile: https://raw.githubusercontent.com/stuttgart-things/tasks/refs/heads/main/dagger/modules.yaml
 
 tasks:
-  apply-configuration-packages:
-    desc: Apply crossplane configuration packages
-    cmds:
-      - |
-        set -e
-
-
   push-configuration-package:
     desc: Push crossplane configuration package
     cmds:

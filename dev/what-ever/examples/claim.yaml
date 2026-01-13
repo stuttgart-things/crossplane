@@ -1,7 +1,0 @@
----
-apiVersion: resources.stuttgart-things.com/v1
-kind: MyClaim
-metadata:
-  name: WhatEverClaim
-  namespace: default
-spec:

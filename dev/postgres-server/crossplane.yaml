@@ -2,15 +2,15 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: WhatEver
+  name: PostgresServer
   annotations:
     meta.crossplane.io/maintainer: patrick.hermann@sva.de
     meta.crossplane.io/source: https://github.com/stuttgart-things/crossplane
     meta.crossplane.io/license: Apache-2.0
     meta.crossplane.io/description: |
-      deploys MyClaim w/ crossplane
+      manages lifecycle of PostgresServer w/ crossplane
     meta.crossplane.io/readme: |
-      deploys MyClaim w/ crossplane
+      manages lifecycle of PostgresServer w/ crossplane
 spec:
   crossplane:
     version: ">=2.13.0"
