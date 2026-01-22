@@ -2,14 +2,17 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: postgresserver
+  name: postgresserver-helm
+  labels:
+    crossplane.io/xrd: postgresservers.resources.stuttgart-things.com
+    resources.stuttgart-things.com/engine: helm
 spec:
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
-    kind: XPostgresServer
+    kind: PostgresServer
   mode: Pipeline
   pipeline:
-    - step: deploy-postgres-server
+    - step: deploy-postgres
       functionRef:
         name: function-go-templating
       input:
@@ -17,53 +20,103 @@ spec:
         kind: GoTemplate
         source: Inline
         inline:
-          template: | # pragma: allowlist secret
-            apiVersion: helm.crossplane.io/v1beta1
+          template: |
+            {{- $spec := .observed.composite.resource.spec -}}
+            {{- $pg := $spec.postgres -}}
+            {{- $releaseName := "postgres-release" -}}
+
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
+
+            {{- $profiles := dict
+              "small" (dict
+                "resources" (dict
+                  "requests" (dict "cpu" "250m" "memory" "256Mi")
+                  "limits"   (dict "cpu" "500m" "memory" "512Mi"))
+                "config" (dict
+                  "postgresqlMaxConnections" 50
+                  "postgresqlSharedBuffers" "128MB"
+                  "postgresqlEffectiveCacheSize" "256MB"))
+              "medium" (dict
+                "resources" (dict
+                  "requests" (dict "cpu" "500m" "memory" "1Gi")
+                  "limits"   (dict "cpu" "1" "memory" "2Gi"))
+                "config" (dict
+                  "postgresqlMaxConnections" 100
+                  "postgresqlSharedBuffers" "256MB"
+                  "postgresqlEffectiveCacheSize" "512MB"))
+              "large" (dict
+                "resources" (dict
+                  "requests" (dict "cpu" "1" "memory" "2Gi")
+                  "limits"   (dict "cpu" "2" "memory" "4Gi"))
+                "config" (dict
+                  "postgresqlMaxConnections" 300
+                  "postgresqlSharedBuffers" "1GB"
+                  "postgresqlEffectiveCacheSize" "2GB"))
+            -}}
+
+            {{- $profile := get $profiles $pg.profile -}}
+
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
             kind: Release
             metadata:
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: server
-                gotemplating.fn.crossplane.io/ready: "True"
-              name: postgresserver-{{ .observed.composite.resource.spec.clusterName }}
+                {{ setResourceNameAnnotation "postgres-release" }}
             spec:
               providerConfigRef:
-                name: {{ .observed.composite.resource.spec.clusterName }}
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
               forProvider:
+                namespace: {{ $pg.namespace | default "postgres" }}
                 chart:
-                  name: postgresql
-                  repository: oci://registry-1.docker.io/bitnamicharts/
-                  version: {{ .observed.composite.resource.spec.version }}
-                insecureSkipTLSVerify: true
-                namespace: {{ .observed.composite.resource.spec.deploymentNamespace }}
-                skipCRDs: false
-                skipCreateNamespace: false
-                wait: true
-                #values:
-              connectionDetails:
-                - apiVersion: v1
-                  kind: Service
-                  name: postgresserver-{{ .observed.composite.resource.spec.clusterName }}-postgresql
-                  namespace: {{ .observed.composite.resource.spec.deploymentNamespace }}
-                  fieldPath: spec.clusterIP
-                  toConnectionSecretKey: ip
-                - apiVersion: v1
-                  kind: Service
-                  name: postgresserver-{{ .observed.composite.resource.spec.clusterName }}-postgresql-hl
-                  namespace: {{ .observed.composite.resource.spec.deploymentNamespace }}
-                  fieldPath: metadata.name
-                  toConnectionSecretKey: hostname-hl
-                - apiVersion: v1
-                  kind: Service
-                  name: postgresserver-{{ .observed.composite.resource.spec.clusterName }}-postgresql
-                  namespace: {{ .observed.composite.resource.spec.deploymentNamespace }}
-                  fieldPath: metadata.name
-                  toConnectionSecretKey: hostname
-                - apiVersion: v1
-                  kind: Secret
-                  name: postgresserver-{{ .observed.composite.resource.spec.clusterName }}-postgresql
-                  namespace: {{ .observed.composite.resource.spec.deploymentNamespace }}
-                  fieldPath: data.postgres-password
-                  toConnectionSecretKey: password
-              writeConnectionSecretToRef:
-                name: postgresserver-{{ .observed.composite.resource.metadata.name }}-credentials
-                namespace: crossplane-system
+                  name: postgres
+                  repository: oci://registry-1.docker.io/cloudpirates
+                  version: {{ $pg.version | default "0.13.8" }}
+                values:
+                  auth:
+                    username: {{ $pg.auth.username | default "" }}
+                    database: {{ $pg.auth.database | default "" }}
+                    existingSecret: {{ $pg.auth.existingSecret | default "" }}
+
+                  persistence:
+                    enabled: {{ $pg.persistence.enabled | default true }}
+                    size: {{ $pg.persistence.size | default "8Gi" }}
+                    storageClass: {{ $pg.persistence.storageClass | default "" }}
+                    accessModes: {{ $pg.persistence.accessModes | default (list "ReadWriteOnce") | toJson }}
+
+                  resources: {{ $profile.resources | toJson }}
+
+                  config: {{ $profile.config | toJson }}
+
+                  service:
+                    type: {{ $pg.service.type | default "ClusterIP" }}
+                    port: {{ $pg.service.port | default 5432 }}
+                    annotations: {{ $pg.service.annotations | default dict | toJson }}
+
+                  metrics:
+                    enabled: {{ $pg.metrics.enabled | default false }}
+                  {{- if and $pg.metrics.enabled $pg.metrics.serviceMonitor.enabled }}
+                    serviceMonitor:
+                      enabled: true
+                      interval: {{ $pg.metrics.serviceMonitor.interval | default "30s" }}
+                      namespace: {{ $pg.metrics.serviceMonitor.namespace | default "" }}
+                  {{- end }}
+
+                  {{- if $pg.values }}
+                  {{ toYaml $pg.values | nindent 18 }}
+                  {{- end }}
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: PostgresServer
+            status:
+              installed: true
+              observedVersion: {{ $pg.version | default "0.13.8" }}
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready

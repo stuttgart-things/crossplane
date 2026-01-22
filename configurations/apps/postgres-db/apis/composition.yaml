@@ -1,4 +1,3 @@
----
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -6,7 +5,7 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
-    kind: XPostgresDB
+    kind: PostgresDB
   mode: Pipeline
   pipeline:
     - step: create-db
@@ -18,48 +17,65 @@ spec:
         source: Inline
         inline:
           template: | # pragma: allowlist secret
-            apiVersion: postgresql.sql.crossplane.io/v1alpha1
+            {{- $xr := .observed.composite.resource }}
+            {{- $ns := $xr.metadata.namespace }}
+            {{- $pc := $xr.spec.providerConfigRef.name | default "default" }}
+
+            apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
             kind: Role
             metadata:
-              name: {{ .observed.composite.resource.spec.roleName }}
+              name: {{ $xr.spec.roleName }}
+              namespace: {{ $ns }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: role
                 gotemplating.fn.crossplane.io/ready: "True"
             spec:
-              deletionPolicy: {{ .observed.composite.resource.spec.deletionPolicy }}
-              writeConnectionSecretToRef:
-                name: {{ .observed.composite.resource.spec.roleName }}-secret
-                namespace: default
+              deletionPolicy: {{ $xr.spec.deletionPolicy }}
               forProvider:
                 privileges:
                   createDb: true
                   login: true
                   createRole: true
                   inherit: true
+              writeConnectionSecretToRef:
+                name: {{ $xr.spec.roleName }}-secret
+              providerConfigRef:
+                kind: ProviderConfig
+                name: {{ $pc }}
+
             ---
-            apiVersion: postgresql.sql.crossplane.io/v1alpha1
+            apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
             kind: Grant
             metadata:
-              name: {{ .observed.composite.resource.spec.roleName }}
+              name: grant-postgres-{{ $xr.spec.roleName }}
+              namespace: {{ $ns }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: grant
                 gotemplating.fn.crossplane.io/ready: "True"
             spec:
-              deletionPolicy: {{ .observed.composite.resource.spec.deletionPolicy }}
+              deletionPolicy: {{ $xr.spec.deletionPolicy }}
               forProvider:
-                role: "postgres"
+                role: postgres
                 memberOfRef:
-                  name: "{{ .observed.composite.resource.spec.roleName }}"
+                  name: {{ $xr.spec.roleName }}
+              providerConfigRef:
+                kind: ProviderConfig
+                name: {{ $pc }}
+
             ---
-            apiVersion: postgresql.sql.crossplane.io/v1alpha1
+            apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
             kind: Database
             metadata:
-              name: {{ .observed.composite.resource.spec.dbName }}
+              name: {{ $xr.spec.dbName }}
+              namespace: {{ $ns }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: db
                 gotemplating.fn.crossplane.io/ready: "True"
             spec:
-              deletionPolicy: {{ .observed.composite.resource.spec.deletionPolicy }}
+              deletionPolicy: {{ $xr.spec.deletionPolicy }}
               forProvider:
                 allowConnections: true
-                owner: "{{ .observed.composite.resource.spec.roleName }}"
+                owner: {{ $xr.spec.roleName }}
+              providerConfigRef:
+                kind: ProviderConfig
+                name: {{ $pc }}

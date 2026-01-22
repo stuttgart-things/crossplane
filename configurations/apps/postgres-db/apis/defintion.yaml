@@ -1,18 +1,22 @@
----
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: xpostgresdbs.resources.stuttgart-things.com
 spec:
   group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+
   names:
     kind: XPostgresDB
     plural: xpostgresdbs
+    singular: xpostgresdb
+
   claimNames:
     kind: PostgresDB
     plural: postgresdbs
-  defaultCompositionRef:
-    name: postgresdb
+    singular: postgresdb
+
   versions:
     - name: v1alpha1
       served: true
@@ -23,17 +27,38 @@ spec:
           properties:
             spec:
               type: object
+              required:
+                - dbName
+                - roleName
               properties:
                 dbName:
                   type: string
                   description: Database name
+
                 roleName:
                   type: string
                   description: Role name
+
                 deletionPolicy:
                   type: string
+                  description: Database deletion policy
                   default: Orphan
-                  description: db deletion policy
-              required:
-                - dbName
-                - roleName
+                  enum:
+                    - Orphan
+                    - Delete
+
+                providerConfigRef:
+                  type: object
+                  description: PostgreSQL ProviderConfig reference
+                  properties:
+                    name:
+                      type: string
+                      default: postgresql
+
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                observedGeneration:
+                  type: integer

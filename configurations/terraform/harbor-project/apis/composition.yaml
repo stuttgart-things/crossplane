@@ -1,0 +1,112 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: harbor-project
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: HarborProject
+  mode: Pipeline
+  pipeline:
+    - step: render-workspace
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            ---
+            apiVersion: opentofu.m.upbound.io/v1beta1
+            kind: Workspace
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation (print .observed.composite.resource.spec.projectName "-project") }}
+              name: harbor-project-{{ .observed.composite.resource.spec.projectName }}
+              namespace: crossplane-system
+            spec:
+              providerConfigRef:
+                name: {{ .observed.composite.resource.spec.providerConfigRef | default "default" }}
+                kind: ClusterProviderConfig
+
+              forProvider:
+                source: Inline
+                module: |
+                  terraform {
+                    required_providers {
+                      harbor = {
+                        source  = "goharbor/harbor"
+                        version = "~> 3.0"
+                      }
+                    }
+                  }
+
+                  provider "harbor" {
+                    url      = var.harbor_url
+                    username = var.harbor_username
+                    password = var.harbor_password
+                    insecure = var.harbor_insecure
+                  }
+
+                  variable "harbor_url" {
+                    type = string
+                  }
+
+                  variable "harbor_username" {
+                    type      = string
+                    sensitive = true
+                  }
+
+                  variable "harbor_password" {
+                    type      = string
+                    sensitive = true
+                  }
+
+                  variable "harbor_insecure" {
+                    type    = bool
+                    default = false
+                  }
+
+                  variable "project_name" {
+                    type = string
+                  }
+
+                  variable "storage_quota" {
+                    type    = number
+                    default = -1
+                  }
+
+                  resource "harbor_project" "project" {
+                    name                   = var.project_name
+                    public                 = false
+                    vulnerability_scanning = true
+                    storage_quota          = var.storage_quota
+                  }
+
+                  output "project_id" {
+                    value = harbor_project.project.id
+                  }
+
+                vars:
+                  - key: harbor_url
+                    value: {{ .observed.composite.resource.spec.harborURL }}
+
+                  - key: harbor_insecure
+                    value: "{{ .observed.composite.resource.spec.harborInsecure | default false }}"
+
+                  - key: project_name
+                    value: {{ .observed.composite.resource.spec.projectName }}
+
+                  - key: storage_quota
+                    value: "{{ .observed.composite.resource.spec.storageQuota | default -1 }}"
+
+                varFiles:
+                  - source: SecretKey
+                    secretKeyRef:
+                      name: {{ .observed.composite.resource.spec.credentialsSecretRef.name }}
+                      key: credentials.tfvars
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready
