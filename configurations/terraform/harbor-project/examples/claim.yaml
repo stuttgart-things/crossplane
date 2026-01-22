@@ -1,0 +1,14 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: HarborProject
+metadata:
+  name: demo-project-2
+  namespace: default
+spec:
+  harborURL: https://harbor.idp.kubermatic.sva.dev
+  projectName: demo-project-21
+  storageQuota: -1
+  providerConfigRef: default
+  credentialsSecretRef:
+    name: harbor-credentials
+    namespace: default

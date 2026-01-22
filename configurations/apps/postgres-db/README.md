@@ -2,34 +2,24 @@
 
 ## REQUIREMENTS
 
-<details><summary><b>DEPLOY POSTGRESDB w/ HELM</b></summary>
+<details><summary><b>CONNECT TO POSTGRESDB</b></summary>
 
 ```bash
-cat <<EOF > values.yaml
----
-global:
-  postgresql:
-    auth:
-      postgresPassword: volki123
-      username: volki
-      password: volki123
-      database: volki
-EOF
+# GET SERVICE
+kubectk get svc -m postgres
 
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update
+# GET USER
+kubectl get pod -n postgres -l app.kubernetes.io/name=postgres -o yaml | grep -A5 POSTGRESES
 
-helm upgrade --install postgresql bitnami/postgresql \
---version 16.7.13 \
--n xplane \
---create-namespace \
---values values.yaml
-```
+# RUN SQL CLIENT
+kubectl run -n postgres -it psql-client --rm --image=postgres --restart=Never -- bash
 
-```bash
-kubectl run -n xplane -it psql-client --rm --image=postgres --restart=Never -- bash
-
-psql -h postgresql.xplane.svc.cluster.local -U postgres -p 5432
+# CONNECT TO DB
+psql \
+  -h my-postgres-d499897318cc \
+  -U appuser \
+  -d appdb \
+  -p 5432
 
 \l # list databases
 ```
@@ -46,42 +36,23 @@ kind: Provider
 metadata:
   name: provider-sql
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-sql:v0.12.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-sql:v0.13.0
 EOF
 ```
 
 ```bash
 kubectl apply -f - <<EOF
 ---
-apiVersion: v1
-kind: Secret
-type: kubernetes.io/basic-auth
-metadata:
-  name: volki-postgres-secret
-  namespace: xplane
-stringData:
-  username: postgres
-  password: volki123
-  endpoint: postgresql.xplane.svc.cluster.local
-  port: "5432"
-EOF
-```
-
-```bash
-kubectl apply -f - <<EOF
----
-apiVersion: postgresql.sql.crossplane.io/v1alpha1
+apiVersion: postgresql.sql.m.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: default
 spec:
-  defaultDatabase: postgres
   sslMode: disable
   credentials:
     source: PostgreSQLConnectionSecret
     connectionSecretRef:
-      namespace: xplane
-      name: volki-postgres-secret
+      name: postgresdb-creds
 EOF
 ```
 

@@ -2,8 +2,21 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: PostgresServer
 metadata:
-  name: postgres
+  name: my-postgres
 spec:
-  deploymentNamespace: test2
-  clusterName: in-cluster
-  version: 16.7.18
+  targetCluster:
+    name: in-cluster
+    scope: Cluster
+  postgres:
+    profile: medium
+    namespace: postgres
+    auth:
+      username: appuser
+      database: appdb
+      existingSecret: postgres-app-credentials # pragma: allowlist secret
+    persistence:
+      size: 20Gi
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: false

@@ -1,0 +1,92 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: harbor-project
+  annotations:
+    meta.crossplane.io/maintainer: Stuttgart Things <info@stuttgart-things.com>
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane-harbor-project
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      Harbor project management abstraction for Crossplane using OpenTofu provider.
+      Automatically provisions Harbor projects with vulnerability scanning and storage quotas.
+    meta.crossplane.io/readme: |
+      # HarborProject Configuration
+
+      A Crossplane configuration for managing Harbor projects using the OpenTofu provider with the Harbor Terraform provider.
+
+      ## Features
+
+      - **Automated Project Creation**: Provisions Harbor projects with a single claim
+      - **Security First**: Enables vulnerability scanning by default
+      - **Storage Management**: Configurable storage quotas per project
+      - **Insecure Registry Support**: Optional flag for self-signed certificates
+      - **Provider Flexibility**: Works with any Harbor instance (cloud or on-premises)
+
+      ## Usage
+
+      ### Simple Example
+      ```yaml
+      apiVersion: resources.stuttgart-things.com/v1alpha1
+      kind: HarborProject
+      metadata:
+        name: demo-project
+      spec:
+        providerConfigRef: default
+        harborURL: https://harbor.example.com
+        projectName: my-application
+        storageQuota: 107374182400  # 100GB in bytes
+      ```
+
+      ### Self-Signed Certificate Example
+      ```yaml
+      apiVersion: resources.stuttgart-things.com/v1alpha1
+      kind: HarborProject
+      metadata:
+        name: dev-project
+      spec:
+        providerConfigRef: default
+        harborURL: https://harbor.internal.dev
+        projectName: development-team
+        harborInsecure: true
+        storageQuota: -1  # Unlimited
+      ```
+
+      ## Requirements
+
+      - Crossplane >= v1.14.1
+      - Provider OpenTofu (upbound)
+      - Function Go Templating
+      - Function Auto Ready
+      - Harbor instance with admin credentials
+
+      ## Prerequisites
+
+      You need to create a ClusterProviderConfig for OpenTofu with Harbor credentials:
+
+      ```yaml
+      apiVersion: opentofu.m.upbound.io/v1beta1
+      kind: ClusterProviderConfig
+      metadata:
+        name: default
+      spec:
+        credentials:
+          source: Secret
+          secretRef:
+            namespace: crossplane-system
+            name: harbor-credentials
+            key: credentials
+      ```
+
+spec:
+  crossplane:
+    version: ">=v1.14.1-0"
+
+  dependsOn:
+    - provider: xpkg.upbound.io/upbound/provider-opentofu
+      version: ">=v0.3.0"
+    # Required for Pipeline compositions
+    - function: xpkg.crossplane.io/crossplane-contrib/function-go-templating
+      version: ">=v0.11.3"
+    - function: xpkg.crossplane.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.6.0"

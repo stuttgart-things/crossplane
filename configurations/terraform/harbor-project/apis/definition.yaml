@@ -1,0 +1,56 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: harborprojects.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: HarborProject
+    plural: harborprojects
+    singular: harborproject
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - harborURL
+                - projectName
+              properties:
+                harborURL:
+                  type: string
+                  description: "Harbor base URL"
+                harborInsecure:
+                  type: boolean
+                  default: false
+                projectName:
+                  type: string
+                  description: "Harbor project name"
+                storageQuota:
+                  type: number
+                  description: "Storage quota in bytes (-1 = unlimited)"
+                  default: -1
+                providerConfigRef:
+                  type: string
+                  description: "ProviderConfig for OpenTofu"
+                credentialsSecretRef:
+                  type: object
+                  description: "Reference to secret containing harbor credentials"
+                  required:
+                    - name
+                    - namespace
+                  properties:
+                    name:
+                      type: string
+                      description: "Name of the secret"
+                    namespace:
+                      type: string
+                      description: "Namespace of the secret"
