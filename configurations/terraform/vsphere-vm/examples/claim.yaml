@@ -2,14 +2,14 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: VsphereVM
 metadata:
-  name: xplane-kind
-  namespace: crossplane-system
+  name: opentofu-test1
 spec:
   providerRef:
-    name: vsphere-vm
+    name: default
+    kind: ClusterProviderConfig
   vm:
     count: "1"
-    name: xplane-kind
+    name: opentofu-test1
     cpu: "8"
     ram: "4096"
     disk: "64"
@@ -25,10 +25,6 @@ spec:
     unverifiedSsl: "true"
   tfvars:
     secretName: vsphere-tfvars # pragma: allowlist secret
-    secretNamespace: crossplane-system # pragma: allowlist secret
     secretKey: terraform.tfvars # pragma: allowlist secret
   connectionSecret:
-    name: xplane-kind
-    namespace: crossplane-system
-  compositionRef:
-    name: vsphere-vm
+    name: opentofu-test1

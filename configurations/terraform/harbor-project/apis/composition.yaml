@@ -16,7 +16,7 @@ spec:
         kind: GoTemplate
         source: Inline
         inline:
-          template: |
+          template: |  # pragma: allowlist secret
             ---
             apiVersion: opentofu.m.upbound.io/v1beta1
             kind: Workspace

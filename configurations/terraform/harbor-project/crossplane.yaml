@@ -10,7 +10,7 @@ metadata:
     meta.crossplane.io/description: |
       Harbor project management abstraction for Crossplane using OpenTofu provider.
       Automatically provisions Harbor projects with vulnerability scanning and storage quotas.
-    meta.crossplane.io/readme: |
+    meta.crossplane.io/readme: |  # pragma: allowlist secret
       # HarborProject Configuration
 
       A Crossplane configuration for managing Harbor projects using the OpenTofu provider with the Harbor Terraform provider.

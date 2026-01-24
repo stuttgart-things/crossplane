@@ -51,7 +51,7 @@ spec:
   configuration: |
     terraform {
       backend "kubernetes" {
-        secret_suffix     = "providerconfig-default"
+        secret_suffix     = "providerconfig-default"  # pragma: allowlist secret
         namespace         = "crossplane-system"
         in_cluster_config = true
       }
@@ -84,7 +84,7 @@ type: Opaque
 stringData:
   credentials.tfvars: |
     harbor_username = "admin"
-    harbor_password = "your-password-here"
+    harbor_password = "your-password-here"  # pragma: allowlist secret
 EOF
 ```
 
@@ -140,7 +140,7 @@ The secret must contain a `credentials.tfvars` key with HCL-formatted variables:
 
 ```hcl
 harbor_username = "admin"
-harbor_password = "your-password"
+harbor_password = "your-password"  # pragma: allowlist secret
 ```
 
 ## Debugging

@@ -1,16 +1,16 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: xvspherevms.resources.stuttgart-things.com
+  name: vspherevms.resources.stuttgart-things.com
 spec:
   group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
   names:
-    kind: XVsphereVM
-    plural: xvspherevms
-  claimNames:
     kind: VsphereVM
     plural: vspherevms
+    singular: vspherevm
   versions:
     - name: v1alpha1
       served: true
@@ -79,9 +79,6 @@ spec:
                   properties:
                     secretName:
                       type: string
-                    secretNamespace:
-                      type: string
-                      default: default
                     secretKey:
                       type: string
                       default: terraform.tfvars
@@ -92,9 +89,6 @@ spec:
                   properties:
                     name:
                       type: string
-                    namespace:
-                      type: string
-                      default: default
                   required:
                     - name
                 providerRef:
@@ -102,6 +96,12 @@ spec:
                   properties:
                     name:
                       type: string
+                    kind:
+                      type: string
+                      default: ClusterProviderConfig
+                      enum:
+                        - ProviderConfig
+                        - ClusterProviderConfig
                   required:
                     - name
               required:
