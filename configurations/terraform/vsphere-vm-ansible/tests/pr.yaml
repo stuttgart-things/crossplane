@@ -1,0 +1,453 @@
+kubectl get objects.kubernetes.m.crossplane.io tekton-pipeline-run -o yaml
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: tekton-pipeline-run
+    crossplane.io/external-create-failed: "2026-01-24T17:09:47Z"
+    crossplane.io/external-create-pending: "2026-01-24T17:10:47Z"
+    crossplane.io/external-create-succeeded: "2026-01-24T17:10:48Z"
+    crossplane.io/external-name: tekton-pipeline-run
+    uptest.upbound.io/timeout: "60"
+  creationTimestamp: "2026-01-24T16:45:06Z"
+  finalizers:
+  - finalizer.managedresource.crossplane.io
+  generation: 2
+  labels:
+    crossplane.io/composite: dev-may2
+  name: tekton-pipeline-run
+  namespace: default
+  ownerReferences:
+  - apiVersion: resources.stuttgart-things.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: AnsibleRun
+    name: dev-may2
+    uid: 5826cb12-9417-4a7b-8bf6-5e164a6e280e
+  resourceVersion: "9664179"
+  uid: 8bbf8b65-567e-4cc9-9805-c656213df1f5
+spec:
+  forProvider:
+    manifest:
+      apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        name: dev-may2-32a32310b4d5
+        namespace: tekton-ci
+      spec:
+        params:
+        - name: createInventory
+          value: "true"
+        - name: ansibleTargetHost
+          value: all
+        - name: gitWorkspaceSubdirectory
+          value: /ansible/workdir/
+        - name: vaultSecretName
+          value: vault
+        - name: installExtraRoles
+          value: "true"
+        - name: installExtraCollections
+          value: "true"
+        - name: ansibleVarsInventory
+          value:
+          - all+["10.31.103.31"]
+        - name: ansibleVarsFile
+          value:
+          - tmp_dir+-'/home/nonroot/.ansible/tmp'
+          - become_local_user+-true
+          - local_user+-nonroot
+          - manage_filesystem+-true
+          - update_packages+-true
+          - install_requirements+-true
+          - install_motd+-true
+          - username+-sthings
+          - lvm_home_sizing+-'15%'
+          - lvm_root_sizing+-'35%'
+          - lvm_root_sizing+-'35%'
+          - lvm_var_sizing+-'50%'
+          - event_author+-crossplane
+          - event_tags+-ansible,baseos,crossplane,tekton
+          - send_to_msteams+-true
+          - reboot_all+-false
+        - name: userHome
+          value: /home/nonroot
+        - name: ansibleCredentialsSecretName
+          value: ansible-credentials
+        - name: ansibleCredentialsUserKey
+          value: ANSIBLE_USER
+        - name: ansibleCredentialsPasswordKey
+          value: ANSIBLE_PASSWORD
+        - name: varsFile
+          value: ""
+        - name: ansibleWorkingImage
+          value: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
+        - name: gitRepoUrl
+          value: https://github.com/stuttgart-things/ansible.git
+        - name: gitRevision
+          value: main
+        - name: inventory
+          value: ""
+        - name: ansibleExtraRoles
+          value: []
+        - name: ansiblePlaybooks
+          value:
+          - sthings.baseos.prepare_env
+          - sthings.baseos.dev
+        - name: ansibleExtraCollections
+          value:
+          - community.crypto:2.22.3
+          - community.general:10.1.0
+          - ansible.posix:2.0.0
+          - kubernetes.core:5.0.0
+          - community.docker:4.1.0
+          - community.vmware:5.2.0
+          - awx.awx:24.6.1
+          - community.hashi_vault:6.2.0
+          - ansible.netcommon:7.1.0
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.629.tar.gz/sthings-baseos-25.3.629.tar.gz
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.3.635.tar.gz/sthings-container-25.3.635.tar.gz
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-awx-25.3.762.tar.gz/sthings-awx-25.3.762.tar.gz
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-rke-25.6.1057.tar.gz/sthings-rke-25.6.1057.tar.gz
+        - name: storageSize
+          value: 20Mi
+        - name: storageAccessModes
+          value: ReadWriteOnce
+        pipelineRef:
+          params:
+          - name: url
+            value: https://github.com/stuttgart-things/ansible.git
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: pipelines/execute-ansible-playbooks-from-collections.yaml
+          resolver: git
+        taskRunTemplate:
+          serviceAccountName: default
+        timeouts:
+          pipeline: 1h0m0s
+        workspaces:
+        - name: shared-workspace
+          volumeClaimTemplate:
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Mi
+              storageClassName: openebs-hostpath
+  managementPolicies:
+  - '*'
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: in-cluster
+  readiness:
+    policy: SuccessfulCreate
+  watch: false
+status:
+  atProvider:
+    manifest:
+      apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        creationTimestamp: "2026-01-24T17:10:48Z"
+        generation: 1
+        labels:
+          tekton.dev/pipeline: dev-may2-32a32310b4d5
+        managedFields:
+        - apiVersion: tekton.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:spec:
+              f:params: {}
+              f:pipelineRef:
+                f:params: {}
+                f:resolver: {}
+              f:taskRunTemplate:
+                f:serviceAccountName: {}
+              f:timeouts:
+                f:pipeline: {}
+              f:workspaces: {}
+          manager: provider-kubernetes/tekton-pipeline-run
+          operation: Apply
+          time: "2026-01-24T17:10:47Z"
+        - apiVersion: tekton.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:labels:
+                .: {}
+                f:tekton.dev/pipeline: {}
+          manager: controller
+          operation: Update
+          time: "2026-01-24T17:10:48Z"
+        - apiVersion: tekton.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:status:
+              .: {}
+              f:completionTime: {}
+              f:conditions: {}
+              f:startTime: {}
+          manager: controller
+          operation: Update
+          subresource: status
+          time: "2026-01-24T17:10:51Z"
+        name: dev-may2-32a32310b4d5
+        namespace: tekton-ci
+        resourceVersion: "9663756"
+        uid: 2cdd1578-0f4f-4c03-9808-6d36ff7643e2
+      spec:
+        params:
+        - name: createInventory
+          value: "true"
+        - name: ansibleTargetHost
+          value: all
+        - name: gitWorkspaceSubdirectory
+          value: /ansible/workdir/
+        - name: vaultSecretName
+          value: vault
+        - name: installExtraRoles
+          value: "true"
+        - name: installExtraCollections
+          value: "true"
+        - name: ansibleVarsInventory
+          value:
+          - all+["10.31.103.31"]
+        - name: ansibleVarsFile
+          value:
+          - tmp_dir+-'/home/nonroot/.ansible/tmp'
+          - become_local_user+-true
+          - local_user+-nonroot
+          - manage_filesystem+-true
+          - update_packages+-true
+          - install_requirements+-true
+          - install_motd+-true
+          - username+-sthings
+          - lvm_home_sizing+-'15%'
+          - lvm_root_sizing+-'35%'
+          - lvm_root_sizing+-'35%'
+          - lvm_var_sizing+-'50%'
+          - event_author+-crossplane
+          - event_tags+-ansible,baseos,crossplane,tekton
+          - send_to_msteams+-true
+          - reboot_all+-false
+        - name: userHome
+          value: /home/nonroot
+        - name: ansibleCredentialsSecretName
+          value: ansible-credentials
+        - name: ansibleCredentialsUserKey
+          value: ANSIBLE_USER
+        - name: ansibleCredentialsPasswordKey
+          value: ANSIBLE_PASSWORD
+        - name: varsFile
+          value: ""
+        - name: ansibleWorkingImage
+          value: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
+        - name: gitRepoUrl
+          value: https://github.com/stuttgart-things/ansible.git
+        - name: gitRevision
+          value: main
+        - name: inventory
+          value: ""
+        - name: ansibleExtraRoles
+          value: []
+        - name: ansiblePlaybooks
+          value:
+          - sthings.baseos.prepare_env
+          - sthings.baseos.dev
+        - name: ansibleExtraCollections
+          value:
+          - community.crypto:2.22.3
+          - community.general:10.1.0
+          - ansible.posix:2.0.0
+          - kubernetes.core:5.0.0
+          - community.docker:4.1.0
+          - community.vmware:5.2.0
+          - awx.awx:24.6.1
+          - community.hashi_vault:6.2.0
+          - ansible.netcommon:7.1.0
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.629.tar.gz/sthings-baseos-25.3.629.tar.gz
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.3.635.tar.gz/sthings-container-25.3.635.tar.gz
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-awx-25.3.762.tar.gz/sthings-awx-25.3.762.tar.gz
+          - https://github.com/stuttgart-things/ansible/releases/download/sthings-rke-25.6.1057.tar.gz/sthings-rke-25.6.1057.tar.gz
+        - name: storageSize
+          value: 20Mi
+        - name: storageAccessModes
+          value: ReadWriteOnce
+        pipelineRef:
+          params:
+          - name: url
+            value: https://github.com/stuttgart-things/ansible.git
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: pipelines/execute-ansible-playbooks-from-collections.yaml
+          resolver: git
+        taskRunTemplate:
+          serviceAccountName: default
+        timeouts:
+          pipeline: 1h0m0s
+        workspaces:
+        - name: shared-workspace
+          volumeClaimTemplate:
+            metadata:
+              creationTimestamp: null
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Mi
+              storageClassName: openebs-hostpath
+            status: {}
+      status:
+        completionTime: "2026-01-24T17:10:51Z"
+        conditions:
+        - lastTransitionTime: "2026-01-24T17:10:51Z"
+          message: 'Error retrieving pipeline for pipelinerun tekton-ci/dev-may2-32a32310b4d5:
+            resolver failed to get Pipeline : error requesting remote resource: error
+            getting "Git" "tekton-ci/git-72197a7f3d19246b2a9775caa62fe467": error
+            opening file "pipelines/execute-ansible-playbooks-from-collections.yaml":
+            file does not exist'
+          reason: CouldntGetPipeline
+          status: "False"
+          type: Succeeded
+        startTime: "2026-01-24T17:10:48Z"
+  conditions:
+  - lastTransitionTime: "2026-01-24T17:10:48Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2026-01-24T17:10:48Z"
+    observedGeneration: 2
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  creationTimestamp: "2026-01-24T17:10:48Z"
+  generation: 1
+  labels:
+    tekton.dev/pipeline: dev-may2-32a32310b4d5
+  name: dev-may2-32a32310b4d5
+  namespace: tekton-ci
+  resourceVersion: "9663756"
+  uid: 2cdd1578-0f4f-4c03-9808-6d36ff7643e2
+spec:
+  params:
+  - name: createInventory
+    value: "true"
+  - name: ansibleTargetHost
+    value: all
+  - name: gitWorkspaceSubdirectory
+    value: /ansible/workdir/
+  - name: vaultSecretName
+    value: vault
+  - name: installExtraRoles
+    value: "true"
+  - name: installExtraCollections
+    value: "true"
+  - name: ansibleVarsInventory
+    value:
+    - all+["10.31.103.31"]
+  - name: ansibleVarsFile
+    value:
+    - tmp_dir+-'/home/nonroot/.ansible/tmp'
+    - become_local_user+-true
+    - local_user+-nonroot
+    - manage_filesystem+-true
+    - update_packages+-true
+    - install_requirements+-true
+    - install_motd+-true
+    - username+-sthings
+    - lvm_home_sizing+-'15%'
+    - lvm_root_sizing+-'35%'
+    - lvm_root_sizing+-'35%'
+    - lvm_var_sizing+-'50%'
+    - event_author+-crossplane
+    - event_tags+-ansible,baseos,crossplane,tekton
+    - send_to_msteams+-true
+    - reboot_all+-false
+  - name: userHome
+    value: /home/nonroot
+  - name: ansibleCredentialsSecretName
+    value: ansible-credentials
+  - name: ansibleCredentialsUserKey
+    value: ANSIBLE_USER
+  - name: ansibleCredentialsPasswordKey
+    value: ANSIBLE_PASSWORD
+  - name: varsFile
+    value: ""
+  - name: ansibleWorkingImage
+    value: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
+  - name: gitRepoUrl
+    value: https://github.com/stuttgart-things/ansible.git
+  - name: gitRevision
+    value: main
+  - name: inventory
+    value: ""
+  - name: ansibleExtraRoles
+    value: []
+  - name: ansiblePlaybooks
+    value:
+    - sthings.baseos.prepare_env
+    - sthings.baseos.dev
+  - name: ansibleExtraCollections
+    value:
+    - community.crypto:2.22.3
+    - community.general:10.1.0
+    - ansible.posix:2.0.0
+    - kubernetes.core:5.0.0
+    - community.docker:4.1.0
+    - community.vmware:5.2.0
+    - awx.awx:24.6.1
+    - community.hashi_vault:6.2.0
+    - ansible.netcommon:7.1.0
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-baseos-25.3.629.tar.gz/sthings-baseos-25.3.629.tar.gz
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-container-25.3.635.tar.gz/sthings-container-25.3.635.tar.gz
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-awx-25.3.762.tar.gz/sthings-awx-25.3.762.tar.gz
+    - https://github.com/stuttgart-things/ansible/releases/download/sthings-rke-25.6.1057.tar.gz/sthings-rke-25.6.1057.tar.gz
+  - name: storageSize
+    value: 20Mi
+  - name: storageAccessModes
+    value: ReadWriteOnce
+  pipelineRef:
+    params:
+    - name: url
+      value: https://github.com/stuttgart-things/ansible.git
+    - name: revision
+      value: main
+    - name: pathInRepo
+      value: pipelines/execute-ansible-playbooks-from-collections.yaml
+    resolver: git
+  taskRunTemplate:
+    serviceAccountName: default
+  timeouts:
+    pipeline: 1h0m0s
+  workspaces:
+  - name: shared-workspace
+    volumeClaimTemplate:
+      metadata:
+        creationTimestamp: null
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Mi
+        storageClassName: openebs-hostpath
+      status: {}
+status:
+  completionTime: "2026-01-24T17:10:51Z"
+  conditions:
+  - lastTransitionTime: "2026-01-24T17:10:51Z"
+    message: 'Error retrieving pipeline for pipelinerun tekton-ci/dev-may2-32a32310b4d5:
+      resolver failed to get Pipeline : error requesting remote resource: error getting
+      "Git" "tekton-ci/git-72197a7f3d19246b2a9775caa62fe467": error opening file "pipelines/execute-ansible-playbooks-from-collections.yaml":
+      file does not exist'
+    reason: CouldntGetPipeline
+    status: "False"
+    type: Succeeded
+  startTime: "2026-01-24T17:10:48Z"

@@ -28,10 +28,9 @@ spec:
     apis:
       - apis/definition.yaml
 
-    # Compositions
+    # Compositions (unified composition handles both OpenEBS and NFS based on engine.type)
     compositions:
-      - compositions/storageplatform-openebs.yaml
-      - compositions/storageplatform-nfs.yaml
+      - compositions/storageplatform.yaml
 
     # Optional: example claims or functions for testing
     examples:

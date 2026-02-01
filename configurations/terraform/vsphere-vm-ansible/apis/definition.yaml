@@ -42,12 +42,16 @@ spec:
                       description: Name of vault secret
                     gitRepoUrl:
                       type: string
-                      default: https://github.com/stuttgart-things/ansible.git
+                      default: https://github.com/stuttgart-things/stage-time.git
                       description: Git repo url
                     gitRevision:
                       type: string
                       default: main
                       description: Git revision
+                    gitPath:
+                      type: string
+                      default: pipelines/execute-ansible-playbooks.yaml
+                      description: Path to the pipeline file in the Git repository
                     ansibleVarsFile:
                       type: array
                       description: Ansible vars file as a list
@@ -143,6 +147,8 @@ spec:
                   properties:
                     secretName:
                       type: string
+                    secretNamespace:
+                      type: string
                     secretKey:
                       type: string
                       default: terraform.tfvars
@@ -152,6 +158,8 @@ spec:
                   type: object
                   properties:
                     name:
+                      type: string
+                    namespace:
                       type: string
                   required:
                     - name

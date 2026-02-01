@@ -3,18 +3,17 @@ apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: VsphereVmAnsible
 metadata:
   name: dev-may2
-  namespace: crossplane-system
+  namespace: default
 spec:
-  compositionRef:
-    name: vsphere-vm-ansible
   providerRef:
-    name: vsphere-vm
+    name: default
+    kind: ClusterProviderConfig
   vm:
     count: "1"
     name: dev-may2
-    cpu: "6"
-    ram: "8192"
-    disk: "128"
+    cpu: "8"
+    ram: "4096"
+    disk: "64"
     firmware: bios
     folderPath: stuttgart-things/testing
     datacenter: /LabUL
@@ -27,11 +26,11 @@ spec:
     unverifiedSsl: "true"
   tfvars:
     secretName: vsphere-tfvars  # pragma: allowlist secret
-    secretNamespace: crossplane-system  # pragma: allowlist secret
+    secretNamespace: default  # pragma: allowlist secret
     secretKey: terraform.tfvars  # pragma: allowlist secret
   connectionSecret:
     name: dev-may2
-    namespace: crossplane-system
+    namespace: default
   ansible:
     pipelineRunName: dev-may2-provisioning-1
     playbooks:
@@ -61,8 +60,6 @@ spec:
     vaultSecretName: vault  # pragma: allowlist secret
     pipelineNamespace: tekton-pipelines
     workingImage: ghcr.io/stuttgart-things/sthings-ansible:11.3.0-3
-    roles:
-      - "https://github.com/stuttgart-things/install-requirements.git,2024.05.11"
     collections:
       - community.crypto:2.22.3
       - community.general:10.1.0

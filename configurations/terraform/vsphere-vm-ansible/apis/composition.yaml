@@ -78,11 +78,17 @@ spec:
                 fromFieldPath: spec.tfvars.secretName
                 toFieldPath: spec.tfvars.secretName
               - type: FromCompositeFieldPath
+                fromFieldPath: spec.tfvars.secretNamespace
+                toFieldPath: spec.tfvars.secretNamespace
+              - type: FromCompositeFieldPath
                 fromFieldPath: spec.tfvars.secretKey
                 toFieldPath: spec.tfvars.secretKey
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.connectionSecret.name
                 toFieldPath: spec.connectionSecret.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.connectionSecret.namespace
+                toFieldPath: spec.connectionSecret.namespace
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.providerRef.name
                 toFieldPath: spec.providerRef.name
@@ -330,11 +336,11 @@ spec:
                 fromFieldPath: metadata.namespace
                 toFieldPath: metadata.namespace
               # TODO: Add to AnsibleRun definition - spec.inventory
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: status.share.ip
-              #   toFieldPath: spec.inventory[0]
-              #   policy:
-              #     fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.share.ip
+                toFieldPath: spec.ansibleVarsInventory[0]
+                policy:
+                  fromFieldPath: Required
               - type: CombineFromComposite
                 combine:
                   strategy: string
@@ -344,18 +350,15 @@ spec:
                     - fromFieldPath: metadata.name
                     - fromFieldPath: status.share.pid
                 toFieldPath: spec.pipelineRunName
-              # TODO: Field mismatch - definition uses spec.namespace
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: spec.ansible.pipelineNamespace
-              #   toFieldPath: spec.pipelineNamespace
-              # TODO: Field mismatch - definition uses spec.ansibleWorkingImage
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: spec.ansible.workingImage
-              #   toFieldPath: spec.workingImage
-              # TODO: Add to AnsibleRun definition - spec.vaultSecretName
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: spec.ansible.vaultSecretName
-              #   toFieldPath: spec.vaultSecretName
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.pipelineNamespace
+                toFieldPath: spec.crossplaneNamespace
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.workingImage
+                toFieldPath: spec.ansibleWorkingImage
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.vaultSecretName
+                toFieldPath: spec.ansibleCredentialsSecretName
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.ansible.gitRepoUrl
                 toFieldPath: spec.gitRepoUrl
@@ -363,24 +366,23 @@ spec:
                 fromFieldPath: spec.ansible.gitRevision
                 toFieldPath: spec.gitRevision
               - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.gitPath
+                toFieldPath: spec.gitPath
+              - type: FromCompositeFieldPath
                 fromFieldPath: spec.ansible.ansibleVarsFile
                 toFieldPath: spec.ansibleVarsFile
-              # TODO: Field mismatch - definition uses spec.ansibleExtraRoles
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: spec.ansible.roles
-              #   toFieldPath: spec.roles
-              # TODO: Field mismatch - definition uses spec.ansibleExtraCollections
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: spec.ansible.collections
-              #   toFieldPath: spec.collections
-              # TODO: Field mismatch - definition uses spec.ansiblePlaybooks
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: spec.ansible.playbooks
-              #   toFieldPath: spec.playbooks
-              # TODO: Add to AnsibleRun definition - spec.providerRef
-              # - type: FromCompositeFieldPath
-              #   fromFieldPath: spec.ansible.providerRef.name
-              #   toFieldPath: spec.providerRef.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.roles
+                toFieldPath: spec.ansibleExtraRoles
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.collections
+                toFieldPath: spec.ansibleExtraCollections
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.playbooks
+                toFieldPath: spec.ansiblePlaybooks
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.ansible.providerRef.name
+                toFieldPath: spec.crossplaneProviderConfig
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.ansible.createInventory
                 toFieldPath: spec.createInventory

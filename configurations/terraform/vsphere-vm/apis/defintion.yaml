@@ -79,6 +79,8 @@ spec:
                   properties:
                     secretName:
                       type: string
+                    secretNamespace:
+                      type: string
                     secretKey:
                       type: string
                       default: terraform.tfvars
@@ -88,6 +90,8 @@ spec:
                   type: object
                   properties:
                     name:
+                      type: string
+                    namespace:
                       type: string
                   required:
                     - name

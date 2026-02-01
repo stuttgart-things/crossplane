@@ -2,17 +2,16 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: storageplatform-nfs
+  name: storageplatform
   labels:
     crossplane.io/xrd: storageplatforms.resources.stuttgart-things.com
-    storage.platform.example.org/engine: nfs
 spec:
   compositeTypeRef:
     apiVersion: resources.stuttgart-things.com/v1alpha1
     kind: StoragePlatform
   mode: Pipeline
   pipeline:
-    - step: deploy-nfs-csi
+    - step: deploy-storage-platform
       functionRef:
         name: function-go-templating
       input:
@@ -20,15 +19,90 @@ spec:
         kind: GoTemplate
         source: Inline
         inline:
-          template: | # pragma: allowlist secret
+          template: |
             {{- $spec := .observed.composite.resource.spec -}}
-            {{- $nfs := $spec.nfs -}}
+            {{- $engineType := $spec.engine.type -}}
 
             {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
             {{- $pcKind := "ProviderConfig" -}}
             {{- if eq $scope "Cluster" -}}
             {{- $pcKind = "ClusterProviderConfig" -}}
             {{- end -}}
+
+            {{/* ==================== OPENEBS ENGINE ==================== */}}
+            {{- if eq $engineType "openebs" -}}
+            {{- $openebs := $spec.openebs -}}
+
+            {{- if $openebs.namespace }}
+            ---
+            apiVersion: kubernetes.m.crossplane.io/v1alpha1
+            kind: Object
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "openebs-namespace" }}
+            spec:
+              providerConfigRef:
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
+              forProvider:
+                manifest:
+                  apiVersion: v1
+                  kind: Namespace
+                  metadata:
+                    name: {{ $openebs.namespace }}
+            {{- end }}
+
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "openebs-release" }}
+            spec:
+              providerConfigRef:
+                name: {{ $spec.targetCluster.name }}
+                kind: {{ $pcKind }}
+              forProvider:
+                namespace: {{ $openebs.namespace | default "openebs-system" }}
+                chart:
+                  name: openebs
+                  repository: {{ $openebs.chartRepository | default "https://openebs.github.io/openebs" }}
+                  version: {{ $openebs.version | default "4.2.0" }}
+                values:
+                  openebs-crds:
+                    csi:
+                      volumeSnapshots:
+                        enabled: {{ $openebs.features.volumeSnapshots | default false }}
+
+                  mayastor:
+                    csi:
+                      node:
+                        initContainers:
+                          enabled: {{ $openebs.features.csiNodeInitContainers | default false }}
+
+                  engines:
+                    local:
+                      lvm:
+                        enabled: {{ $openebs.engines.local.lvm | default false }}
+                      zfs:
+                        enabled: {{ $openebs.engines.local.zfs | default false }}
+
+                    replicated:
+                      mayastor:
+                        enabled: {{ $openebs.engines.replicated.mayastor | default false }}
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: StoragePlatform
+            status:
+              installed: true
+              observedVersion: {{ $openebs.version | default "4.2.0" }}
+
+            {{- end -}}
+
+            {{/* ==================== NFS ENGINE ==================== */}}
+            {{- if eq $engineType "nfs" -}}
+            {{- $nfs := $spec.nfs -}}
 
             {{- if $nfs.namespace }}
             ---
@@ -102,7 +176,16 @@ spec:
                   {{- range $nfs.mountOptions | default (list "nfsvers=4.1") }}
                     - {{ . }}
                   {{- end }}
-            {{- end }}
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: StoragePlatform
+            status:
+              installed: true
+              observedVersion: {{ $nfs.version | default "v4.11.0" }}
+
+            {{- end -}}
+            {{- end -}}
 
     - step: automatically-detect-ready-composed-resources
       functionRef:
