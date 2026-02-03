@@ -217,7 +217,6 @@ spec:
               app.kubernetes.io/instance: {{ .observed.composite.resource.spec.cloudInit.vmName }}
               app.kubernetes.io/managed-by: crossplane
           spec:
-            deletionPolicy: Delete
             providerConfigRef:
               name: {{ .observed.composite.resource.spec.providerConfigRef }}
               kind: ClusterProviderConfig
@@ -273,9 +272,11 @@ spec:
                           acpi:
                             enabled: true
                       networks:
-                        - name: default
+                      {{ range .observed.composite.resource.spec.vm.networks }}
+                        - name: {{ .name }}
                           multus:
-                            networkName: default/default
+                            networkName: {{ .networkName }}
+                      {{ end }}
                       volumes:
                         - name: rootdisk
                           persistentVolumeClaim:

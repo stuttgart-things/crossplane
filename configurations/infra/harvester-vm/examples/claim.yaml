@@ -1,84 +1,61 @@
 apiVersion: resources.stuttgart-things.com/v1alpha1
 kind: HarvesterVM
 metadata:
-  name: demo-harvester-vm
+  name: dev9
   namespace: default
 spec:
-  providerConfigRef: dev
+  providerConfigRef: "default"  # Update this to match your ProviderConfig name
 
-  #################################
-  # Volume (PVC)
-  #################################
   volume:
-    pvcName: demo-harvester-vm-root
+    pvcName: dev9-disk-0
     namespace: default
-    storageClassName: harvester-longhorn
-    storage: 20Gi
+    storageClassName: longhorn-image-t9w92
+    storage: "20Gi"
     accessModes:
-      - ReadWriteOnce
-    volumeMode: Filesystem
-    labels:
-      app: demo-harvester-vm
+      - ReadWriteMany
+    volumeMode: Block
+    annotations:
+      harvesterhci.io/imageId: "default/image-t9w92"
 
-  #################################
-  # Cloud-Init
-  #################################
   cloudInit:
-    vmName: demo-harvester-vm
+    vmName: dev9
     namespace: default
-    hostname: demo
-    domain: stuttgart-things.local
-    timezone: Europe/Berlin
+    hostname: dev9
+    domain: local
+    sshPasswordAuth: true
+    disableRoot: false
+    packageUpdate: true
     users:
-      - name: ubuntu
-        groups: sudo
-        shell: /bin/bash
+      - name: sthings
         sudo: "ALL=(ALL) NOPASSWD:ALL" # pragma: allowlist secret
+        lockPasswd: false
+        shell: /bin/bash
+        password: "Atlan7is" # pragma: allowlist secret
         sshAuthorizedKeys:
-          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBEXAMPLEKEY user@laptop # pragma: allowlist secret
+          - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC..."
     packages:
       - qemu-guest-agent
-      - curl
-      - vim
-    writeFiles:
-      - path: /etc/motd
-        owner: root:root
-        permissions: "0644"
-        content: |
-          🚀 Welcome to your Harvester VM!
-          Managed by Crossplane.
     runcmd:
-      - systemctl enable qemu-guest-agent
-      - systemctl start qemu-guest-agent
-    packageUpdate: true
-    packageUpgrade: false
-    sshPasswordAuth: false
-    disableRoot: true
+      - "systemctl enable --now qemu-guest-agent.service"
 
-  #################################
-  # VirtualMachine
-  #################################
   vm:
-    description: Demo Harvester VM managed by Crossplane
-    os: ubuntu
+    description: "dev9-complete-vm-setup"
     runStrategy: RerunOnFailure
     evictionStrategy: LiveMigrateIfPossible
     terminationGracePeriodSeconds: 120
-
+    os: linux
+    machineType: q35
     cpu:
       cores: 4
       sockets: 1
       threads: 1
-
     resources:
-      memory: 8Gi
+      memory: "8Gi"
       cpu: "4"
-
     disks:
-      - name: rootdisk
+      - name: disk-0
+        bus: virtio
         bootOrder: 1
-      - name: cloudinitdisk
-
     networks:
       - name: default
-        networkName: default/default
+        networkName: default/vms

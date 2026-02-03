@@ -1,4 +1,5 @@
-kubectl get objects.kubernetes.m.crossplane.io tekton-pipeline-run -o yaml
+#kubectl get objects.kubernetes.m.crossplane.io tekton-pipeline-run -o yaml
+---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
