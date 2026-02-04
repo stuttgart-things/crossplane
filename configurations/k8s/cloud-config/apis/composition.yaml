@@ -17,7 +17,7 @@ spec:
         kind: GoTemplate
         source: Inline
         inline:
-          template: |
+          template: | # pragma: allowlist secret
             ---
             apiVersion: kubernetes.m.crossplane.io/v1alpha1
             kind: Object
@@ -72,13 +72,19 @@ spec:
                           {{- if .shell }}
                           shell: {{ .shell }}
                           {{- end }}
-                          {{- if .password }}
-                          passwd: {{ .password }}
-                          {{- end }}
-                          {{- if .lockPasswd }}
-                          lock_passwd: {{ .lockPasswd }}
-                          {{- end }}
+                          lock_passwd: {{ .lockPasswd | default false }}
                         {{- end }}
+                      {{- end }}
+
+                      {{- if .observed.composite.resource.spec.users }}
+                      chpasswd:
+                        list: |
+                          {{- range .observed.composite.resource.spec.users }}
+                          {{- if .password }}
+                          {{ .name }}:{{ .password }}
+                          {{- end }}
+                          {{- end }}
+                        expire: false
                       {{- end }}
 
                       {{- if .observed.composite.resource.spec.packages }}
