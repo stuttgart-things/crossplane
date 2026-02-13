@@ -1,15 +1,16 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: xgithubcontrollers.resources.stuttgart-things.com
 spec:
-  connectionSecretKeys:
-    - kubeconfig
   group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
   names:
     kind: XGithubController
     plural: xgithubcontrollers
+    singular: xgithubcontroller
   claimNames:
     kind: GithubController
     plural: githubcontrollers
@@ -19,23 +20,43 @@ spec:
       referenceable: true
       schema:
         openAPIV3Schema:
-          description: A GithubController is a composite resource that represents a helm release for a GithubController deployment
           type: object
+          description: A GithubController is a composite resource that represents a helm release for a GithubController deployment
           properties:
             spec:
               type: object
               properties:
+                targetCluster:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                      default: in-cluster
+                      description: Name of the ProviderConfig / ClusterProviderConfig
+                    scope:
+                      type: string
+                      enum:
+                        - Namespaced
+                        - Cluster
+                      default: Namespaced
+                      description: |
+                        Whether to use ProviderConfig (Namespaced)
+                        or ClusterProviderConfig (Cluster)
                 deploymentNamespace:
                   type: string
                   default: arc-systems
                   description: namespace for github-controller
-                clusterName:
-                  type: string
-                  default: in-cluster
-                  description: cluster name/helm provider name
                 version:
                   type: string
-                  default: 0.12.0
+                  default: "0.13.1"
                   description: helm chart version for github-controller
               required:
-                - clusterName
+                - targetCluster
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                  description: Whether the github-controller is installed

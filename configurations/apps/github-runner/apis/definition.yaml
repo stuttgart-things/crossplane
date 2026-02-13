@@ -1,15 +1,16 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: xgithubrunners.resources.stuttgart-things.com
 spec:
-  connectionSecretKeys:
-    - kubeconfig
   group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
   names:
     kind: XGithubRunner
     plural: xgithubrunners
+    singular: xgithubrunner
   claimNames:
     kind: GithubRunner
     plural: githubrunners
@@ -19,12 +20,30 @@ spec:
       referenceable: true
       schema:
         openAPIV3Schema:
-          description: A GithubRunner is a composite resource that represents a helm release for a github runner deployment
           type: object
+          description: A GithubRunner is a composite resource that represents a helm release for a github runner deployment
           properties:
             spec:
               type: object
               properties:
+                targetCluster:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                      default: in-cluster
+                      description: Name of the ProviderConfig / ClusterProviderConfig
+                    scope:
+                      type: string
+                      enum:
+                        - Namespaced
+                        - Cluster
+                      default: Namespaced
+                      description: |
+                        Whether to use ProviderConfig (Namespaced)
+                        or ClusterProviderConfig (Cluster)
                 githubTokenSecret:
                   type: object
                   properties:
@@ -50,19 +69,21 @@ spec:
                   default: ghcr.io/actions/actions-runner
                 runnerImageTag:
                   type: string
-                  default: 2.324.0
+                  default: "2.331.0"
                 group:
                   type: string
                   default: stuttgart-things
                   description: github group name
                 version:
                   type: string
-                  default: 0.12.0
+                  default: "0.13.1"
                   description: helm chart version for github-runner
-                clusterConfig:
-                  type: string
-                  default: in-cluster
-                  description: cluster name/helm provider name
               required:
                 - repository
                 - githubTokenSecret
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                  description: Whether the github-runner is installed
