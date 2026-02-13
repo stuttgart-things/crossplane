@@ -22,7 +22,7 @@ plugins:
   - techdocs-core
 
 markdown_extensions:
-  - admonition
+  - admonitions
   - pymdownx.highlight
   - pymdownx.superfences
   - pymdownx.tabbed:
