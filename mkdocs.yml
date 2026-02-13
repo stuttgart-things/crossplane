@@ -1,0 +1,32 @@
+site_name: Stuttgart Things Crossplane Configurations
+site_description: Documentation for Stuttgart Things Crossplane configuration packages
+
+repo_name: stuttgart-things/crossplane
+repo_url: https://github.com/stuttgart-things/crossplane
+
+nav:
+  - Home: index.md
+  - Guides:
+      - Migrating v1 to v2: guides/migration-v1-to-v2.md
+      - Creating new Helm v2 configurations: guides/new-helm-v2-configuration.md
+  - Reference:
+      - Core Concepts: reference/core-concepts.md
+      - Component Specifications: reference/component-specifications.md
+      - Common Patterns: reference/common-patterns.md
+      - Best Practices: reference/best-practices.md
+      - Combined Configurations: reference/combined-configurations.md
+      - Testing Strategy: reference/testing-strategy.md
+      - Troubleshooting: reference/troubleshooting.md
+
+plugins:
+  - techdocs-core
+
+markdown_extensions:
+  - admonitions
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets
+  - toc:
+      permalink: true

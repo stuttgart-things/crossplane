@@ -1,0 +1,72 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: github-controller
+  labels:
+    crossplane.io/xrd: xgithubcontrollers.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XGithubController
+  mode: Pipeline
+  pipeline:
+    - step: deploy-github-controller
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: | # pragma: allowlist secret
+            {{- $spec := .observed.composite.resource.spec -}}
+
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
+
+            {{- $provider := $spec.targetCluster.name | default "in-cluster" -}}
+            {{- $namespace := $spec.deploymentNamespace | default "arc-systems" -}}
+            {{- $version := $spec.version | default "0.13.1" -}}
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "github-controller" }}
+              labels:
+                app.kubernetes.io/name: github-controller
+                app.kubernetes.io/managed-by: crossplane
+            spec:
+              providerConfigRef:
+                name: {{ $provider }}
+                kind: {{ $pcKind }}
+
+              forProvider:
+                namespace: {{ $namespace }}
+
+                chart:
+                  name: gha-runner-scale-set-controller
+                  pullSecretRef:
+                    name: ghcr
+                    namespace: crossplane-system
+                  repository: oci://ghcr.io/actions/actions-runner-controller-charts
+                  version: {{ $version }}
+
+                insecureSkipTLSVerify: false
+                skipCRDs: false
+                skipCreateNamespace: false
+                wait: true
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: XGithubController
+            status:
+              installed: true
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready
