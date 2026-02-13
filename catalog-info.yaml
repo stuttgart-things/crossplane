@@ -1,0 +1,25 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: crossplane-configurations
+  description: Crossplane v2 configuration packages for deploying infrastructure and applications on Kubernetes
+  annotations:
+    github.com/project-slug: stuttgart-things/crossplane
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/source-location: url:https://github.com/stuttgart-things/crossplane
+  tags:
+    - crossplane
+    - helm
+    - kubernetes
+    - infrastructure
+    - gitops
+  links:
+    - url: https://github.com/stuttgart-things/crossplane
+      title: GitHub Repository
+      icon: github
+spec:
+  type: library
+  lifecycle: production
+  owner: platform-team
+  system: platform-engineering

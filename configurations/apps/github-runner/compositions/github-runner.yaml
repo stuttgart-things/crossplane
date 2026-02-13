@@ -1,0 +1,131 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: github-runner
+  labels:
+    crossplane.io/xrd: xgithubrunners.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XGithubRunner
+  mode: Pipeline
+  pipeline:
+    - step: deploy-github-runner
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: | # pragma: allowlist secret
+            {{- $spec := .observed.composite.resource.spec -}}
+
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
+
+            {{- $provider := $spec.targetCluster.name | default "in-cluster" -}}
+            {{- $namespace := $spec.deploymentNamespace | default "arc-systems" -}}
+            {{- $version := $spec.version | default "0.13.1" -}}
+            {{- $group := $spec.group | default "stuttgart-things" -}}
+            {{- $repository := $spec.repository -}}
+            {{- $runnerImageRepo := $spec.runnerImageRepo | default "ghcr.io/actions/actions-runner" -}}
+            {{- $runnerImageTag := $spec.runnerImageTag | default "2.331.0" -}}
+            {{- $runnerImage := printf "%s:%s" $runnerImageRepo $runnerImageTag -}}
+            {{- $githubConfigUrl := printf "https://github.com/%s/%s" $group $repository -}}
+            {{- $releaseName := printf "ghr-%s-%s" $repository ($provider | replace "/" "-") -}}
+
+            {{- $tokenSecretName := $spec.githubTokenSecret.name | default "github" -}}
+            {{- $tokenSecretNamespace := $spec.githubTokenSecret.namespace | default "crossplane-system" -}}
+            {{- $tokenSecretKey := $spec.githubTokenSecret.key | default "GITHUB_TOKEN" -}}
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation $releaseName }}
+              labels:
+                app.kubernetes.io/name: github-runner
+                app.kubernetes.io/managed-by: crossplane
+            spec:
+              providerConfigRef:
+                name: {{ $provider }}
+                kind: {{ $pcKind }}
+
+              forProvider:
+                namespace: {{ $namespace }}
+
+                chart:
+                  name: gha-runner-scale-set
+                  pullSecretRef:
+                    name: ghcr
+                    namespace: crossplane-system
+                  repository: oci://ghcr.io/actions/actions-runner-controller-charts
+                  version: {{ $version }}
+
+                insecureSkipTLSVerify: false
+                skipCRDs: true
+                skipCreateNamespace: false
+                wait: true
+
+                set:
+                  - name: githubConfigSecret.github_token
+                    valueFrom:
+                      secretKeyRef:
+                        name: {{ $tokenSecretName }}
+                        namespace: {{ $tokenSecretNamespace }}
+                        key: {{ $tokenSecretKey }}
+
+                values:
+                  githubConfigUrl: {{ $githubConfigUrl }}
+
+                  containerMode:
+                    type: kubernetes
+                    kubernetesModeWorkVolumeClaim:
+                      accessModes:
+                        - ReadWriteOnce
+                      resources:
+                        requests:
+                          storage: 50Mi
+                      storageClassName: openebs-hostpath
+
+                  template:
+                    spec:
+                      containers:
+                        - name: runner
+                          image: {{ $runnerImage }}
+                          command:
+                            - /home/runner/run.sh
+                          env:
+                            - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+                              value: "false"
+                            - name: ACTIONS_RUNNER_POD_NAME
+                              valueFrom:
+                                fieldRef:
+                                  fieldPath: metadata.name
+                      initContainers:
+                        - name: kube-init
+                          image: {{ $runnerImage }}
+                          command:
+                            - /bin/sh
+                            - -c
+                          args:
+                            - |
+                              whoami
+                          volumeMounts:
+                            - name: work
+                              mountPath: /home/runner/_work
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: XGithubRunner
+            status:
+              installed: true
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready

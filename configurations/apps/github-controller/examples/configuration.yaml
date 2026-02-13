@@ -4,4 +4,4 @@ kind: Configuration
 metadata:
   name: github-controller
 spec:
-  package: ghcr.io/stuttgart-things/crossplane/github-controller:v0.11.0
+  package: ghcr.io/stuttgart-things/crossplane/github-controller:v0.13.0
