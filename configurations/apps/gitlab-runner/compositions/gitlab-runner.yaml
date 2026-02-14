@@ -1,0 +1,85 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: gitlab-runner
+  labels:
+    crossplane.io/xrd: gitlabrunners.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: GitlabRunner
+  mode: Pipeline
+  pipeline:
+    - step: deploy-gitlab-runner
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: | # pragma: allowlist secret
+            {{- $spec := .observed.composite.resource.spec -}}
+
+            {{- $scope := $spec.targetCluster.scope | default "Namespaced" -}}
+            {{- $pcKind := "ProviderConfig" -}}
+            {{- if eq $scope "Cluster" -}}
+            {{- $pcKind = "ClusterProviderConfig" -}}
+            {{- end -}}
+
+            {{- $provider := $spec.targetCluster.name | default "helm-provider-cluster" -}}
+            {{- $namespace := $spec.namespace | default "gitlab" -}}
+            ---
+            apiVersion: helm.m.crossplane.io/v1beta1
+            kind: Release
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation "gitlab-runner" }}
+              labels:
+                app.kubernetes.io/name: gitlab-runner
+                app.kubernetes.io/managed-by: crossplane
+            spec:
+              providerConfigRef:
+                name: {{ $provider }}
+                kind: {{ $pcKind }}
+
+              forProvider:
+                namespace: {{ $namespace }}
+
+                chart:
+                  name: gitlab-runner
+                  repository: http://charts.gitlab.io/
+                  version: {{ $spec.chartVersion | default "0.85.0" }}
+
+                values:
+                  concurrent: {{ $spec.concurrent | default 10 }}
+                  checkInterval: {{ $spec.checkInterval | default 15 }}
+                  runnerToken: {{ $spec.runnerToken }}
+                  gitlabUrl: {{ $spec.gitlabUrl }}
+
+                  runners:
+                    tags: {{ $spec.tags | default "go, kaniko" }}
+
+                  rbac:
+                    create: {{ (index (default (dict "create" true) $spec.rbac) "create") | default true }}
+                    rules:
+                      - apiGroups: [""]
+                        resources: ["pods", "secrets", "configmaps"]
+                        verbs: ["get", "list", "watch", "create", "patch", "delete", "update"]
+                      - apiGroups: [""]
+                        resources: ["pods/exec", "pods/attach"]
+                        verbs: ["create", "patch", "delete"]
+                      - apiGroups: [""]
+                        resources: ["pods/log"]
+                        verbs: ["get"]
+
+            ---
+            apiVersion: resources.stuttgart-things.com/v1alpha1
+            kind: GitlabRunner
+            status:
+              installed: true
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready

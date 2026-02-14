@@ -1,0 +1,93 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: gitlabrunners.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: GitlabRunner
+    plural: gitlabrunners
+    singular: gitlabrunner
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: GitLab Runner deployment via Helm
+          properties:
+            spec:
+              type: object
+              required:
+                - gitlabUrl
+                - runnerToken
+              properties:
+                targetCluster:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                      description: Name of the ProviderConfig / ClusterProviderConfig
+                    scope:
+                      type: string
+                      enum:
+                        - Namespaced
+                        - Cluster
+                      default: Namespaced
+                      description: |
+                        Whether to use ProviderConfig (Namespaced)
+                        or ClusterProviderConfig (Cluster)
+
+                gitlabUrl:
+                  type: string
+                  description: GitLab instance URL
+
+                runnerToken:
+                  type: string
+                  description: Runner authentication token
+
+                namespace:
+                  type: string
+                  default: gitlab
+                  description: Namespace to deploy the runner into
+
+                chartVersion:
+                  type: string
+                  default: "0.85.0"
+                  description: GitLab Runner Helm chart version
+
+                concurrent:
+                  type: integer
+                  default: 10
+                  description: Maximum number of concurrent jobs
+
+                checkInterval:
+                  type: integer
+                  default: 15
+                  description: Interval in seconds between runner checks
+
+                tags:
+                  type: string
+                  default: "go, kaniko"
+                  description: Comma-separated runner tags
+
+                rbac:
+                  type: object
+                  properties:
+                    create:
+                      type: boolean
+                      default: true
+                      description: Whether to create RBAC resources
+
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                  description: Whether the GitLab Runner is installed
