@@ -6,7 +6,7 @@ metadata:
 spec:
   targetCluster:
     name: target
-  gitlabUrl: https://codehub.sva.de
+  gitlabUrl: https://codehub.example.com
   runnerToken: "TOBE DEFINED"
   namespace: gitlab
   chartVersion: "0.85.0"
