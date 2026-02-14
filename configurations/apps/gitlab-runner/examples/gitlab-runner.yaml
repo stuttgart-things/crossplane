@@ -1,0 +1,17 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: GitlabRunner
+metadata:
+  name: test-gitlab-runner
+spec:
+  targetCluster:
+    name: target
+  gitlabUrl: https://codehub.sva.de
+  runnerToken: "TOBE DEFINED"
+  namespace: gitlab
+  chartVersion: "0.85.0"
+  concurrent: 10
+  checkInterval: 15
+  tags: "go, kaniko"
+  rbac:
+    create: true
