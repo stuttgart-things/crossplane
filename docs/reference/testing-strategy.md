@@ -51,6 +51,27 @@ crossplane render examples/<name>-full.yaml \
   examples/functions.yaml
 ```
 
+## KIND Cluster
+
+Set up a local KIND cluster with Cilium and Crossplane for testing.
+
+```bash
+# CILIUM
+kubectl apply -k https://github.com/stuttgart-things/helm/infra/crds/cilium
+
+dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 helmfile-operation --helmfile-ref "git::https://github.com/stuttgart-things/helm.git@infra/cilium.yaml.gotmpl" --operation apply --state-values "config=kind,clusterName=dev,configureLB=false" --kube-config file:///home/sthings/.kube/dev --progress plain -vv
+
+
+# CROSSPLANE
+dagger call -m github.com/stuttgart-things/dagger/helm@v0.57.0 \
+helmfile-operation \
+--helmfile-ref "git::https://github.com/stuttgart-things/helm.git@cicd/crossplane.yaml.gotmpl" \
+--operation apply \
+--state-values "version=2.2.0" \
+--kube-config file:///home/sthings/.kube/dev \
+--progress plain -vv
+```
+
 ## Cluster Testing
 
 After local validation, deploy to a test cluster.

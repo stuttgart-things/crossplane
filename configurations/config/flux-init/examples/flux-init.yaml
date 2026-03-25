@@ -1,0 +1,21 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: FluxInit
+metadata:
+  name: test-flux-init
+  namespace: crossplane-system
+spec:
+  helmProviderConfigRef: xplane-test-helm
+  kubernetesProviderConfigRef: xplane-test-kubernetes
+  instance:
+    sources:
+      - name: flux-infra
+        kind: OCIRepository
+        url: oci://ghcr.io/stuttgart-things/flux-infra
+        ref: latest
+        path: "."
+      - name: flux-apps
+        kind: OCIRepository
+        url: oci://ghcr.io/stuttgart-things/flux-apps
+        ref: latest
+        path: "."

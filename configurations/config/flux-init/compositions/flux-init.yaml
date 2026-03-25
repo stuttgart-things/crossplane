@@ -1,0 +1,201 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: flux-init
+  labels:
+    crossplane.io/xrd: fluxinits.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: FluxInit
+  mode: Pipeline
+  pipeline:
+    - step: load-environment
+      functionRef:
+        name: function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: flux-defaults
+    - step: render
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr = option("params").oxr
+            env = option("params").ctx["apiextensions.crossplane.io/environment"]
+
+            _name         = oxr.metadata.name
+            _helmPcr      = oxr.spec.helmProviderConfigRef
+            _k8sPcr       = oxr.spec.kubernetesProviderConfigRef
+            _ns           = oxr.spec?.namespace or env.namespace
+            _version      = oxr.spec.operatorChart?.version or env.operatorChart.version
+            _repoURL      = oxr.spec.operatorChart?.repoURL or env.operatorChart.repoURL
+            _distribution = oxr.spec.instance?.distribution or env.instance.distribution
+            _components   = oxr.spec.instance?.components or env.instance.components
+            _sources      = oxr.spec.instance?.sources or []
+
+            # Resource 1 - HelmRelease (flux-operator)
+            _helmRelease = {
+                apiVersion: "helm.m.crossplane.io/v1beta1"
+                kind: "Release"
+                metadata: {
+                    name: "{}-flux-operator".format(_name)
+                    annotations: {
+                        "crossplane.io/external-name": "flux-operator"
+                    }
+                }
+                spec: {
+                    providerConfigRef: {
+                        name: _helmPcr
+                        kind: "ClusterProviderConfig"
+                    }
+                    forProvider: {
+                        chart: {
+                            name: "flux-operator"
+                            repository: _repoURL
+                            version: _version
+                        }
+                        namespace: _ns
+                        values: {
+                            installCRDs: True
+                        }
+                    }
+                    rollbackLimit: 3
+                }
+            }
+
+            # Resource 2 - Object (FluxInstance CR) — depends on operator
+            _helmResName = "{}-flux-operator".format(_name)
+            _fluxInstance = {
+                apiVersion: "kubernetes.m.crossplane.io/v1alpha1"
+                kind: "Object"
+                metadata: {
+                    name: "{}-flux-instance".format(_name)
+                    annotations: {
+                        "crossplane.io/uses": _helmResName
+                    }
+                }
+                spec: {
+                    providerConfigRef: {
+                        name: _k8sPcr
+                        kind: "ClusterProviderConfig"
+                    }
+                    forProvider: {
+                        manifest: {
+                            apiVersion: "fluxcd.controlplane.io/v1"
+                            kind: "FluxInstance"
+                            metadata: {
+                                name: "flux"
+                                namespace: _ns
+                                annotations: {
+                                    "fluxcd.controlplane.io/reconcileEvery": env.reconcileEvery
+                                    "fluxcd.controlplane.io/reconcileTimeout": env.reconcileTimeout
+                                }
+                            }
+                            spec: {
+                                distribution: {
+                                    version: _distribution
+                                    registry: "ghcr.io/fluxcd"
+                                }
+                                components: _components
+                            }
+                        }
+                    }
+                    readiness: {
+                        policy: "DeriveFromObject"
+                    }
+                }
+            }
+
+            _resources = [_helmRelease, _fluxInstance]
+
+            # Resource 3..N - OCIRepository/GitRepository Objects from sources list
+            _instanceResName = "{}-flux-instance".format(_name)
+            _resources += [{
+                apiVersion: "kubernetes.m.crossplane.io/v1alpha1"
+                kind: "Object"
+                metadata: {
+                    name: "{}-source-{}".format(_name, s.name)
+                    annotations: {
+                        "crossplane.io/uses": _instanceResName
+                    }
+                }
+                spec: {
+                    providerConfigRef: {
+                        name: _k8sPcr
+                        kind: "ClusterProviderConfig"
+                    }
+                    forProvider: {
+                        manifest: {
+                            apiVersion: "source.toolkit.fluxcd.io/v1"
+                            kind: s?.kind or "OCIRepository"
+                            metadata: {
+                                name: s.name
+                                namespace: _ns
+                            }
+                            spec: {
+                                interval: env.reconcileEvery
+                                url: s.url
+                                ref: {
+                                    tag: s?.ref or "latest"
+                                }
+                                **({ secretRef: { name: s.pullSecret } } if s?.pullSecret else {})
+                            }
+                        }
+                    }
+                    readiness: {
+                        policy: "DeriveFromObject"
+                    }
+                }
+            } for s in _sources]
+
+            items = _resources
+    - step: patch-status
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name    = oxr.metadata.name
+            _sources = oxr.spec.instance?.sources or []
+
+            _isReady = lambda resourceName: str -> bool {
+                _found = resourceName in ocds
+                _conds = ocds[resourceName].Resource?.status?.conditions or [] if _found else []
+                any_true = len([c for c in _conds if c.type == "Ready" and c.status == "True"]) > 0
+                any_true if _found else False
+            }
+
+            _operatorReady = _isReady("{}-flux-operator".format(_name))
+            _instanceReady = _isReady("{}-flux-instance".format(_name))
+            _readySources  = [s.name for s in _sources if _isReady("{}-source-{}".format(_name, s.name))]
+            _sourcesReady  = len(_readySources) == len(_sources) if _sources else True
+
+            _oxr = oxr | {
+                status = {
+                    operatorReady = _operatorReady
+                    instanceReady = _instanceReady
+                    sourcesReady = _sourcesReady
+                    ready = _operatorReady and _instanceReady and _sourcesReady
+                    sourceCount = len(_sources)
+                }
+            }
+
+            items = [_oxr]
+    - step: ready
+      functionRef:
+        name: function-auto-ready
