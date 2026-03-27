@@ -1,0 +1,363 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: certmanager-kcl
+  labels:
+    crossplane.io/xrd: xcertmanagers.platform.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: platform.stuttgart-things.com/v1alpha1
+    kind: XCertManager
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name    = oxr.metadata.name
+            _helmPcr = oxr.spec.targetCluster.name
+            _k8sPcr  = oxr.spec.targetCluster.kubernetesRef
+
+            # ── Defaults ────────────────────────────────────
+            _install = oxr.spec?.install or {}
+            _installEnabled = _install?.enabled if _install?.enabled != None else True
+            _version        = _install?.version or "v1.20.0"
+            _namespace      = _install?.namespace or "cert-manager"
+            _installCRDs    = _install?.installCRDs if _install?.installCRDs != None else True
+
+            _ss = oxr.spec?.selfSigned or {}
+            _ssEnabled    = _ss?.enabled or False
+            _caName       = _ss?.caName or "cluster-ca"
+            _caSecretName = _ss?.caSecretName or "cluster-ca-secret"
+
+            _wc = _ss?.wildcard or {}
+            _wcEnabled    = _wc?.enabled if _wc?.enabled != None else True
+            _wcName       = _wc?.name or "wildcard-tls"
+            _wcNamespace  = _wc?.namespace or "default"
+            _wcSecretName = _wc?.secretName or "wildcard-tls"
+            _wcDomain     = _wc?.domain or ""
+            _wcDuration   = _wc?.duration or "2160h"
+            _wcRenewBefore = _wc?.renewBefore or "360h"
+
+            _vi = oxr.spec?.vaultIssuer or {}
+            _viEnabled  = _vi?.enabled or False
+            _viName     = _vi?.name or "cluster-issuer-approle"
+            _vaultAddr  = _vi?.vaultAddr or ""
+            _pkiPath    = _vi?.pkiPath or ""
+            _caBundle   = _vi?.caBundle or ""
+            _roleId     = _vi?.roleId or ""
+            _secretId   = _vi?.secretId or ""
+
+            _resources = []
+
+            # ── 1. cert-manager Helm Release ────────────────
+            if _installEnabled:
+                _helmRelease = {
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
+                    metadata = {
+                        name = "{}-cert-manager".format(_name)
+                        annotations = {
+                            "crossplane.io/external-name" = "cert-manager"
+                            "crossplane.io/composition-resource-name" = "{}-cert-manager".format(_name)
+                        }
+                    }
+                    spec = {
+                        providerConfigRef = {
+                            name = _helmPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                        forProvider = {
+                            chart = {
+                                name = "cert-manager"
+                                repository = "https://charts.jetstack.io"
+                                version = _version
+                            }
+                            namespace = _namespace
+                            values = {
+                                crds = { enabled = _installCRDs }
+                            }
+                        }
+                        rollbackLimit = 3
+                    }
+                }
+                _resources += [_helmRelease]
+
+            # ── 2. SelfSigned ClusterIssuer ──────────────────
+            if _ssEnabled:
+                _selfSignedIssuer = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-selfsigned-issuer".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-selfsigned-issuer".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "cert-manager.io/v1"
+                                kind = "ClusterIssuer"
+                                metadata.name = "selfsigned"
+                                spec.selfSigned = {}
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_selfSignedIssuer]
+
+            # ── 3. CA Certificate ────────────────────────────
+            if _ssEnabled:
+                _caCert = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-ca-cert".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-ca-cert".format(_name)
+                            "crossplane.io/uses" = "{}-selfsigned-issuer".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "cert-manager.io/v1"
+                                kind = "Certificate"
+                                metadata = {
+                                    name = _caName
+                                    namespace = _namespace
+                                }
+                                spec = {
+                                    isCA = True
+                                    commonName = _caName
+                                    secretName = _caSecretName
+                                    issuerRef = {
+                                        name = "selfsigned"
+                                        kind = "ClusterIssuer"
+                                    }
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                        readiness = { policy = "DeriveFromObject" }
+                    }
+                }
+                _resources += [_caCert]
+
+            # ── 4. CA ClusterIssuer ──────────────────────────
+            if _ssEnabled:
+                _caIssuer = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-ca-issuer".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-ca-issuer".format(_name)
+                            "crossplane.io/uses" = "{}-ca-cert".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "cert-manager.io/v1"
+                                kind = "ClusterIssuer"
+                                metadata.name = "cluster-ca"
+                                spec.ca = { secretName = _caSecretName }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_caIssuer]
+
+            # ── 5. Wildcard Certificate ──────────────────────
+            if _ssEnabled and _wcEnabled and _wcDomain:
+                _wildcardCert = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-wildcard-cert".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-wildcard-cert".format(_name)
+                            "crossplane.io/uses" = "{}-ca-issuer".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "cert-manager.io/v1"
+                                kind = "Certificate"
+                                metadata = {
+                                    name = _wcName
+                                    namespace = _wcNamespace
+                                }
+                                spec = {
+                                    secretName = _wcSecretName
+                                    issuerRef = {
+                                        name = "cluster-ca"
+                                        kind = "ClusterIssuer"
+                                    }
+                                    commonName = "*.{}".format(_wcDomain)
+                                    dnsNames = ["*.{}".format(_wcDomain)]
+                                    duration = _wcDuration
+                                    renewBefore = _wcRenewBefore
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                        readiness = { policy = "DeriveFromObject" }
+                    }
+                }
+                _resources += [_wildcardCert]
+
+            # ── 6. Vault AppRole Secret ──────────────────────
+            if _viEnabled and _secretId:
+                _approleSecret = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-vault-approle-secret".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-vault-approle-secret".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "v1"
+                                kind = "Secret"
+                                metadata = {
+                                    name = "cert-manager-vault-approle"
+                                    namespace = _namespace
+                                }
+                                type = "Opaque"
+                                stringData = {
+                                    approle = _secretId
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_approleSecret]
+
+            # ── 7. Vault ClusterIssuer ───────────────────────
+            if _viEnabled and _vaultAddr and _pkiPath and _roleId:
+                _vaultIssuer = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-vault-issuer".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-vault-issuer".format(_name)
+                            "crossplane.io/uses" = "{}-vault-approle-secret".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "cert-manager.io/v1"
+                                kind = "ClusterIssuer"
+                                metadata.name = _viName
+                                spec.vault = {
+                                    path = "pki/sign/{}".format(_pkiPath)
+                                    server = _vaultAddr
+                                    caBundle = _caBundle
+                                    auth.appRole = {
+                                        path = "approle"
+                                        roleId = _roleId
+                                        secretRef = {
+                                            name = "cert-manager-vault-approle"
+                                            key = "approle"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_vaultIssuer]
+
+            items = _resources
+
+    - step: patch-status
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name = oxr.metadata.name
+
+            _installEnabled = oxr.spec?.install?.enabled if oxr.spec?.install?.enabled != None else True
+            _ssEnabled = oxr.spec?.selfSigned?.enabled or False
+            _viEnabled = oxr.spec?.vaultIssuer?.enabled or False
+
+            _isReady = lambda resourceName: str -> bool {
+                _found = resourceName in ocds
+                _conds = ocds[resourceName].Resource?.status?.conditions or [] if _found else []
+                any_true = len([c for c in _conds if c.type == "Ready" and c.status == "True"]) > 0
+                any_true if _found else False
+            }
+
+            _installReady = _isReady("{}-cert-manager".format(_name)) if _installEnabled else True
+
+            # SelfSigned: ready when CA issuer + wildcard cert (if enabled) are ready
+            _ssReady = True
+            if _ssEnabled:
+                _ssReady = _isReady("{}-ca-cert".format(_name)) and _isReady("{}-ca-issuer".format(_name))
+                _wcEnabled = oxr.spec?.selfSigned?.wildcard?.enabled if oxr.spec?.selfSigned?.wildcard?.enabled != None else True
+                _wcDomain = oxr.spec?.selfSigned?.wildcard?.domain or ""
+                if _wcEnabled and _wcDomain:
+                    _ssReady = _ssReady and _isReady("{}-wildcard-cert".format(_name))
+
+            _viReady = _isReady("{}-vault-issuer".format(_name)) if _viEnabled else True
+
+            _oxr = oxr | {
+                status = {
+                    ready = _installReady and _ssReady and _viReady
+                    installReady = _installReady
+                    selfSignedReady = _ssReady
+                    vaultIssuerReady = _viReady
+                    certManagerVersion = oxr.spec?.install?.version or "v1.20.0"
+                }
+            }
+
+            items = [_oxr]
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready

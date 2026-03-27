@@ -1,0 +1,143 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xcertmanagers.platform.stuttgart-things.com
+spec:
+  group: platform.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: XCertManager
+    plural: xcertmanagers
+    singular: xcertmanager
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - targetCluster
+              properties:
+                targetCluster:
+                  type: object
+                  required:
+                    - name
+                    - kubernetesRef
+                  properties:
+                    name:
+                      type: string
+                      description: Helm ClusterProviderConfig for the target cluster
+                    kubernetesRef:
+                      type: string
+                      description: Kubernetes ClusterProviderConfig for the target cluster
+
+                # ── cert-manager install ────────────────────────
+                install:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                      description: Deploy cert-manager Helm chart
+                    version:
+                      type: string
+                      default: "v1.20.0"
+                    namespace:
+                      type: string
+                      default: cert-manager
+                    installCRDs:
+                      type: boolean
+                      default: true
+
+                # ── Self-signed CA chain ────────────────────────
+                selfSigned:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                      description: Create SelfSigned bootstrap issuer, CA, and wildcard cert
+                    caName:
+                      type: string
+                      default: cluster-ca
+                    caSecretName:
+                      type: string
+                      default: cluster-ca-secret
+                    wildcard:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                          description: Create wildcard certificate from the CA
+                        name:
+                          type: string
+                          default: wildcard-tls
+                        namespace:
+                          type: string
+                          default: default
+                          description: Namespace for the wildcard cert secret
+                        secretName:
+                          type: string
+                          default: wildcard-tls
+                        domain:
+                          type: string
+                          description: Domain for wildcard cert (e.g. sthings.io for *.sthings.io)
+                        duration:
+                          type: string
+                          default: "2160h"
+                          description: Certificate duration (default 90 days)
+                        renewBefore:
+                          type: string
+                          default: "360h"
+                          description: Renew before expiry (default 15 days)
+
+                # ── Vault ClusterIssuer ─────────────────────────
+                vaultIssuer:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                      description: Create a Vault-backed ClusterIssuer
+                    name:
+                      type: string
+                      default: cluster-issuer-approle
+                    vaultAddr:
+                      type: string
+                      description: Vault server URL
+                    pkiPath:
+                      type: string
+                      description: Vault PKI sign path
+                    caBundle:
+                      type: string
+                      description: Base64-encoded Vault CA bundle
+                    roleId:
+                      type: string
+                      description: Vault AppRole role ID
+                    secretId:
+                      type: string
+                      description: Vault AppRole secret ID
+
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                  description: True when all enabled components are Ready
+                installReady:
+                  type: boolean
+                selfSignedReady:
+                  type: boolean
+                vaultIssuerReady:
+                  type: boolean
+                certManagerVersion:
+                  type: string

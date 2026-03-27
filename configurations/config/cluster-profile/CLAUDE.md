@@ -10,7 +10,7 @@ Goal: atomic, testable XRDs that nest into a larger `ClusterProfile` claim cover
 ## Conventions
 
 ### API Group & Versioning
-- Group: `platform.sthings.de`
+- Group: `platform.stuttgart-things.com`
 - Version: `v1alpha1` (all compositions currently)
 - XRD kind prefix: `X` (e.g. `XFluxInit`, `XClusterProfile`, `XInfraStack`)
 - Claim kind: no prefix (e.g. `FluxInitClaim`, `ClusterProfileClaim`)
@@ -18,24 +18,26 @@ Goal: atomic, testable XRDs that nest into a larger `ClusterProfile` claim cover
 ### Naming Patterns
 - Composed resource names: `{xr.metadata.name}-{component}` (e.g. `dev-cluster-flux-operator`)
 - EnvironmentConfig names: `{feature}-defaults` (e.g. `flux-defaults`, `cilium-defaults`)
-- Composition names: `{feature}-kcl` (e.g. `fluxinit-kcl`)
-- File layout per feature:
+- Composition names: `{feature}-kcl` (e.g. `fluxinit-kcl`, `ipreservation-kcl`)
+- File layout per configuration (standalone directory under `configurations/config/`):
   ```
-  compositions/
-    flux-init/
-      xrd.yaml
-      environmentconfig.yaml
-      composition.yaml
-      claim-example.yaml
+  <feature>/
+    apis/definition.yaml
+    compositions/<feature>.yaml
+    examples/<feature>.yaml
+    examples/functions.yaml
+    examples/provider-config.yaml
+    crossplane.yaml
+    README.md
   ```
 
 ### Provider Versions
 ```yaml
-# Helm provider
-helm.crossplane.io/v1beta1 - Release
+# Helm provider (managed API)
+helm.m.crossplane.io/v1beta1 - Release, ClusterProviderConfig
 
-# Kubernetes provider
-kubernetes.crossplane.io/v1alpha2 - Object
+# Kubernetes provider (managed API)
+kubernetes.m.crossplane.io/v1alpha1 - Object, ClusterProviderConfig
 
 # KCL function
 functionRef:
@@ -45,6 +47,12 @@ functionRef:
 functionRef:
   name: function-patch-and-transform
 ```
+
+### XRD Conventions (Crossplane v2)
+- apiVersion: `apiextensions.crossplane.io/v2`
+- `scope: Namespaced` — required for nesting into ClusterProfile later
+- **No `claimNames`** — v2 XRDs do not support claims
+- XRD plural must not collide with existing MRD plurals (e.g. use `xipreservations` not `ipreservations`)
 
 ---
 
@@ -112,7 +120,7 @@ and cannot do conditional branching. KCL spreads the spec in a few lines and sup
 _name = oxr.metadata.name
 
 _fluxInit = {
-    apiVersion = "resources.stuttgart-things.com/v1alpha1"
+    apiVersion = "platform.stuttgart-things.com/v1alpha1"
     kind = "FluxInit"
     metadata.name = "{}-flux-init".format(_name)
     metadata.namespace = oxr.metadata.namespace
@@ -192,6 +200,111 @@ _oxr = {
 }
 
 items = [_oxr]
+```
+
+### Observe Object pattern (read cross-provider status)
+
+To read status from an existing resource (e.g. RemoteCluster from provider-kubeconfig)
+inside a KCL composition, use a Kubernetes Object with `managementPolicies: ["Observe"]`.
+This is read-only — no ownership, no deletion.
+
+```python
+# Observe a RemoteCluster on the management cluster
+_observeRC = {
+    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+    kind = "Object"
+    metadata = {
+        name = "{}-observe-rc".format(_name)
+        annotations = {
+            "crossplane.io/composition-resource-name" = "{}-observe-rc".format(_name)
+        }
+    }
+    spec = {
+        managementPolicies = ["Observe"]
+        forProvider = {
+            manifest = {
+                apiVersion = "kubeconfig.stuttgart-things.com/v1alpha1"
+                kind = "RemoteCluster"
+                metadata.name = _clusterName
+            }
+        }
+        providerConfigRef = {
+            name = "in-cluster"          # InjectedIdentity — reads from mgmt cluster
+            kind = "ClusterProviderConfig"
+        }
+    }
+}
+```
+
+**Reading observed status in ocds** — the Object wraps the manifest, so the path is nested:
+```python
+_rcKey = "{}-observe-rc".format(_name)
+_networkKey = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.internalNetworkKey or "" if _rcKey in ocds else ""
+```
+
+**RBAC required**: the kubernetes provider SA needs `get`, `list`, `watch`, `patch` (SSA dry-run) on the observed resource:
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-observe-remoteclusters
+rules:
+  - apiGroups: ["kubeconfig.stuttgart-things.com"]
+    resources: ["remoteclusters"]
+    verbs: ["get", "list", "watch", "patch"]
+```
+
+### Wrapping cluster-scoped MRs for namespaced XRDs
+
+Namespaced XRDs cannot directly emit cluster-scoped composed resources.
+Wrap them in a Kubernetes Object:
+
+```python
+_ipObj = {
+    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+    kind = "Object"
+    metadata = {
+        name = "{}-ip".format(_name)
+        annotations = {
+            "crossplane.io/composition-resource-name" = "{}-ip".format(_name)
+        }
+    }
+    spec = {
+        forProvider.manifest = {
+            apiVersion = "ipreservation.clusterbook.stuttgart-things.com/v1alpha1"
+            kind = "IPReservation"
+            metadata.name = "{}-ip".format(_name)
+            spec = {
+                forProvider = _ipSpec
+                providerConfigRef = { name = _cbPcr, kind = "ClusterProviderConfig" }
+            }
+        }
+        providerConfigRef = { name = "in-cluster", kind = "ClusterProviderConfig" }
+        readiness = { policy = "DeriveFromObject" }
+    }
+}
+```
+
+**Reading wrapped MR status** — same nested path as Observe:
+```python
+_ipAddresses = ocds[_ipKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.ipAddresses or []
+```
+
+**RBAC required**: the kubernetes provider SA needs full CRUD on the wrapped MR kind.
+
+### in-cluster ClusterProviderConfig
+
+For observing management-cluster resources or wrapping cluster-scoped MRs, use an
+`InjectedIdentity` ClusterProviderConfig:
+
+```yaml
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: in-cluster
+spec:
+  credentials:
+    source: InjectedIdentity
 ```
 
 ### status.ready is the inter-stage gate
@@ -305,12 +418,13 @@ Stage 4: Applications
 
 ## Current Build Order
 
-1. `flux-init` — `XFluxInit` / `FluxInitClaim` ← **start here**
-2. `dns-record` — `XDnsRecord` / `DnsRecordClaim`
-3. `vault-auth` — `XVaultAuth` / `VaultAuthClaim` (kubernetes auth method, not AppRole)
-4. `argo-init` — `XArgoInit` / `ArgoInitClaim`
-5. `cluster-profile` — `XClusterProfile` / `ClusterProfileClaim` nesting 1–4
-6. `infra-stack` — `XInfraStack` / `InfraStackClaim` gated on `XClusterProfile.status.ready`
+1. `flux-init` — `XFluxInit` (done, deployed)
+2. `ip-reservation` — `XIPReservation` (done, deployed) — observes RemoteCluster for networkKey
+3. `dns-record` — `XDnsRecord` / `DnsRecordClaim`
+4. `vault-auth` — `XVaultAuth` / `VaultAuthClaim` (kubernetes auth method, not AppRole)
+5. `argo-init` — `XArgoInit` / `ArgoInitClaim`
+6. `cluster-profile` — `XClusterProfile` (done, deployed) — nests 1–5
+7. `infra-stack` — `XInfraStack` / `InfraStackClaim` gated on `XClusterProfile.status.ready`
 
 ### XClusterProfile status contract (consumed by XInfraStack)
 ```yaml
@@ -338,3 +452,41 @@ status:
 | Deliver Cilium via Flux/Argo | Deliver Cilium via Helm provider |
 | `**oxr` spread when patching status | Reconstruct full XR object manually |
 | Explicit `if` guards for option branching | Emit MRs conditionally via patch transforms |
+| `scope: Namespaced` for all XRDs | `scope: Cluster` (finalizer bugs, can't nest into ClusterProfile) |
+| Wrap cluster-scoped MRs in Object | Emit cluster-scoped MRs directly from namespaced XRD |
+| Observe Object for cross-provider data | Hardcode values that exist in another provider's status |
+| `in-cluster` ClusterProviderConfig (InjectedIdentity) | `default` for mgmt-cluster reads (may not exist) |
+| Use managed API (`*.m.crossplane.io`) | Use legacy API (`*.crossplane.io`) for new compositions |
+
+---
+
+## Dev Cluster State (KUBECONFIG=~/.kube/dev)
+
+### Installed Providers
+| Provider | Version | Package |
+|----------|---------|---------|
+| provider-helm | v1.2.0 | `xpkg.upbound.io/crossplane-contrib/provider-helm` |
+| provider-kubernetes | v1.2.1 | `xpkg.upbound.io/crossplane-contrib/provider-kubernetes` |
+| provider-kubeconfig | v0.8.0 | `ghcr.io/stuttgart-things/provider-kubeconfig-xpkg` |
+| provider-clusterbook | v0.2.0-rc3 | `ghcr.io/stuttgart-things/provider-clusterbook-xpkg` |
+| provider-opentofu | v1.1.0 | `xpkg.upbound.io/upbound/provider-opentofu` |
+
+### Installed Functions
+| Function | Version |
+|----------|---------|
+| function-kcl | v0.10.4 |
+| function-auto-ready | v0.6.0 |
+| function-environment-configs | v0.3.0 |
+
+### ClusterProviderConfigs
+| Name | Provider | Purpose |
+|------|----------|---------|
+| `in-cluster` | kubernetes | InjectedIdentity — mgmt cluster reads (Observe, wrap MRs) |
+| `xplane-test-helm` | helm | Remote cluster xplane-test |
+| `xplane-test-kubernetes` | kubernetes | Remote cluster xplane-test |
+
+### RBAC Grants (kubernetes provider SA)
+| ClusterRole | Resources | Verbs |
+|-------------|-----------|-------|
+| `crossplane-observe-remoteclusters` | `remoteclusters` (kubeconfig) | get, list, watch, patch |
+| `crossplane-manage-ipreservations` | `ipreservations` (clusterbook) | full CRUD |

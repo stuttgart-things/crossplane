@@ -1,0 +1,11 @@
+---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XIPReservation
+metadata:
+  name: test-ip-reservation
+  namespace: crossplane-system
+spec:
+  clusterName: xplane-test
+  count: 1
+  createDNS: false
+  clusterbookProviderConfigRef: default

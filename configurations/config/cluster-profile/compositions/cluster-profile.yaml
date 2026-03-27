@@ -4,10 +4,10 @@ kind: Composition
 metadata:
   name: clusterprofile-kcl
   labels:
-    crossplane.io/xrd: clusterprofiles.platform.sthings.de
+    crossplane.io/xrd: clusterprofiles.platform.stuttgart-things.com
 spec:
   compositeTypeRef:
-    apiVersion: platform.sthings.de/v1alpha1
+    apiVersion: platform.stuttgart-things.com/v1alpha1
     kind: XClusterProfile
   mode: Pipeline
   pipeline:
@@ -18,8 +18,9 @@ spec:
         apiVersion: krm.kcl.dev/v1alpha1
         kind: KCLInput
         spec:
-          source: |
-            oxr = option("params").oxr
+          source: | # pragma: allowlist secret
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
 
             _name      = oxr.metadata.name
             _namespace = oxr.metadata.namespace or "crossplane-system"
@@ -27,10 +28,89 @@ spec:
             _k8sPcr    = oxr.spec.kubernetesProviderConfigRef
             _engine    = oxr.spec.gitops?.engine or "flux"
 
+            _isReady = lambda resourceName: str -> bool {
+                _found = resourceName in ocds
+                _conds = ocds[resourceName].Resource?.status?.conditions or [] if _found else []
+                any_true = len([c for c in _conds if c.type == "Ready" and c.status == "True"]) > 0
+                any_true if _found else False
+            }
+
             _resources = []
 
-            # --- Flux ---
-            if _engine == "flux":
+            # ── 1. Cilium (CNI — must be first) ────────────
+            _cil = oxr.spec?.cilium or {}
+            _cilEnabled = _cil?.enabled or False
+            _ciliumReady = True
+
+            if _cilEnabled:
+                _cilSpec = {
+                    targetCluster = {
+                        name = _helmPcr
+                        kubernetesRef = _k8sPcr
+                    }
+                    install = {
+                        enabled = True
+                        version = _cil?.version or "1.19.2"
+                        namespace = _cil?.namespace or "kube-system"
+                        kubeProxyReplacement = _cil?.kubeProxyReplacement if _cil?.kubeProxyReplacement != None else True
+                        k8sServiceHost = _cil?.k8sServiceHost or ""
+                        k8sServicePort = _cil?.k8sServicePort or 6443
+                        routingMode = _cil?.routingMode or "native"
+                        ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
+                        autoDirectNodeRoutes = _cil?.autoDirectNodeRoutes if _cil?.autoDirectNodeRoutes != None else True
+                        devices = _cil?.devices or ["eth0", "net0"]
+                        gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else True }
+                        l2Announcements = { enabled = _cil?.l2Announcements?.enabled if _cil?.l2Announcements?.enabled != None else True }
+                        externalIPs = { enabled = _cil?.externalIPs?.enabled if _cil?.externalIPs?.enabled != None else True }
+                        operator = { replicas = _cil?.operator?.replicas or 1 }
+                    }
+                }
+
+                # LoadBalancer config
+                _cilLb = _cil?.loadBalancer or {}
+                if _cilLb?.enabled:
+                    _cilSpec |= {
+                        loadBalancer = {
+                            enabled = True
+                            ipMode = _cilLb?.ipMode or "static"
+                            ipRange = _cilLb?.ipRange or {}
+                            **({"reservationRef": _cilLb.reservationRef} if _cilLb?.reservationRef else {})
+                            poolName = _cilLb?.poolName or "default-pool"
+                        }
+                    }
+
+                # Gateway config
+                _cilGw = _cil?.gateway or {}
+                if _cilGw?.enabled:
+                    _cilSpec |= {
+                        gateway = {
+                            enabled = True
+                            name = _cilGw?.name or "cilium-gateway"
+                            namespace = _cilGw?.namespace or "default"
+                            **({"domain": _cilGw.domain} if _cilGw?.domain else {})
+                            **({"tlsSecretName": _cilGw.tlsSecretName} if _cilGw?.tlsSecretName else {})
+                        }
+                    }
+
+                _cilium = {
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                    kind = "XCilium"
+                    metadata = {
+                        name = "{}-cilium".format(_name)
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-cilium".format(_name)
+                        }
+                    }
+                    spec = _cilSpec
+                }
+                _resources += [_cilium]
+
+                # Gate: check if Cilium is ready before proceeding
+                _ciliumReady = _isReady("{}-cilium".format(_name))
+
+            # ── 2. FluxInit (gated on Cilium) ──────────────
+            if _engine == "flux" and (_ciliumReady or not _cilEnabled):
                 _fluxSpec = {
                     helmProviderConfigRef = _helmPcr
                     kubernetesProviderConfigRef = _k8sPcr
@@ -38,7 +118,7 @@ spec:
                 }
 
                 _fluxInit = {
-                    apiVersion = "resources.stuttgart-things.com/v1alpha1"
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
                     kind = "FluxInit"
                     metadata = {
                         name = "{}-flux-init".format(_name)
@@ -50,6 +130,50 @@ spec:
                     spec = _fluxSpec
                 }
                 _resources += [_fluxInit]
+
+            # ── 3. cert-manager (gated on Cilium) ──────────
+            _cmEnabled = oxr.spec.certManager?.enabled or False
+            if _cmEnabled and (_ciliumReady or not _cilEnabled):
+                _cmSpec = {
+                    targetCluster = {
+                        name = _helmPcr
+                        kubernetesRef = _k8sPcr
+                    }
+                    install = {
+                        enabled = True
+                        version = oxr.spec.certManager?.version or "v1.20.0"
+                        namespace = oxr.spec.certManager?.namespace or "cert-manager"
+                    }
+                }
+
+                _ss = oxr.spec.certManager?.selfSigned or {}
+                if _ss?.enabled:
+                    _cmSpec |= {
+                        selfSigned = {
+                            enabled = True
+                            caName = _ss?.caName or "cluster-ca"
+                            wildcard = {
+                                enabled = _ss?.wildcard?.enabled if _ss?.wildcard?.enabled != None else True
+                                domain = _ss?.wildcard?.domain or ""
+                                secretName = _ss?.wildcard?.secretName or "wildcard-tls"
+                                namespace = _ss?.wildcard?.namespace or "default"
+                            }
+                        }
+                    }
+
+                _certManager = {
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                    kind = "XCertManager"
+                    metadata = {
+                        name = "{}-cert-manager".format(_name)
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-cert-manager".format(_name)
+                        }
+                    }
+                    spec = _cmSpec
+                }
+                _resources += [_certManager]
 
             items = _resources
 
@@ -74,17 +198,25 @@ spec:
                 any_true if _found else False
             }
 
+            _cilEnabled = oxr.spec?.cilium?.enabled or False
+            _cilReady = _isReady("{}-cilium".format(_name)) if _cilEnabled else True
+
             _gitopsReady = False
             if _engine == "flux":
                 _gitopsReady = _isReady("{}-flux-init".format(_name))
             if _engine == "argocd":
                 _gitopsReady = False
 
+            _cmEnabled = oxr.spec.certManager?.enabled or False
+            _cmReady = _isReady("{}-cert-manager".format(_name)) if _cmEnabled else True
+
             _oxr = oxr | {
                 status = {
-                    ready = _gitopsReady
+                    ready = _cilReady and _gitopsReady and _cmReady
+                    ciliumReady = _cilReady
                     gitopsEngine = _engine
                     gitopsReady = _gitopsReady
+                    certManagerReady = _cmReady
                     providerConfigRef = oxr.spec.helmProviderConfigRef
                 }
             }

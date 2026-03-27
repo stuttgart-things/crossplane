@@ -4,10 +4,10 @@ kind: Composition
 metadata:
   name: flux-init
   labels:
-    crossplane.io/xrd: fluxinits.resources.stuttgart-things.com
+    crossplane.io/xrd: fluxinits.platform.stuttgart-things.com
 spec:
   compositeTypeRef:
-    apiVersion: resources.stuttgart-things.com/v1alpha1
+    apiVersion: platform.stuttgart-things.com/v1alpha1
     kind: FluxInit
   mode: Pipeline
   pipeline:

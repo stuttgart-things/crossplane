@@ -1,0 +1,17 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: cert-manager
+  annotations:
+    meta.crossplane.io/maintainer: stuttgart-things
+    meta.crossplane.io/description: |
+      Deploys cert-manager with optional self-signed CA chain
+      and Vault-backed ClusterIssuer.
+spec:
+  crossplane:
+    version: ">=2.13.0"
+  dependsOn:
+    - function: xpkg.upbound.io/crossplane-contrib/function-kcl
+      version: ">=v0.10.4"
+    - function: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.6.0"

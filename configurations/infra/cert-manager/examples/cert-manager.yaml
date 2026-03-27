@@ -1,0 +1,26 @@
+---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XCertManager
+metadata:
+  name: test-cert-manager
+  namespace: crossplane-system
+spec:
+  targetCluster:
+    name: xplane-test-helm
+    kubernetesRef: xplane-test-kubernetes
+  install:
+    enabled: true
+    version: "v1.20.0"
+    namespace: cert-manager
+    installCRDs: true
+  selfSigned:
+    enabled: true
+    caName: cluster-ca
+    wildcard:
+      enabled: true
+      name: wildcard-tls
+      namespace: default
+      secretName: wildcard-tls
+      domain: sthings.io
+  vaultIssuer:
+    enabled: false

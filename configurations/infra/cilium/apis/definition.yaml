@@ -1,0 +1,179 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xciliums.platform.stuttgart-things.com
+spec:
+  group: platform.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: XCilium
+    plural: xciliums
+    singular: xcilium
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - targetCluster
+              properties:
+                targetCluster:
+                  type: object
+                  required:
+                    - name
+                    - kubernetesRef
+                  properties:
+                    name:
+                      type: string
+                      description: Helm ClusterProviderConfig for the target cluster
+                    kubernetesRef:
+                      type: string
+                      description: Kubernetes ClusterProviderConfig for the target cluster
+
+                # ── Cilium install ──────────────────────────────
+                install:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                      description: Deploy Cilium Helm chart
+                    version:
+                      type: string
+                      default: "1.19.2"
+                    namespace:
+                      type: string
+                      default: kube-system
+                    kubeProxyReplacement:
+                      type: boolean
+                      default: true
+                    k8sServiceHost:
+                      type: string
+                      description: API server host (defaults to {clusterName}-control-plane if empty)
+                    k8sServicePort:
+                      type: integer
+                      default: 6443
+                    gatewayAPI:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                    l2Announcements:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                    externalIPs:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                    routingMode:
+                      type: string
+                      enum:
+                        - native
+                        - tunnel
+                      default: native
+                    ipv4NativeRoutingCIDR:
+                      type: string
+                      default: "10.244.0.0/16"
+                    autoDirectNodeRoutes:
+                      type: boolean
+                      default: true
+                    devices:
+                      type: array
+                      items:
+                        type: string
+                      default:
+                        - eth0
+                        - net0
+                    operator:
+                      type: object
+                      properties:
+                        replicas:
+                          type: integer
+                          default: 1
+
+                # ── LoadBalancer config ─────────────────────────
+                loadBalancer:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                      description: Create CiliumLoadBalancerIPPool and L2AnnouncementPolicy
+                    ipMode:
+                      type: string
+                      enum:
+                        - static
+                        - dynamic
+                      default: static
+                      description: static = provide ipRange, dynamic = read from XIPReservation
+                    ipRange:
+                      type: object
+                      description: IP range for static mode
+                      properties:
+                        start:
+                          type: string
+                        end:
+                          type: string
+                    reservationRef:
+                      type: string
+                      description: Name of XIPReservation to Observe for dynamic IP mode
+                    poolName:
+                      type: string
+                      default: default-pool
+                    l2PolicyName:
+                      type: string
+                      default: default-l2-announcement-policy
+
+                # ── Gateway ─────────────────────────────────────
+                gateway:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                      description: Create a Gateway resource
+                    name:
+                      type: string
+                      default: cilium-gateway
+                    namespace:
+                      type: string
+                      default: default
+                    domain:
+                      type: string
+                      description: Wildcard domain (e.g. sthings.io for *.sthings.io)
+                    tlsSecretName:
+                      type: string
+                      description: Secret name for TLS termination
+
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                  description: True when all enabled components are Ready
+                installReady:
+                  type: boolean
+                loadBalancerReady:
+                  type: boolean
+                gatewayReady:
+                  type: boolean
+                networkKey:
+                  type: string
+                  description: IP from dynamic reservation (if used)
+                ciliumVersion:
+                  type: string

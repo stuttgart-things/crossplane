@@ -1,0 +1,7 @@
+---
+apiVersion: clusterbook.stuttgart-things.com/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  url: "http://clusterbook.clusterbook.svc.cluster.local:8080"

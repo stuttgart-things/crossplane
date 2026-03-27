@@ -1,5 +1,5 @@
 ---
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 metadata:
   name: lab-flux

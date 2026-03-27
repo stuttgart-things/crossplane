@@ -2,18 +2,15 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: clusterprofiles.platform.sthings.de
+  name: clusterprofiles.platform.stuttgart-things.com
 spec:
-  group: platform.sthings.de
+  group: platform.stuttgart-things.com
   defaultCompositeDeletePolicy: Foreground
   scope: Namespaced
   names:
     kind: XClusterProfile
     plural: clusterprofiles
     singular: clusterprofile
-  claimNames:
-    kind: ClusterProfileClaim
-    plural: clusterprofileclaims
   versions:
     - name: v1alpha1
       served: true
@@ -95,6 +92,151 @@ spec:
                                 default: "."
                               pullSecret:
                                 type: string
+                cilium:
+                  type: object
+                  description: Cilium CNI configuration passed through to XCilium
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                      description: Deploy Cilium via nested XCilium
+                    version:
+                      type: string
+                      default: "1.19.2"
+                    namespace:
+                      type: string
+                      default: kube-system
+                    kubeProxyReplacement:
+                      type: boolean
+                      default: true
+                    k8sServiceHost:
+                      type: string
+                      description: API server host
+                    k8sServicePort:
+                      type: integer
+                      default: 6443
+                    routingMode:
+                      type: string
+                      enum:
+                        - native
+                        - tunnel
+                      default: native
+                    ipv4NativeRoutingCIDR:
+                      type: string
+                      default: "10.244.0.0/16"
+                    autoDirectNodeRoutes:
+                      type: boolean
+                      default: true
+                    devices:
+                      type: array
+                      items:
+                        type: string
+                      default:
+                        - eth0
+                        - net0
+                    gatewayAPI:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                    l2Announcements:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                    externalIPs:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                    operator:
+                      type: object
+                      properties:
+                        replicas:
+                          type: integer
+                          default: 1
+                    loadBalancer:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        ipMode:
+                          type: string
+                          enum:
+                            - static
+                            - dynamic
+                          default: static
+                        ipRange:
+                          type: object
+                          properties:
+                            start:
+                              type: string
+                            end:
+                              type: string
+                        reservationRef:
+                          type: string
+                        poolName:
+                          type: string
+                          default: default-pool
+                    gateway:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        name:
+                          type: string
+                          default: cilium-gateway
+                        namespace:
+                          type: string
+                          default: default
+                        domain:
+                          type: string
+                        tlsSecretName:
+                          type: string
+
+                certManager:
+                  type: object
+                  description: cert-manager configuration passed through to XCertManager
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                      description: Deploy cert-manager via nested XCertManager
+                    version:
+                      type: string
+                      default: "v1.20.0"
+                    namespace:
+                      type: string
+                      default: cert-manager
+                    selfSigned:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: false
+                        caName:
+                          type: string
+                          default: cluster-ca
+                        wildcard:
+                          type: object
+                          properties:
+                            enabled:
+                              type: boolean
+                              default: true
+                            domain:
+                              type: string
+                              description: Wildcard domain (e.g. sthings.io)
+                            secretName:
+                              type: string
+                              default: wildcard-tls
+                            namespace:
+                              type: string
+                              default: default
             status:
               type: object
               properties:
@@ -104,9 +246,15 @@ spec:
                 gitopsEngine:
                   type: string
                   description: Active gitops engine (flux or argocd)
+                ciliumReady:
+                  type: boolean
+                  description: True when Cilium sub-composition is Ready
                 gitopsReady:
                   type: boolean
                   description: True when the gitops sub-composition is Ready
+                certManagerReady:
+                  type: boolean
+                  description: True when the cert-manager sub-composition is Ready
                 providerConfigRef:
                   type: string
                   description: Helm provider config ref carried through for downstream

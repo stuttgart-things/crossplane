@@ -44,9 +44,9 @@ examples/claim-minimal.yaml       ← minimal claim using all defaults
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: fluxinits.resources.stuttgart-things.com
+  name: fluxinits.platform.stuttgart-things.com
 spec:
-  group: resources.stuttgart-things.com
+  group: platform.stuttgart-things.com
   defaultCompositeDeletePolicy: Foreground
   scope: Namespaced
   names:
@@ -65,10 +65,10 @@ kind: Composition
 metadata:
   name: flux-init
   labels:
-    crossplane.io/xrd: fluxinits.resources.stuttgart-things.com
+    crossplane.io/xrd: fluxinits.platform.stuttgart-things.com
 spec:
   compositeTypeRef:
-    apiVersion: resources.stuttgart-things.com/v1alpha1
+    apiVersion: platform.stuttgart-things.com/v1alpha1
     kind: FluxInit
   mode: Pipeline
   pipeline:
@@ -76,7 +76,7 @@ spec:
 ```
 
 ```yaml
-group: resources.stuttgart-things.com
+group: platform.stuttgart-things.com
 XRD kind:    FluxInit
 plural:      fluxinits
 Claim kind:  FluxInitClaim
@@ -445,7 +445,7 @@ data:
 
 **examples/claim.yaml** — with OCI source:
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 metadata:
   name: dev-cluster-flux
@@ -462,7 +462,7 @@ spec:
 
 **examples/claim-minimal.yaml** — controllers only, no sync source:
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 metadata:
   name: lab-flux

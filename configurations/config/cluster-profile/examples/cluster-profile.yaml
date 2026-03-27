@@ -1,5 +1,5 @@
 ---
-apiVersion: platform.sthings.de/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: XClusterProfile
 metadata:
   name: test-cluster-profile
@@ -7,6 +7,25 @@ metadata:
 spec:
   helmProviderConfigRef: xplane-test-helm
   kubernetesProviderConfigRef: xplane-test-kubernetes
+  cilium:
+    enabled: true
+    version: "1.19.2"
+    k8sServiceHost: crossplane-test-control-plane
+    k8sServicePort: 6443
+    routingMode: native
+    ipv4NativeRoutingCIDR: "10.244.0.0/16"
+    autoDirectNodeRoutes: true
+    devices:
+      - eth0
+      - net0
+    operator:
+      replicas: 2
+    loadBalancer:
+      enabled: true
+      ipMode: static
+      ipRange:
+        start: "172.18.0.100"
+        end: "172.18.0.110"
   gitops:
     engine: flux
   flux:
@@ -20,3 +39,9 @@ spec:
           kind: OCIRepository
           url: oci://ghcr.io/stuttgart-things/flux-apps
           ref: latest
+  certManager:
+    enabled: true
+    selfSigned:
+      enabled: true
+      wildcard:
+        domain: sthings.io

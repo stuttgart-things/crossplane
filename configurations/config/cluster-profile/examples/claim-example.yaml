@@ -1,5 +1,5 @@
 ---
-apiVersion: platform.sthings.de/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: ClusterProfileClaim
 metadata:
   name: dev-cluster

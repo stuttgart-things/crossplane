@@ -1,0 +1,159 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: ipreservation-kcl
+  labels:
+    crossplane.io/xrd: xipreservations.platform.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: platform.stuttgart-things.com/v1alpha1
+    kind: XIPReservation
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name        = oxr.metadata.name
+            _clusterName = oxr.spec.clusterName
+            _count       = oxr.spec?.count or 1
+            _ip          = oxr.spec?.ip or ""
+            _createDNS   = oxr.spec?.createDNS or False
+            _cbPcr       = oxr.spec?.clusterbookProviderConfigRef or "default"
+
+            # Step 1: Observe the RemoteCluster to read internalNetworkKey
+            _observeRC = {
+                apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                kind = "Object"
+                metadata = {
+                    name = "{}-observe-rc".format(_name)
+                    annotations = {
+                        "crossplane.io/composition-resource-name" = "{}-observe-rc".format(_name)
+                    }
+                }
+                spec = {
+                    managementPolicies = ["Observe"]
+                    forProvider = {
+                        manifest = {
+                            apiVersion = "kubeconfig.stuttgart-things.com/v1alpha1"
+                            kind = "RemoteCluster"
+                            metadata = {
+                                name = _clusterName
+                            }
+                        }
+                    }
+                    providerConfigRef = {
+                        name = "in-cluster"
+                        kind = "ClusterProviderConfig"
+                    }
+                }
+            }
+
+            # Step 2: Read networkKey from observed RemoteCluster status
+            _rcKey = "{}-observe-rc".format(_name)
+            _networkKey = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.internalNetworkKey or "" if _rcKey in ocds else ""
+
+            _resources = [_observeRC]
+
+            # Step 3: Emit IPReservation wrapped in a Kubernetes Object (cluster-scoped MR from namespaced XR)
+            if _networkKey != "":
+                _ipSpec = {
+                    networkKey = _networkKey
+                    clusterName = _clusterName
+                    count = _count
+                    createDNS = _createDNS
+                }
+                if _ip:
+                    _ipSpec |= { ip = _ip }
+
+                _ipObj = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-ip".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-ip".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "ipreservation.clusterbook.stuttgart-things.com/v1alpha1"
+                                kind = "IPReservation"
+                                metadata = {
+                                    name = "{}-ip".format(_name)
+                                }
+                                spec = {
+                                    forProvider = _ipSpec
+                                    providerConfigRef = {
+                                        name = _cbPcr
+                                        kind = "ClusterProviderConfig"
+                                    }
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = "in-cluster"
+                            kind = "ClusterProviderConfig"
+                        }
+                        readiness = {
+                            policy = "DeriveFromObject"
+                        }
+                    }
+                }
+                _resources += [_ipObj]
+
+            items = _resources
+
+    - step: patch-status
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name = oxr.metadata.name
+
+            _isReady = lambda resourceName: str -> bool {
+                _found = resourceName in ocds
+                _conds = ocds[resourceName].Resource?.status?.conditions or [] if _found else []
+                any_true = len([c for c in _conds if c.type == "Ready" and c.status == "True"]) > 0
+                any_true if _found else False
+            }
+
+            # Read networkKey from observed RemoteCluster
+            _rcKey = "{}-observe-rc".format(_name)
+            _networkKey = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.internalNetworkKey or "" if _rcKey in ocds else ""
+
+            # Read IPReservation status from the wrapping Object
+            _ipKey = "{}-ip".format(_name)
+            _ipAddresses = ocds[_ipKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.ipAddresses or [] if _ipKey in ocds else []
+            _resStatus = ocds[_ipKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.status or "" if _ipKey in ocds else ""
+            _ipReady = _isReady(_ipKey)
+
+            _oxr = oxr | {
+                status = {
+                    ready = _ipReady
+                    networkKey = _networkKey
+                    ipAddresses = _ipAddresses
+                    reservationStatus = _resStatus
+                }
+            }
+
+            items = [_oxr]
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready

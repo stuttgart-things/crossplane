@@ -2,18 +2,15 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: fluxinits.resources.stuttgart-things.com
+  name: fluxinits.platform.stuttgart-things.com
 spec:
-  group: resources.stuttgart-things.com
+  group: platform.stuttgart-things.com
   defaultCompositeDeletePolicy: Foreground
   scope: Namespaced
   names:
     kind: FluxInit
     plural: fluxinits
     singular: fluxinit
-  claimNames:
-    kind: FluxInitClaim
-    plural: fluxinitclaims
   versions:
     - name: v1alpha1
       served: true

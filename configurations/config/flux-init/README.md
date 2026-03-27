@@ -15,7 +15,7 @@ Resource ordering is enforced via `crossplane.io/uses`: operator -> instance -> 
 ## API Reference
 
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 spec:
   helmProviderConfigRef: ""        # required - Helm ClusterProviderConfig name
@@ -47,7 +47,7 @@ spec:
 Installs Flux controllers on the target cluster without configuring any GitOps source.
 
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 metadata:
   name: lab-flux
@@ -62,7 +62,7 @@ spec:
 Installs Flux and syncs from a single OCI registry.
 
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 metadata:
   name: staging-flux
@@ -83,7 +83,7 @@ spec:
 Installs Flux with multiple OCI sources and a pull secret for private access.
 
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 metadata:
   name: prod-flux
@@ -112,7 +112,7 @@ spec:
 Override operator chart version and Flux distribution.
 
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInitClaim
 metadata:
   name: custom-flux
@@ -134,7 +134,7 @@ spec:
 ### XR (Composite Resource) - Non-Claim Usage
 
 ```yaml
-apiVersion: resources.stuttgart-things.com/v1alpha1
+apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: FluxInit
 metadata:
   name: dev-cluster-flux
