@@ -1,0 +1,17 @@
+---
+apiVersion: platform.sthings.de/v1alpha1
+kind: ClusterProfileClaim
+metadata:
+  name: dev-cluster
+  namespace: crossplane-system
+spec:
+  helmProviderConfigRef: dev-cluster-helm
+  kubernetesProviderConfigRef: dev-cluster-kubernetes
+  gitops:
+    engine: flux
+  flux:
+    instance:
+      sources:
+        - name: flux-infra
+          kind: OCIRepository
+          url: oci://ghcr.io/stuttgart-things/flux-infra

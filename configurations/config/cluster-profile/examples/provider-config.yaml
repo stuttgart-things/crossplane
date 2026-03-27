@@ -1,0 +1,24 @@
+---
+apiVersion: helm.crossplane.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: xplane-test-helm
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: kubeconfig-xplane-test
+      key: kubeconfig
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: ClusterProviderConfig
+metadata:
+  name: xplane-test-kubernetes
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: kubeconfig-xplane-test
+      key: kubeconfig

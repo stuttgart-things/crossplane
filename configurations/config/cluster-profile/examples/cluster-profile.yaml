@@ -1,0 +1,22 @@
+---
+apiVersion: platform.sthings.de/v1alpha1
+kind: XClusterProfile
+metadata:
+  name: test-cluster-profile
+  namespace: crossplane-system
+spec:
+  helmProviderConfigRef: xplane-test-helm
+  kubernetesProviderConfigRef: xplane-test-kubernetes
+  gitops:
+    engine: flux
+  flux:
+    instance:
+      sources:
+        - name: flux-infra
+          kind: OCIRepository
+          url: oci://ghcr.io/stuttgart-things/flux-infra
+          ref: latest
+        - name: flux-apps
+          kind: OCIRepository
+          url: oci://ghcr.io/stuttgart-things/flux-apps
+          ref: latest

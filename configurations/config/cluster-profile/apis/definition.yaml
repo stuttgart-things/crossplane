@@ -1,0 +1,112 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: clusterprofiles.platform.sthings.de
+spec:
+  group: platform.sthings.de
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: XClusterProfile
+    plural: clusterprofiles
+    singular: clusterprofile
+  claimNames:
+    kind: ClusterProfileClaim
+    plural: clusterprofileclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - helmProviderConfigRef
+                - kubernetesProviderConfigRef
+              properties:
+                helmProviderConfigRef:
+                  type: string
+                  description: Name of the Helm ClusterProviderConfig for the target cluster
+                kubernetesProviderConfigRef:
+                  type: string
+                  description: Name of the Kubernetes ClusterProviderConfig for the target cluster
+                gitops:
+                  type: object
+                  properties:
+                    engine:
+                      type: string
+                      enum:
+                        - flux
+                        - argocd
+                      default: flux
+                      description: GitOps engine to deploy (flux or argocd)
+                  description: GitOps engine selection and configuration
+                flux:
+                  type: object
+                  description: Flux-specific overrides passed through to XFluxInit
+                  properties:
+                    namespace:
+                      type: string
+                    operatorChart:
+                      type: object
+                      properties:
+                        version:
+                          type: string
+                        repoURL:
+                          type: string
+                    instance:
+                      type: object
+                      properties:
+                        distribution:
+                          type: string
+                        components:
+                          type: array
+                          items:
+                            type: string
+                        sources:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                              - name
+                              - url
+                            properties:
+                              name:
+                                type: string
+                              kind:
+                                type: string
+                                enum:
+                                  - GitRepository
+                                  - OCIRepository
+                                default: OCIRepository
+                              url:
+                                type: string
+                              ref:
+                                type: string
+                                default: latest
+                              path:
+                                type: string
+                                default: "."
+                              pullSecret:
+                                type: string
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                  description: True when all sub-compositions are Ready
+                gitopsEngine:
+                  type: string
+                  description: Active gitops engine (flux or argocd)
+                gitopsReady:
+                  type: boolean
+                  description: True when the gitops sub-composition is Ready
+                providerConfigRef:
+                  type: string
+                  description: Helm provider config ref carried through for downstream

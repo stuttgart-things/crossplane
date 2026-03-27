@@ -1,0 +1,17 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: cluster-profile
+  annotations:
+    meta.crossplane.io/maintainer: stuttgart-things
+    meta.crossplane.io/description: |
+      Cluster profile composition that nests GitOps (Flux/Argo),
+      DNS, and Vault sub-compositions into a single claim.
+spec:
+  crossplane:
+    version: ">=2.13.0"
+  dependsOn:
+    - function: xpkg.upbound.io/crossplane-contrib/function-kcl
+      version: ">=v0.10.4"
+    - function: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.6.0"

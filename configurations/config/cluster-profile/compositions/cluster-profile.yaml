@@ -1,0 +1,96 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: clusterprofile-kcl
+  labels:
+    crossplane.io/xrd: clusterprofiles.platform.sthings.de
+spec:
+  compositeTypeRef:
+    apiVersion: platform.sthings.de/v1alpha1
+    kind: XClusterProfile
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr = option("params").oxr
+
+            _name      = oxr.metadata.name
+            _namespace = oxr.metadata.namespace or "crossplane-system"
+            _helmPcr   = oxr.spec.helmProviderConfigRef
+            _k8sPcr    = oxr.spec.kubernetesProviderConfigRef
+            _engine    = oxr.spec.gitops?.engine or "flux"
+
+            _resources = []
+
+            # --- Flux ---
+            if _engine == "flux":
+                _fluxSpec = {
+                    helmProviderConfigRef = _helmPcr
+                    kubernetesProviderConfigRef = _k8sPcr
+                    **(oxr.spec.flux or {})
+                }
+
+                _fluxInit = {
+                    apiVersion = "resources.stuttgart-things.com/v1alpha1"
+                    kind = "FluxInit"
+                    metadata = {
+                        name = "{}-flux-init".format(_name)
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-flux-init".format(_name)
+                        }
+                    }
+                    spec = _fluxSpec
+                }
+                _resources += [_fluxInit]
+
+            items = _resources
+
+    - step: patch-status
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name   = oxr.metadata.name
+            _engine = oxr.spec.gitops?.engine or "flux"
+
+            _isReady = lambda resourceName: str -> bool {
+                _found = resourceName in ocds
+                _conds = ocds[resourceName].Resource?.status?.conditions or [] if _found else []
+                any_true = len([c for c in _conds if c.type == "Ready" and c.status == "True"]) > 0
+                any_true if _found else False
+            }
+
+            _gitopsReady = False
+            if _engine == "flux":
+                _gitopsReady = _isReady("{}-flux-init".format(_name))
+            if _engine == "argocd":
+                _gitopsReady = False
+
+            _oxr = oxr | {
+                status = {
+                    ready = _gitopsReady
+                    gitopsEngine = _engine
+                    gitopsReady = _gitopsReady
+                    providerConfigRef = oxr.spec.helmProviderConfigRef
+                }
+            }
+
+            items = [_oxr]
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready
