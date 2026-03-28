@@ -24,9 +24,12 @@ spec:
 
             _name      = oxr.metadata.name
             _namespace = oxr.metadata.namespace or "crossplane-system"
-            _helmPcr   = oxr.spec.helmProviderConfigRef
-            _k8sPcr    = oxr.spec.kubernetesProviderConfigRef
             _engine    = oxr.spec.gitops?.engine or "flux"
+
+            # ── Derive provider config refs from clusterName ──
+            _clusterName = oxr.spec?.clusterName or ""
+            _helmPcr   = oxr.spec?.helmProviderConfigRef or ("{}-helm".format(_clusterName) if _clusterName else "")
+            _k8sPcr    = oxr.spec?.kubernetesProviderConfigRef or ("{}-kubernetes".format(_clusterName) if _clusterName else "")
 
             _isReady = lambda resourceName: str -> bool {
                 _found = resourceName in ocds
@@ -37,13 +40,60 @@ spec:
 
             _resources = []
 
+            # ── 0. Observe RemoteCluster (if clusterName set) ──
+            _rcKey = "{}-observe-rc".format(_name)
+            _observedEndpoint = ""
+            _observedClusterType = ""
+            _observedPodCIDR = ""
+
+            if _clusterName:
+                _observeRC = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = _rcKey
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = _rcKey
+                        }
+                    }
+                    spec = {
+                        managementPolicies = ["Observe"]
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "kubeconfig.stuttgart-things.com/v1alpha1"
+                                kind = "RemoteCluster"
+                                metadata.name = _clusterName
+                            }
+                        }
+                        providerConfigRef = {
+                            name = "in-cluster"
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_observeRC]
+
+                # Read observed data from RemoteCluster status
+                _observedEndpoint = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.apiEndpoint or "" if _rcKey in ocds else ""
+                _observedClusterType = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.clusterType or "" if _rcKey in ocds else ""
+                _observedPodCIDR = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.podCIDR or "" if _rcKey in ocds else ""
+
+            # Parse apiEndpoint (e.g. "https://10.31.104.101:6443") into host + port
+            _apiHost = ""
+            _apiPort = 6443
+            if _observedEndpoint:
+                _stripped = _observedEndpoint.replace("https://", "").replace("http://", "").rstrip("/")
+                _parts = _stripped.split(":")
+                _apiHost = _parts[0]
+                _apiPort = int(_parts[1]) if len(_parts) > 1 else 6443
+
             # ── 1. Cilium (CNI — must be first) ────────────
             _cil = oxr.spec?.cilium or {}
             _cilEnabled = _cil?.enabled or False
             _ciliumReady = True
 
-            # Per-distribution Cilium defaults
-            _clusterType = oxr.spec?.clusterType or ""
+            # Per-distribution Cilium defaults (observed clusterType wins over spec)
+            _clusterType = _observedClusterType or oxr.spec?.clusterType or ""
             _ciliumDefaults = {
                 kind = {
                     routingMode = "native"
@@ -57,14 +107,14 @@ spec:
                     externalIPs = { enabled = True }
                 }
                 k3s = {
-                    routingMode = "native"
+                    routingMode = "tunnel"
                     ipv4NativeRoutingCIDR = "10.42.0.0/16"
-                    autoDirectNodeRoutes = True
+                    autoDirectNodeRoutes = False
                     devices = ["eth0"]
                     kubeProxyReplacement = True
                     operator = { replicas = 1 }
                     gatewayAPI = { enabled = True }
-                    l2Announcements = { enabled = False }
+                    l2Announcements = { enabled = True }
                     externalIPs = { enabled = True }
                 }
                 rke2 = {
@@ -105,10 +155,10 @@ spec:
                         version = _cil?.version or "1.19.2"
                         namespace = _cil?.namespace or "kube-system"
                         kubeProxyReplacement = _cil?.kubeProxyReplacement if _cil?.kubeProxyReplacement != None else _d?.kubeProxyReplacement if _d else True
-                        k8sServiceHost = _cil?.k8sServiceHost or ("{}-control-plane".format(_cil.clusterName) if _clusterType == "kind" and _cil?.clusterName else "")
-                        k8sServicePort = _cil?.k8sServicePort or 6443
+                        k8sServiceHost = _cil?.k8sServiceHost or _apiHost or ("{}-control-plane".format(_cil.clusterName) if _clusterType == "kind" and _cil?.clusterName else "")
+                        k8sServicePort = _cil?.k8sServicePort or _apiPort
                         routingMode = _cil?.routingMode or _d?.routingMode or "native"
-                        ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or _d?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
+                        ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or _observedPodCIDR or _d?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
                         autoDirectNodeRoutes = _cil?.autoDirectNodeRoutes if _cil?.autoDirectNodeRoutes != None else _d?.autoDirectNodeRoutes if _d else True
                         devices = _cil?.devices or _d?.devices or ["eth0", "net0"]
                         gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else _d?.gatewayAPI?.enabled if _d else True }
@@ -242,6 +292,8 @@ spec:
 
             _name   = oxr.metadata.name
             _engine = oxr.spec.gitops?.engine or "flux"
+            _clusterName = oxr.spec?.clusterName or ""
+            _helmPcr = oxr.spec?.helmProviderConfigRef or ("{}-helm".format(_clusterName) if _clusterName else "")
 
             _isReady = lambda resourceName: str -> bool {
                 _found = resourceName in ocds
@@ -269,7 +321,7 @@ spec:
                     gitopsEngine = _engine
                     gitopsReady = _gitopsReady
                     certManagerReady = _cmReady
-                    providerConfigRef = oxr.spec.helmProviderConfigRef
+                    providerConfigRef = _helmPcr
                 }
             }
 

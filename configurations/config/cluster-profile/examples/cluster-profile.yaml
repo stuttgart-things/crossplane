@@ -5,8 +5,7 @@ metadata:
   name: test-cluster-profile
   namespace: crossplane-system
 spec:
-  helmProviderConfigRef: xplane-test-helm
-  kubernetesProviderConfigRef: xplane-test-kubernetes
+  clusterName: xplane-test
   clusterType: kind
   cilium:
     enabled: true
