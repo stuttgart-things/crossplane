@@ -1,0 +1,27 @@
+---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XClusterProfile
+metadata:
+  name: k3s-target-labul
+  namespace: crossplane-system
+spec:
+  clusterName: k3s-target-labul
+  cilium:
+    enabled: true
+  gitops:
+    engine: flux
+  flux:
+    instance:
+      sources:
+        - name: flux-infra
+          kind: OCIRepository
+          url: oci://ghcr.io/stuttgart-things/flux-infra
+        - name: flux-apps
+          kind: OCIRepository
+          url: oci://ghcr.io/stuttgart-things/flux-apps
+  certManager:
+    enabled: true
+    selfSigned:
+      enabled: true
+      wildcard:
+        domain: sthings.io

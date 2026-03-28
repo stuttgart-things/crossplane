@@ -146,20 +146,26 @@ spec:
                       enum:
                         - native
                         - tunnel
-                      default: native
+                      description: >-
+                        Routing mode. No default — derived from clusterType
+                        distribution defaults (k3s=tunnel, kind=native, etc.).
                     ipv4NativeRoutingCIDR:
                       type: string
-                      default: "10.244.0.0/16"
+                      description: >-
+                        Pod CIDR for native routing. No default — derived from
+                        observed RemoteCluster podCIDR or distribution defaults.
                     autoDirectNodeRoutes:
                       type: boolean
-                      default: true
+                      description: >-
+                        Enable direct node routes. No default — derived from
+                        clusterType distribution defaults.
                     devices:
                       type: array
                       items:
                         type: string
-                      default:
-                        - eth0
-                        - net0
+                      description: >-
+                        Network devices for Cilium. No default — derived from
+                        clusterType distribution defaults.
                     gatewayAPI:
                       type: object
                       properties:
