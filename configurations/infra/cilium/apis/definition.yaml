@@ -91,14 +91,13 @@ spec:
                       default: "10.244.0.0/16"
                     autoDirectNodeRoutes:
                       type: boolean
-                      default: true
                     devices:
                       type: array
                       items:
                         type: string
-                      default:
-                        - eth0
-                        - net0
+                      description: >-
+                        Network devices for Cilium. When omitted, Cilium
+                        auto-detects the correct device.
                     operator:
                       type: object
                       properties:

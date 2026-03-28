@@ -94,6 +94,9 @@ spec:
 
             # Per-distribution Cilium defaults (observed clusterType wins over spec)
             _clusterType = _observedClusterType or oxr.spec?.clusterType or ""
+
+            # Gate: when using clusterName, wait for Observe to resolve clusterType
+            _observeReady = bool(_clusterType) if _clusterName else True
             _ciliumDefaults = {
                 kind = {
                     routingMode = "native"
@@ -110,7 +113,6 @@ spec:
                     routingMode = "tunnel"
                     ipv4NativeRoutingCIDR = "10.42.0.0/16"
                     autoDirectNodeRoutes = False
-                    devices = ["eth0"]
                     kubeProxyReplacement = True
                     operator = { replicas = 1 }
                     gatewayAPI = { enabled = True }
@@ -142,7 +144,7 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
-            if _cilEnabled:
+            if _cilEnabled and _observeReady:
                 # Merge: type defaults -> then user overrides win
                 _d = _typeDefaults
                 _cilSpec = {
@@ -159,8 +161,8 @@ spec:
                         k8sServicePort = _cil?.k8sServicePort or _apiPort
                         routingMode = _cil?.routingMode or _d?.routingMode or "native"
                         ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or _observedPodCIDR or _d?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
-                        autoDirectNodeRoutes = _cil?.autoDirectNodeRoutes if _cil?.autoDirectNodeRoutes != None else _d?.autoDirectNodeRoutes if _d else True
-                        devices = _cil?.devices or _d?.devices or ["eth0", "net0"]
+                        autoDirectNodeRoutes = _cil.autoDirectNodeRoutes if _cil?.autoDirectNodeRoutes != None else (True if not _d else _d.autoDirectNodeRoutes)
+                        **({} if not (_cil?.devices or _d?.devices) else {"devices": _cil?.devices or _d?.devices})
                         gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else _d?.gatewayAPI?.enabled if _d else True }
                         l2Announcements = { enabled = _cil?.l2Announcements?.enabled if _cil?.l2Announcements?.enabled != None else _d?.l2Announcements?.enabled if _d else True }
                         externalIPs = { enabled = _cil?.externalIPs?.enabled if _cil?.externalIPs?.enabled != None else _d?.externalIPs?.enabled if _d else True }

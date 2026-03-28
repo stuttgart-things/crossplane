@@ -40,8 +40,8 @@ spec:
             _operatorReplicas   = _install?.operator?.replicas or 1
             _routingMode        = _install?.routingMode or "native"
             _nativeRoutingCIDR  = _install?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
-            _autoDirectRoutes   = _install?.autoDirectNodeRoutes if _install?.autoDirectNodeRoutes != None else True
-            _devices            = _install?.devices or ["eth0", "net0"]
+            _autoDirectRoutes   = _install?.autoDirectNodeRoutes if _install?.autoDirectNodeRoutes != None else (_routingMode == "native")
+            _devices            = _install?.devices or []
 
             _lb = oxr.spec?.loadBalancer or {}
             _lbEnabled       = _lb?.enabled or False
@@ -92,7 +92,7 @@ spec:
                                 routingMode = _routingMode
                                 ipv4NativeRoutingCIDR = _nativeRoutingCIDR
                                 autoDirectNodeRoutes = _autoDirectRoutes
-                                devices = _devices
+                                **({"devices": _devices} if _devices else {})
                                 gatewayAPI = { enabled = _gatewayAPIEnabled }
                                 l2announcements = { enabled = _l2Enabled }
                                 externalIPs = { enabled = _extIPsEnabled }
