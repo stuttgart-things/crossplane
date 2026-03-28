@@ -41,8 +41,9 @@ spec:
                       enum:
                         - flux
                         - argocd
+                        - none
                       default: flux
-                      description: GitOps engine to deploy (flux or argocd)
+                      description: GitOps engine to deploy (flux, argocd, or none to skip)
                   description: GitOps engine selection and configuration
                 flux:
                   type: object
@@ -92,6 +93,17 @@ spec:
                                 default: "."
                               pullSecret:
                                 type: string
+                clusterType:
+                  type: string
+                  enum:
+                    - kind
+                    - k3s
+                    - rke2
+                    - k8s
+                  description: >-
+                    Kubernetes distribution type. When set, distribution-specific
+                    defaults are applied for Cilium (routingMode, devices, etc.).
+                    User-provided values always override the defaults.
                 cilium:
                   type: object
                   description: Cilium CNI configuration passed through to XCilium
@@ -109,9 +121,15 @@ spec:
                     kubeProxyReplacement:
                       type: boolean
                       default: true
+                    clusterName:
+                      type: string
+                      description: >-
+                        Kind cluster name. When clusterType is "kind" and
+                        k8sServiceHost is not set, k8sServiceHost is derived
+                        as "{clusterName}-control-plane".
                     k8sServiceHost:
                       type: string
-                      description: API server host
+                      description: API server host (auto-derived for kind if clusterName is set)
                     k8sServicePort:
                       type: integer
                       default: 6443

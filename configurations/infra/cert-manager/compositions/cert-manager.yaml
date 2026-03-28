@@ -91,6 +91,44 @@ spec:
                 }
                 _resources += [_helmRelease]
 
+            # ── Usages: Objects depend on Helm release for CRD controllers ──
+            _usageTemplate = lambda objName: str -> any {
+                {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata = {
+                        name = "{}-uses-cm".format(objName)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-uses-cm".format(objName)
+                        }
+                    }
+                    spec = {
+                        replayDeletion = True
+                        of = {
+                            apiVersion = "helm.m.crossplane.io/v1beta1"
+                            kind = "Release"
+                            resourceRef.name = "{}-cert-manager".format(_name)
+                        }
+                        by = {
+                            apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                            kind = "Object"
+                            resourceRef.name = objName
+                        }
+                    }
+                }
+            }
+
+            if _installEnabled and _ssEnabled:
+                _resources += [_usageTemplate("{}-selfsigned-issuer".format(_name))]
+                _resources += [_usageTemplate("{}-ca-cert".format(_name))]
+                _resources += [_usageTemplate("{}-ca-issuer".format(_name))]
+
+            if _installEnabled and _ssEnabled and _wcEnabled and _wcDomain:
+                _resources += [_usageTemplate("{}-wildcard-cert".format(_name))]
+
+            if _installEnabled and _viEnabled:
+                _resources += [_usageTemplate("{}-vault-issuer".format(_name))]
+
             # ── 2. SelfSigned ClusterIssuer ──────────────────
             if _ssEnabled:
                 _selfSignedIssuer = {

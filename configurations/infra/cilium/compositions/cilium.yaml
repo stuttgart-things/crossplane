@@ -104,6 +104,40 @@ spec:
                 }
                 _resources += [_helmRelease]
 
+            # ── Usages: Cilium CRD objects depend on Helm release ──
+            _ciliumUsage = lambda objName: str -> any {
+                {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata = {
+                        name = "{}-uses-cilium".format(objName)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-uses-cilium".format(objName)
+                        }
+                    }
+                    spec = {
+                        replayDeletion = True
+                        of = {
+                            apiVersion = "helm.m.crossplane.io/v1beta1"
+                            kind = "Release"
+                            resourceRef.name = "{}-cilium".format(_name)
+                        }
+                        by = {
+                            apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                            kind = "Object"
+                            resourceRef.name = objName
+                        }
+                    }
+                }
+            }
+
+            if _installEnabled and _lbEnabled:
+                _resources += [_ciliumUsage("{}-lb-pool".format(_name))]
+                _resources += [_ciliumUsage("{}-l2-policy".format(_name))]
+
+            if _installEnabled and _gwEnabled:
+                _resources += [_ciliumUsage("{}-gateway".format(_name))]
+
             # ── 2. Dynamic IP: Observe XIPReservation ───────
             if _lbEnabled and _ipMode == "dynamic" and _reservationRef:
                 _observeIP = {

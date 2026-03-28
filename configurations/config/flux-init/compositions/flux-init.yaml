@@ -116,7 +116,36 @@ spec:
                 }
             }
 
-            _resources = [_helmRelease, _fluxInstance]
+            # Usage: FluxInstance must be deleted before flux-operator Helm release
+            _fluxInstanceUsage = {
+                apiVersion: "protection.crossplane.io/v1beta1"
+                kind: "Usage"
+                metadata: {
+                    name: "{}-flux-instance-uses-operator".format(_name)
+                    annotations: {
+                        "crossplane.io/composition-resource-name": "{}-flux-instance-uses-operator".format(_name)
+                    }
+                }
+                spec: {
+                    replayDeletion: True
+                    of: {
+                        apiVersion: "helm.m.crossplane.io/v1beta1"
+                        kind: "Release"
+                        resourceRef: {
+                            name: "{}-flux-operator".format(_name)
+                        }
+                    }
+                    by: {
+                        apiVersion: "kubernetes.m.crossplane.io/v1alpha1"
+                        kind: "Object"
+                        resourceRef: {
+                            name: "{}-flux-instance".format(_name)
+                        }
+                    }
+                }
+            }
+
+            _resources = [_helmRelease, _fluxInstance, _fluxInstanceUsage]
 
             # Resource 3..N - OCIRepository/GitRepository Objects from sources list
             _instanceResName = "{}-flux-instance".format(_name)

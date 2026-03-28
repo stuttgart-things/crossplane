@@ -42,7 +42,59 @@ spec:
             _cilEnabled = _cil?.enabled or False
             _ciliumReady = True
 
+            # Per-distribution Cilium defaults
+            _clusterType = oxr.spec?.clusterType or ""
+            _ciliumDefaults = {
+                kind = {
+                    routingMode = "native"
+                    ipv4NativeRoutingCIDR = "10.244.0.0/16"
+                    autoDirectNodeRoutes = True
+                    devices = ["eth0", "net0"]
+                    kubeProxyReplacement = True
+                    operator = { replicas = 1 }
+                    gatewayAPI = { enabled = False }
+                    l2Announcements = { enabled = True }
+                    externalIPs = { enabled = True }
+                }
+                k3s = {
+                    routingMode = "native"
+                    ipv4NativeRoutingCIDR = "10.42.0.0/16"
+                    autoDirectNodeRoutes = True
+                    devices = ["eth0"]
+                    kubeProxyReplacement = True
+                    operator = { replicas = 1 }
+                    gatewayAPI = { enabled = True }
+                    l2Announcements = { enabled = False }
+                    externalIPs = { enabled = True }
+                }
+                rke2 = {
+                    routingMode = "native"
+                    ipv4NativeRoutingCIDR = "10.42.0.0/16"
+                    autoDirectNodeRoutes = True
+                    devices = ["eth0"]
+                    kubeProxyReplacement = True
+                    operator = { replicas = 2 }
+                    gatewayAPI = { enabled = True }
+                    l2Announcements = { enabled = False }
+                    externalIPs = { enabled = True }
+                }
+                k8s = {
+                    routingMode = "tunnel"
+                    ipv4NativeRoutingCIDR = "10.244.0.0/16"
+                    autoDirectNodeRoutes = False
+                    devices = ["eth0"]
+                    kubeProxyReplacement = True
+                    operator = { replicas = 2 }
+                    gatewayAPI = { enabled = True }
+                    l2Announcements = { enabled = False }
+                    externalIPs = { enabled = True }
+                }
+            }
+            _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
+
             if _cilEnabled:
+                # Merge: type defaults -> then user overrides win
+                _d = _typeDefaults
                 _cilSpec = {
                     targetCluster = {
                         name = _helmPcr
@@ -52,17 +104,17 @@ spec:
                         enabled = True
                         version = _cil?.version or "1.19.2"
                         namespace = _cil?.namespace or "kube-system"
-                        kubeProxyReplacement = _cil?.kubeProxyReplacement if _cil?.kubeProxyReplacement != None else True
-                        k8sServiceHost = _cil?.k8sServiceHost or ""
+                        kubeProxyReplacement = _cil?.kubeProxyReplacement if _cil?.kubeProxyReplacement != None else _d?.kubeProxyReplacement if _d else True
+                        k8sServiceHost = _cil?.k8sServiceHost or ("{}-control-plane".format(_cil.clusterName) if _clusterType == "kind" and _cil?.clusterName else "")
                         k8sServicePort = _cil?.k8sServicePort or 6443
-                        routingMode = _cil?.routingMode or "native"
-                        ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
-                        autoDirectNodeRoutes = _cil?.autoDirectNodeRoutes if _cil?.autoDirectNodeRoutes != None else True
-                        devices = _cil?.devices or ["eth0", "net0"]
-                        gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else True }
-                        l2Announcements = { enabled = _cil?.l2Announcements?.enabled if _cil?.l2Announcements?.enabled != None else True }
-                        externalIPs = { enabled = _cil?.externalIPs?.enabled if _cil?.externalIPs?.enabled != None else True }
-                        operator = { replicas = _cil?.operator?.replicas or 1 }
+                        routingMode = _cil?.routingMode or _d?.routingMode or "native"
+                        ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or _d?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
+                        autoDirectNodeRoutes = _cil?.autoDirectNodeRoutes if _cil?.autoDirectNodeRoutes != None else _d?.autoDirectNodeRoutes if _d else True
+                        devices = _cil?.devices or _d?.devices or ["eth0", "net0"]
+                        gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else _d?.gatewayAPI?.enabled if _d else True }
+                        l2Announcements = { enabled = _cil?.l2Announcements?.enabled if _cil?.l2Announcements?.enabled != None else _d?.l2Announcements?.enabled if _d else True }
+                        externalIPs = { enabled = _cil?.externalIPs?.enabled if _cil?.externalIPs?.enabled != None else _d?.externalIPs?.enabled if _d else True }
+                        operator = { replicas = _cil?.operator?.replicas or _d?.operator?.replicas or 1 }
                     }
                 }
 
@@ -201,7 +253,7 @@ spec:
             _cilEnabled = oxr.spec?.cilium?.enabled or False
             _cilReady = _isReady("{}-cilium".format(_name)) if _cilEnabled else True
 
-            _gitopsReady = False
+            _gitopsReady = True if _engine == "none" else False
             if _engine == "flux":
                 _gitopsReady = _isReady("{}-flux-init".format(_name))
             if _engine == "argocd":
