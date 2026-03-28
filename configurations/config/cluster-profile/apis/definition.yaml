@@ -23,16 +23,24 @@ spec:
           properties:
             spec:
               type: object
-              required:
-                - helmProviderConfigRef
-                - kubernetesProviderConfigRef
               properties:
+                clusterName:
+                  type: string
+                  description: >-
+                    Name of the RemoteCluster resource (kubeconfig.stuttgart-things.com).
+                    When set, apiEndpoint, clusterType, podCIDR, and provider config refs
+                    are derived automatically. Provider config refs default to
+                    {clusterName}-helm and {clusterName}-kubernetes.
                 helmProviderConfigRef:
                   type: string
-                  description: Name of the Helm ClusterProviderConfig for the target cluster
+                  description: >-
+                    Name of the Helm ClusterProviderConfig for the target cluster.
+                    Optional when clusterName is set (derived as {clusterName}-helm).
                 kubernetesProviderConfigRef:
                   type: string
-                  description: Name of the Kubernetes ClusterProviderConfig for the target cluster
+                  description: >-
+                    Name of the Kubernetes ClusterProviderConfig for the target cluster.
+                    Optional when clusterName is set (derived as {clusterName}-kubernetes).
                 gitops:
                   type: object
                   properties:
