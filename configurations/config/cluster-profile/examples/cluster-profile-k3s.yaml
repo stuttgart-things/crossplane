@@ -10,18 +10,5 @@ spec:
     enabled: true
   gitops:
     engine: flux
-  flux:
-    instance:
-      sources:
-        - name: flux-infra
-          kind: OCIRepository
-          url: oci://ghcr.io/stuttgart-things/flux-infra
-        - name: flux-apps
-          kind: OCIRepository
-          url: oci://ghcr.io/stuttgart-things/flux-apps
   certManager:
     enabled: true
-    selfSigned:
-      enabled: true
-      wildcard:
-        domain: sthings.io

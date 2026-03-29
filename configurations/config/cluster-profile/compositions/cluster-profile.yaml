@@ -215,10 +215,18 @@ spec:
 
             # ── 2. FluxInit (gated on Cilium) ──────────────
             if _engine == "flux" and (_ciliumReady or not _cilEnabled):
+                _defaultSources = [
+                    {name = "flux-infra", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-infra"}
+                    {name = "flux-apps", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-apps"}
+                ]
+                _userFlux = oxr.spec.flux or {}
+                _userInstance = _userFlux.instance or {}
+                _userSources = _userInstance.sources or []
+                _mergedInstance = _userInstance | {sources = _userSources if _userSources else _defaultSources}
                 _fluxSpec = {
                     helmProviderConfigRef = _helmPcr
                     kubernetesProviderConfigRef = _k8sPcr
-                    **(oxr.spec.flux or {})
+                    **(_userFlux | {instance = _mergedInstance})
                 }
 
                 _fluxInit = {
@@ -251,14 +259,15 @@ spec:
                 }
 
                 _ss = oxr.spec.certManager?.selfSigned or {}
-                if _ss?.enabled:
+                _ssEnabled = _ss?.enabled if _ss?.enabled != None else True
+                if _ssEnabled:
                     _cmSpec |= {
                         selfSigned = {
                             enabled = True
                             caName = _ss?.caName or "cluster-ca"
                             wildcard = {
                                 enabled = _ss?.wildcard?.enabled if _ss?.wildcard?.enabled != None else True
-                                domain = _ss?.wildcard?.domain or ""
+                                domain = _ss?.wildcard?.domain or "sthings.io"
                                 secretName = _ss?.wildcard?.secretName or "wildcard-tls"
                                 namespace = _ss?.wildcard?.namespace or "default"
                             }
@@ -278,6 +287,32 @@ spec:
                     spec = _cmSpec
                 }
                 _resources += [_certManager]
+
+            # ── 4. IP Reservation (skipped for kind clusters) ──
+            _ipr = oxr.spec?.ipReservation or {}
+            # Auto-enable for non-kind clusters when clusterName is set
+            _iprAutoEnabled = bool(_clusterName) and _clusterType != "kind"
+            _iprEnabled = _ipr?.enabled if _ipr?.enabled != None else _iprAutoEnabled
+            if _iprEnabled and _observeReady:
+                _ipReservation = {
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                    kind = "XIPReservation"
+                    metadata = {
+                        name = "{}-ip-reservation".format(_name)
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-ip-reservation".format(_name)
+                        }
+                    }
+                    spec = {
+                        clusterName = _clusterName
+                        count = _ipr?.count or 1
+                        createDNS = _ipr?.createDNS if _ipr?.createDNS != None else True
+                        clusterbookProviderConfigRef = _ipr?.clusterbookProviderConfigRef or "default"
+                        **({} if not _ipr?.ip else {"ip": _ipr.ip})
+                    }
+                }
+                _resources += [_ipReservation]
 
             items = _resources
 
@@ -316,13 +351,26 @@ spec:
             _cmEnabled = oxr.spec.certManager?.enabled or False
             _cmReady = _isReady("{}-cert-manager".format(_name)) if _cmEnabled else True
 
+            # IP reservation status
+            _ipr = oxr.spec?.ipReservation or {}
+            _rcKey = "{}-observe-rc".format(_name)
+            _observedClusterType = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.clusterType or "" if _rcKey in ocds else ""
+            _clusterType = _observedClusterType or oxr.spec?.clusterType or ""
+            _iprAutoEnabled = bool(_clusterName) and _clusterType != "kind"
+            _iprEnabled = _ipr?.enabled if _ipr?.enabled != None else _iprAutoEnabled
+            _iprReady = _isReady("{}-ip-reservation".format(_name)) if _iprEnabled else True
+            _iprKey = "{}-ip-reservation".format(_name)
+            _ipAddresses = ocds[_iprKey].Resource?.status?.ipAddresses or [] if _iprKey in ocds else []
+
             _oxr = oxr | {
                 status = {
-                    ready = _cilReady and _gitopsReady and _cmReady
+                    ready = _cilReady and _gitopsReady and _cmReady and _iprReady
                     ciliumReady = _cilReady
                     gitopsEngine = _engine
                     gitopsReady = _gitopsReady
                     certManagerReady = _cmReady
+                    ipReservationReady = _iprReady
+                    ipAddresses = _ipAddresses
                     providerConfigRef = _helmPcr
                 }
             }

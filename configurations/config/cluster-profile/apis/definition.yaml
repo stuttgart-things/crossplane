@@ -231,6 +231,33 @@ spec:
                         tlsSecretName:
                           type: string
 
+                ipReservation:
+                  type: object
+                  description: >-
+                    IP reservation via clusterbook. Auto-enabled for non-kind clusters
+                    when clusterName is set. Skipped for kind clusters.
+                  properties:
+                    enabled:
+                      type: boolean
+                      description: >-
+                        Reserve IPs from clusterbook. Defaults to true for non-kind
+                        clusters when clusterName is set, false otherwise.
+                    count:
+                      type: integer
+                      default: 1
+                      description: Number of IP addresses to reserve
+                    ip:
+                      type: string
+                      description: Explicit IP address (skips auto-reservation if set)
+                    createDNS:
+                      type: boolean
+                      default: false
+                      description: Create a PDNS wildcard DNS record for the reserved IP
+                    clusterbookProviderConfigRef:
+                      type: string
+                      default: default
+                      description: Name of the clusterbook ClusterProviderConfig
+
                 certManager:
                   type: object
                   description: cert-manager configuration passed through to XCertManager
@@ -287,6 +314,14 @@ spec:
                 certManagerReady:
                   type: boolean
                   description: True when the cert-manager sub-composition is Ready
+                ipReservationReady:
+                  type: boolean
+                  description: True when the IP reservation sub-composition is Ready
+                ipAddresses:
+                  type: array
+                  items:
+                    type: string
+                  description: Reserved IP addresses from clusterbook
                 providerConfigRef:
                   type: string
                   description: Helm provider config ref carried through for downstream
