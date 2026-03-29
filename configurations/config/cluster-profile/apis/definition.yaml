@@ -214,6 +214,9 @@ spec:
                         poolName:
                           type: string
                           default: default-pool
+                        l2PolicyName:
+                          type: string
+                          default: default-l2-announcement-policy
                     gateway:
                       type: object
                       properties:

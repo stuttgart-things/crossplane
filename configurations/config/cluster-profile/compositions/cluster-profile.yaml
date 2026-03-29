@@ -87,16 +87,49 @@ spec:
                 _apiHost = _parts[0]
                 _apiPort = int(_parts[1]) if len(_parts) > 1 else 6443
 
-            # ── 1. Cilium (CNI — must be first) ────────────
-            _cil = oxr.spec?.cilium or {}
-            _cilEnabled = _cil?.enabled or False
-            _ciliumReady = True
-
-            # Per-distribution Cilium defaults (observed clusterType wins over spec)
+            # Per-distribution defaults (observed clusterType wins over spec)
             _clusterType = _observedClusterType or oxr.spec?.clusterType or ""
 
             # Gate: when using clusterName, wait for Observe to resolve clusterType
             _observeReady = bool(_clusterType) if _clusterName else True
+
+            # ── 1. IP Reservation (before Cilium — provides LB IP) ──
+            _ipr = oxr.spec?.ipReservation or {}
+            _iprAutoEnabled = bool(_clusterName) and _clusterType != "kind"
+            _iprEnabled = _ipr?.enabled if _ipr?.enabled != None else _iprAutoEnabled
+            _iprKey = "{}-ip-reservation".format(_name)
+            _iprReady = _isReady(_iprKey) if _iprEnabled else True
+
+            # Read reserved IP from XIPReservation ocds (for Cilium LB auto-config)
+            _iprAddrs = ocds[_iprKey].Resource?.status?.ipAddresses if _iprKey in ocds else []
+            _reservedIP = _iprAddrs[0] if _iprAddrs else ""
+
+            if _iprEnabled and _observeReady:
+                _ipReservation = {
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                    kind = "XIPReservation"
+                    metadata = {
+                        name = "{}-ip-reservation".format(_name)
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-ip-reservation".format(_name)
+                        }
+                    }
+                    spec = {
+                        clusterName = _clusterName
+                        count = _ipr?.count or 1
+                        createDNS = _ipr?.createDNS if _ipr?.createDNS != None else True
+                        clusterbookProviderConfigRef = _ipr?.clusterbookProviderConfigRef or "default"
+                        **({} if not _ipr?.ip else {"ip": _ipr.ip})
+                    }
+                }
+                _resources += [_ipReservation]
+
+            # ── 2. Cilium (gated on IP reservation when enabled) ──
+            _cil = oxr.spec?.cilium or {}
+            _cilEnabled = _cil?.enabled or False
+            _ciliumReady = True
+
             _ciliumDefaults = {
                 kind = {
                     routingMode = "native"
@@ -144,7 +177,7 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
-            if _cilEnabled and _observeReady:
+            if _cilEnabled and _observeReady and (_iprReady or not _iprEnabled):
                 # Merge: type defaults -> then user overrides win
                 _d = _typeDefaults
                 _cilSpec = {
@@ -170,16 +203,22 @@ spec:
                     }
                 }
 
-                # LoadBalancer config
+                # LoadBalancer config — auto-enable with reserved IP
                 _cilLb = _cil?.loadBalancer or {}
-                if _cilLb?.enabled:
+                _lbAutoEnabled = bool(_reservedIP) and _clusterType != "kind"
+                _lbEnabled = _cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled
+                if _lbEnabled:
+                    _lbIpRange = _cilLb?.ipRange or {}
+                    if not _lbIpRange and _reservedIP:
+                        _lbIpRange = {start = _reservedIP, end = _reservedIP}
                     _cilSpec |= {
                         loadBalancer = {
                             enabled = True
                             ipMode = _cilLb?.ipMode or "static"
-                            ipRange = _cilLb?.ipRange or {}
+                            ipRange = _lbIpRange
                             **({"reservationRef": _cilLb.reservationRef} if _cilLb?.reservationRef else {})
                             poolName = _cilLb?.poolName or "default-pool"
+                            l2PolicyName = _cilLb?.l2PolicyName or "default-l2-announcement-policy"
                         }
                     }
 
@@ -287,32 +326,6 @@ spec:
                     spec = _cmSpec
                 }
                 _resources += [_certManager]
-
-            # ── 4. IP Reservation (skipped for kind clusters) ──
-            _ipr = oxr.spec?.ipReservation or {}
-            # Auto-enable for non-kind clusters when clusterName is set
-            _iprAutoEnabled = bool(_clusterName) and _clusterType != "kind"
-            _iprEnabled = _ipr?.enabled if _ipr?.enabled != None else _iprAutoEnabled
-            if _iprEnabled and _observeReady:
-                _ipReservation = {
-                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
-                    kind = "XIPReservation"
-                    metadata = {
-                        name = "{}-ip-reservation".format(_name)
-                        namespace = _namespace
-                        annotations = {
-                            "crossplane.io/composition-resource-name" = "{}-ip-reservation".format(_name)
-                        }
-                    }
-                    spec = {
-                        clusterName = _clusterName
-                        count = _ipr?.count or 1
-                        createDNS = _ipr?.createDNS if _ipr?.createDNS != None else True
-                        clusterbookProviderConfigRef = _ipr?.clusterbookProviderConfigRef or "default"
-                        **({} if not _ipr?.ip else {"ip": _ipr.ip})
-                    }
-                }
-                _resources += [_ipReservation]
 
             items = _resources
 
