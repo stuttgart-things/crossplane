@@ -100,9 +100,9 @@ spec:
             _iprKey = "{}-ip-reservation".format(_name)
             _iprReady = _isReady(_iprKey) if _iprEnabled else True
 
-            # Read reserved IP from XIPReservation ocds (for Cilium LB auto-config)
-            _iprAddrs = ocds[_iprKey].Resource?.status?.ipAddresses if _iprKey in ocds else []
-            _reservedIP = _iprAddrs[0] if _iprAddrs else ""
+            # Read reserved IP — prefer oxr.status (set by status step in prior loop)
+            _oxrIPs = oxr.status?.ipAddresses or []
+            _reservedIP = _oxrIPs[0] if _oxrIPs else ""
 
             if _iprEnabled and _observeReady:
                 _ipReservation = {
@@ -177,9 +177,17 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
-            if _cilEnabled and _observeReady and (_iprReady or not _iprEnabled):
+            _iprSatisfied = (bool(_reservedIP) if _iprEnabled else True)
+            if _cilEnabled and _observeReady and _iprSatisfied:
                 # Merge: type defaults -> then user overrides win
                 _d = _typeDefaults
+                _cilLb = _cil?.loadBalancer or {}
+                _lbAutoEnabled = bool(_reservedIP) and _clusterType != "kind"
+                _lbEnabled = _cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled
+                _lbIpRange = _cilLb?.ipRange or {}
+                if not _lbIpRange and _reservedIP:
+                    _lbIpRange = {start = _reservedIP, end = _reservedIP}
+
                 _cilSpec = {
                     targetCluster = {
                         name = _helmPcr
@@ -201,26 +209,15 @@ spec:
                         externalIPs = { enabled = _cil?.externalIPs?.enabled if _cil?.externalIPs?.enabled != None else _d?.externalIPs?.enabled if _d else True }
                         operator = { replicas = _cil?.operator?.replicas or _d?.operator?.replicas or 1 }
                     }
-                }
-
-                # LoadBalancer config — auto-enable with reserved IP
-                _cilLb = _cil?.loadBalancer or {}
-                _lbAutoEnabled = bool(_reservedIP) and _clusterType != "kind"
-                _lbEnabled = _cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled
-                if _lbEnabled:
-                    _lbIpRange = _cilLb?.ipRange or {}
-                    if not _lbIpRange and _reservedIP:
-                        _lbIpRange = {start = _reservedIP, end = _reservedIP}
-                    _cilSpec |= {
-                        loadBalancer = {
-                            enabled = True
-                            ipMode = _cilLb?.ipMode or "static"
-                            ipRange = _lbIpRange
-                            **({"reservationRef": _cilLb.reservationRef} if _cilLb?.reservationRef else {})
-                            poolName = _cilLb?.poolName or "default-pool"
-                            l2PolicyName = _cilLb?.l2PolicyName or "default-l2-announcement-policy"
-                        }
+                    loadBalancer = {
+                        enabled = _lbEnabled
+                        ipMode = _cilLb?.ipMode or "static"
+                        ipRange = _lbIpRange
+                        **({"reservationRef": _cilLb.reservationRef} if _cilLb?.reservationRef else {})
+                        poolName = _cilLb?.poolName or "default-pool"
+                        l2PolicyName = _cilLb?.l2PolicyName or "default-l2-announcement-policy"
                     }
+                }
 
                 # Gateway config
                 _cilGw = _cil?.gateway or {}
@@ -248,6 +245,37 @@ spec:
                     spec = _cilSpec
                 }
                 _resources += [_cilium]
+
+                # Usage: Cilium depends on IP reservation (ordering + deletion)
+                if _iprEnabled:
+                    _ciliumUsesIpr = {
+                        apiVersion = "protection.crossplane.io/v1beta1"
+                        kind = "Usage"
+                        metadata = {
+                            name = "{}-cilium-uses-ip-reservation".format(_name)
+                            annotations = {
+                                "crossplane.io/composition-resource-name" = "{}-cilium-uses-ip-reservation".format(_name)
+                            }
+                        }
+                        spec = {
+                            replayDeletion = True
+                            of = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "XIPReservation"
+                                resourceRef = {
+                                    name = "{}-ip-reservation".format(_name)
+                                }
+                            }
+                            by = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "XCilium"
+                                resourceRef = {
+                                    name = "{}-cilium".format(_name)
+                                }
+                            }
+                        }
+                    }
+                    _resources += [_ciliumUsesIpr]
 
                 # Gate: check if Cilium is ready before proceeding
                 _ciliumReady = _isReady("{}-cilium".format(_name))
