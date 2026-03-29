@@ -188,6 +188,10 @@ spec:
                 if not _lbIpRange and _reservedIP:
                     _lbIpRange = {start = _reservedIP, end = _reservedIP}
 
+                _cilGw = _cil?.gateway or {}
+                _gwAutoEnabled = _clusterType != "kind"
+                _gwEnabled = _cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled
+
                 _cilSpec = {
                     targetCluster = {
                         name = _helmPcr
@@ -217,20 +221,14 @@ spec:
                         poolName = _cilLb?.poolName or "default-pool"
                         l2PolicyName = _cilLb?.l2PolicyName or "default-l2-announcement-policy"
                     }
-                }
-
-                # Gateway config
-                _cilGw = _cil?.gateway or {}
-                if _cilGw?.enabled:
-                    _cilSpec |= {
-                        gateway = {
-                            enabled = True
-                            name = _cilGw?.name or "cilium-gateway"
-                            namespace = _cilGw?.namespace or "default"
-                            **({"domain": _cilGw.domain} if _cilGw?.domain else {})
-                            **({"tlsSecretName": _cilGw.tlsSecretName} if _cilGw?.tlsSecretName else {})
-                        }
+                    gateway = {
+                        enabled = _gwEnabled
+                        name = _cilGw?.name or "cilium-gateway"
+                        namespace = _cilGw?.namespace or "default"
+                        domain = _cilGw?.domain or "sthings.io"
+                        tlsSecretName = _cilGw?.tlsSecretName or "wildcard-tls"
                     }
+                }
 
                 _cilium = {
                     apiVersion = "platform.stuttgart-things.com/v1alpha1"
