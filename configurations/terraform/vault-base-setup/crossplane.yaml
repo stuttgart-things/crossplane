@@ -1,0 +1,21 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: vault-base-setup
+  annotations:
+    meta.crossplane.io/maintainer: Stuttgart Things <info@stuttgart-things.com>
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      Sets up Vault PKI integration with cert-manager on a target cluster
+      using the vault-base-setup OpenTofu module.
+spec:
+  crossplane:
+    version: ">=2.13.0"
+  dependsOn:
+    - provider: xpkg.upbound.io/upbound/provider-opentofu
+      version: ">=v1.1.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-go-templating
+      version: ">=v0.11.3"
+    - function: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.6.0"

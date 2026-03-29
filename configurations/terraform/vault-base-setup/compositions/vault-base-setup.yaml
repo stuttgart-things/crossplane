@@ -1,0 +1,106 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: vault-base-setup
+  labels:
+    crossplane.io/xrd: vaultbasesetups.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: VaultBaseSetup
+  mode: Pipeline
+  pipeline:
+    - step: render-workspace
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |  # pragma: allowlist secret
+            {{- $spec := .observed.composite.resource.spec -}}
+            {{- $name := .observed.composite.resource.metadata.name -}}
+            {{- $clusterName := $spec.clusterName -}}
+            {{- $vaultAddr := $spec.vaultAddr | default "https://vault.sthings-infra.sthings-vsphere.labul.sva.de" -}}
+            {{- $vaultCaBundle := $spec.vaultCaBundle | default "" -}}
+            {{- $pkiRole := "sthings-vsphere" -}}
+            {{- if $spec.certmanager -}}{{- if $spec.certmanager.pkiRole -}}{{- $pkiRole = $spec.certmanager.pkiRole -}}{{- end -}}{{- end -}}
+            {{- $policyName := "pki-issue" -}}
+            {{- if $spec.certmanager -}}{{- if $spec.certmanager.policyName -}}{{- $policyName = $spec.certmanager.policyName -}}{{- end -}}{{- end -}}
+            {{- $issuerEnabled := true -}}
+            {{- if $spec.certmanager -}}{{- if eq (printf "%v" $spec.certmanager.issuerEnabled) "false" -}}{{- $issuerEnabled = false -}}{{- end -}}{{- end -}}
+            {{- $pkiEnabled := false -}}
+            {{- if $spec.pki -}}{{- if $spec.pki.enabled -}}{{- $pkiEnabled = true -}}{{- end -}}{{- end -}}
+            {{- $csiEnabled := false -}}
+            {{- if $spec.csi -}}{{- if $spec.csi.enabled -}}{{- $csiEnabled = true -}}{{- end -}}{{- end -}}
+            {{- $vsoEnabled := false -}}
+            {{- if $spec.vso -}}{{- if $spec.vso.enabled -}}{{- $vsoEnabled = true -}}{{- end -}}{{- end -}}
+            {{- $providerConfigRef := $spec.providerConfigRef | default "default" -}}
+            {{- $kubeconfigSecretName := printf "kubeconfig-%s" $clusterName -}}
+            {{- $kubeconfigSecretKey := "kubeconfig" -}}
+            {{- if $spec.kubeconfigSecretRef -}}
+            {{- if $spec.kubeconfigSecretRef.name -}}{{- $kubeconfigSecretName = $spec.kubeconfigSecretRef.name -}}{{- end -}}
+            {{- if $spec.kubeconfigSecretRef.key -}}{{- $kubeconfigSecretKey = $spec.kubeconfigSecretRef.key -}}{{- end -}}
+            {{- end -}}
+            ---
+            apiVersion: opentofu.m.upbound.io/v1beta1
+            kind: Workspace
+            metadata:
+              annotations:
+                {{ setResourceNameAnnotation (print $name "-vault-base-setup") }}
+              name: {{ $name }}-vault-base-setup
+              namespace: crossplane-system
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+                kind: ClusterProviderConfig
+
+              forProvider:
+                source: Remote
+                module: git::https://github.com/stuttgart-things/vault-base-setup?ref=main
+
+                env:
+                  - name: TF_VAR_kubeconfig_content
+                    secretKeyRef:
+                      name: {{ $kubeconfigSecretName }}
+                      key: {{ $kubeconfigSecretKey }}
+
+                vars:
+                  - key: vault_addr
+                    value: "{{ $vaultAddr }}"
+
+                  - key: cluster_name
+                    value: "{{ $clusterName }}"
+
+                  - key: skip_tls_verify
+                    value: "true"
+
+                  - key: pki_enabled
+                    value: "{{ $pkiEnabled }}"
+
+                  - key: csi_enabled
+                    value: "{{ $csiEnabled }}"
+
+                  - key: vso_enabled
+                    value: "{{ $vsoEnabled }}"
+
+                  - key: certmanager_vault_issuer_enabled
+                    value: "{{ $issuerEnabled }}"
+
+                  - key: certmanager_vault_issuer_pki_role
+                    value: "{{ $pkiRole }}"
+
+                  - key: certmanager_vault_issuer_server
+                    value: "{{ $vaultAddr }}"
+
+                  - key: certmanager_vault_issuer_ca_bundle
+                    value: "{{ $vaultCaBundle }}"
+
+                  - key: certmanager_vault_issuer_policy_name
+                    value: "{{ $policyName }}"
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready

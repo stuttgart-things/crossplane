@@ -1,0 +1,98 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: vaultbasesetups.resources.stuttgart-things.com
+spec:
+  group: resources.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: VaultBaseSetup
+    plural: vaultbasesetups
+    singular: vaultbasesetup
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - clusterName
+                - vaultAddr
+                - vaultCaBundle
+              properties:
+                clusterName:
+                  type: string
+                  description: Cluster name used for Vault PKI role and cert-manager setup
+                vaultAddr:
+                  type: string
+                  description: Vault server address
+                  default: "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
+                vaultCaBundle:
+                  type: string
+                  description: Base64-encoded Vault PKI root CA certificate
+                kubeconfigSecretRef:
+                  type: object
+                  description: Reference to the kubeconfig secret for the target cluster
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                      default: crossplane-system
+                    key:
+                      type: string
+                      default: kubeconfig
+                certmanager:
+                  type: object
+                  properties:
+                    issuerEnabled:
+                      type: boolean
+                      default: true
+                      description: Create cert-manager Vault ClusterIssuer
+                    pkiRole:
+                      type: string
+                      default: sthings-vsphere
+                      description: Vault PKI role name
+                    policyName:
+                      type: string
+                      default: pki-issue
+                      description: Vault policy name for cert-manager
+                pki:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                csi:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                vso:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                providerConfigRef:
+                  type: string
+                  default: default
+                  description: Name of the OpenTofu ClusterProviderConfig
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                vaultAddr:
+                  type: string
+                pkiRole:
+                  type: string

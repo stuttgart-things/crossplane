@@ -1,0 +1,15 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: VaultBaseSetup
+metadata:
+  name: k3s-target-labul-vault
+  namespace: crossplane-system
+spec:
+  clusterName: k3s-target-labul
+  vaultAddr: "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
+  vaultCaBundle: ""
+  certmanager:
+    issuerEnabled: true
+    pkiRole: sthings-vsphere
+    policyName: pki-issue
+  providerConfigRef: default
