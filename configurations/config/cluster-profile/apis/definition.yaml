@@ -261,6 +261,48 @@ spec:
                       default: default
                       description: Name of the clusterbook ClusterProviderConfig
 
+                vaultBaseSetup:
+                  type: object
+                  description: >-
+                    Vault PKI integration via OpenTofu. Auto-enabled for non-kind
+                    clusters when vaultCaBundle is provided.
+                  properties:
+                    enabled:
+                      type: boolean
+                      description: >-
+                        Defaults to true for non-kind clusters when vaultCaBundle is set
+                    vaultAddr:
+                      type: string
+                      default: "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
+                    vaultCaBundle:
+                      type: string
+                      description: Base64-encoded Vault PKI root CA certificate (required)
+                    vaultTokenSecretRef:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          default: vault-token
+                        key:
+                          type: string
+                          default: token
+                    certmanager:
+                      type: object
+                      properties:
+                        issuerEnabled:
+                          type: boolean
+                          default: true
+                        pkiRole:
+                          type: string
+                          default: sthings-vsphere
+                        policyName:
+                          type: string
+                          default: pki-issue
+                    providerConfigRef:
+                      type: string
+                      default: default
+                      description: Name of the OpenTofu ClusterProviderConfig
+
                 certManager:
                   type: object
                   description: cert-manager configuration passed through to XCertManager
@@ -325,6 +367,9 @@ spec:
                 ipReservationReady:
                   type: boolean
                   description: True when the IP reservation sub-composition is Ready
+                vaultBaseSetupReady:
+                  type: boolean
+                  description: True when VaultBaseSetup is Ready
                 ipAddresses:
                   type: array
                   items:

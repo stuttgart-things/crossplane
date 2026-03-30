@@ -125,7 +125,8 @@ spec:
                 _resources += [_usageTemplate("{}-ca-cert".format(_name))]
                 _resources += [_usageTemplate("{}-ca-issuer".format(_name))]
 
-            if _installEnabled and (_ssEnabled or _viEnabled) and _wcEnabled and _wcDomain:
+            _wcHasExternalIssuer = bool(_wc?.issuerName)
+            if _installEnabled and (_ssEnabled or _viEnabled or _wcHasExternalIssuer) and _wcEnabled and _wcDomain:
                 _resources += [_usageTemplate("{}-wildcard-cert".format(_name))]
 
             if _installEnabled and _viEnabled:
@@ -234,8 +235,15 @@ spec:
             # ── 5. Wildcard Certificate ──────────────────────
             # Explicit issuer override > vault issuer > cluster-ca
             _wcIssuerName = _wc?.issuerName or (_viName if _viEnabled else "cluster-ca")
-            _wcEmit = (_ssEnabled or _viEnabled) and _wcEnabled and _wcDomain
+            _wcEmit = (_ssEnabled or _viEnabled or _wcHasExternalIssuer) and _wcEnabled and _wcDomain
             if _wcEmit:
+                # Only reference composition-managed issuer in uses annotation
+                _wcUsesAnnotation = {}
+                if _viEnabled:
+                    _wcUsesAnnotation = {"crossplane.io/uses": "{}-vault-issuer".format(_name)}
+                elif _ssEnabled:
+                    _wcUsesAnnotation = {"crossplane.io/uses": "{}-ca-issuer".format(_name)}
+
                 _wildcardCert = {
                     apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
                     kind = "Object"
@@ -243,7 +251,7 @@ spec:
                         name = "{}-wildcard-cert".format(_name)
                         annotations = {
                             "crossplane.io/composition-resource-name" = "{}-wildcard-cert".format(_name)
-                            "crossplane.io/uses" = "{}-vault-issuer".format(_name) if _viEnabled else "{}-ca-issuer".format(_name)
+                            **_wcUsesAnnotation
                         }
                     }
                     spec = {
@@ -437,11 +445,12 @@ spec:
 
             _viReady = _isReady("{}-vault-issuer".format(_name)) if _viEnabled else True
 
-            # Wildcard cert readiness (issued by vault or cluster-ca)
+            # Wildcard cert readiness (issued by vault, external issuer, or cluster-ca)
             _wcEnabled = oxr.spec?.selfSigned?.wildcard?.enabled if oxr.spec?.selfSigned?.wildcard?.enabled != None else True
             _wcDomain = oxr.spec?.selfSigned?.wildcard?.domain or ""
+            _wcHasExternalIssuer = bool(oxr.spec?.selfSigned?.wildcard?.issuerName)
             _wcReady = True
-            if (_ssEnabled or _viEnabled) and _wcEnabled and _wcDomain:
+            if (_ssEnabled or _viEnabled or _wcHasExternalIssuer) and _wcEnabled and _wcDomain:
                 _wcReady = _isReady("{}-wildcard-cert".format(_name))
             if _ssEnabled:
                 _ssReady = _ssReady and _wcReady

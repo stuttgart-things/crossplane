@@ -129,7 +129,130 @@ spec:
                 }
                 _resources += [_ipReservation]
 
-            # ── 2. Cilium (gated on IP reservation when enabled) ──
+            # ── 2. VaultBaseSetup config (determines cert-manager + Cilium behavior) ──
+            _vbs = oxr.spec?.vaultBaseSetup or {}
+            _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
+            _vbsEnabled = _vbs?.enabled if _vbs?.enabled != None else _vbsAutoEnabled
+            _vbsKey = "{}-vault-base-setup".format(_name)
+            _vbsReady = _isReady(_vbsKey) if _vbsEnabled else True
+
+            # Wildcard cert secret name: cluster-specific for non-kind, generic for kind
+            _wcSecretName = "wildcard-{}-tls".format(_clusterName) if _vbsEnabled and _clusterName else "wildcard-tls"
+
+            # ── 3. cert-manager (moved before Cilium — provides CRDs for vault-base-setup) ──
+            _cmEnabled = oxr.spec.certManager?.enabled or False
+            _iprSatisfied = (bool(_reservedIP) if _iprEnabled else True)
+            _cmGateSatisfied = _iprSatisfied if _iprEnabled else _observeReady
+
+            if _cmEnabled and _cmGateSatisfied:
+                _cmSpec = {
+                    targetCluster = {
+                        name = _helmPcr
+                        kubernetesRef = _k8sPcr
+                    }
+                    install = {
+                        enabled = True
+                        version = oxr.spec.certManager?.version or "v1.19.1"
+                        namespace = oxr.spec.certManager?.namespace or "cert-manager"
+                    }
+                }
+
+                _ss = oxr.spec.certManager?.selfSigned or {}
+                _ssEnabled = _ss?.enabled if _ss?.enabled != None else True
+                if _ssEnabled:
+                    _wcIssuer = _ss?.wildcard?.issuerName or ""
+                    # For non-kind with vault: use vault-pki issuer for wildcard cert
+                    if _vbsEnabled and not _wcIssuer:
+                        _wcIssuer = "vault-pki"
+                    _cmSpec |= {
+                        selfSigned = {
+                            enabled = True
+                            caName = _ss?.caName or "cluster-ca"
+                            wildcard = {
+                                enabled = _ss?.wildcard?.enabled if _ss?.wildcard?.enabled != None else True
+                                domain = _ss?.wildcard?.domain or _clusterDomain or "sthings.io"
+                                secretName = _ss?.wildcard?.secretName or _wcSecretName
+                                namespace = _ss?.wildcard?.namespace or "default"
+                                **({} if not _wcIssuer else {"issuerName": _wcIssuer})
+                            }
+                        }
+                    }
+
+                _certManager = {
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                    kind = "XCertManager"
+                    metadata = {
+                        name = "{}-cert-manager".format(_name)
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-cert-manager".format(_name)
+                        }
+                    }
+                    spec = _cmSpec
+                }
+                _resources += [_certManager]
+
+            _cmReady = _isReady("{}-cert-manager".format(_name)) if _cmEnabled else True
+
+            # ── 4. VaultBaseSetup (gated on cert-manager — needs CRDs on target) ──
+            if _vbsEnabled and _cmReady:
+                _vaultBaseSetup = {
+                    apiVersion = "resources.stuttgart-things.com/v1alpha1"
+                    kind = "VaultBaseSetup"
+                    metadata = {
+                        name = _vbsKey
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = _vbsKey
+                        }
+                    }
+                    spec = {
+                        clusterName = _clusterName
+                        vaultAddr = _vbs?.vaultAddr or "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
+                        vaultCaBundle = _vbs?.vaultCaBundle or ""
+                        kubeconfigSecretRef = {
+                            name = "kubeconfig-{}".format(_clusterName)
+                            namespace = "crossplane-system"
+                            key = "kubeconfig"
+                        }
+                        certmanager = {
+                            issuerEnabled = _vbs?.certmanager?.issuerEnabled if _vbs?.certmanager?.issuerEnabled != None else True
+                            pkiRole = _vbs?.certmanager?.pkiRole or "sthings-vsphere"
+                            policyName = _vbs?.certmanager?.policyName or "pki-issue"
+                        }
+                        providerConfigRef = _vbs?.providerConfigRef or "default"
+                        **({} if not _vbs?.vaultTokenSecretRef else {"vaultTokenSecretRef": _vbs.vaultTokenSecretRef})
+                    }
+                }
+                _resources += [_vaultBaseSetup]
+
+                # Usage: VaultBaseSetup depends on cert-manager
+                _vbsUsesCm = {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata = {
+                        name = "{}-vbs-uses-cert-manager".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-vbs-uses-cert-manager".format(_name)
+                        }
+                    }
+                    spec = {
+                        replayDeletion = True
+                        of = {
+                            apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                            kind = "XCertManager"
+                            resourceRef.name = "{}-cert-manager".format(_name)
+                        }
+                        by = {
+                            apiVersion = "resources.stuttgart-things.com/v1alpha1"
+                            kind = "VaultBaseSetup"
+                            resourceRef.name = _vbsKey
+                        }
+                    }
+                }
+                _resources += [_vbsUsesCm]
+
+            # ── 5. Cilium (gated on IP reservation + vault-base-setup) ──
             _cil = oxr.spec?.cilium or {}
             _cilEnabled = _cil?.enabled or False
             _ciliumReady = True
@@ -181,8 +304,8 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
-            _iprSatisfied = (bool(_reservedIP) if _iprEnabled else True)
-            if _cilEnabled and _observeReady and _iprSatisfied:
+            _ciliumGateSatisfied = _iprSatisfied and (_vbsReady if _vbsEnabled else True)
+            if _cilEnabled and _observeReady and _ciliumGateSatisfied:
                 # Merge: type defaults -> then user overrides win
                 _d = _typeDefaults
                 _cilLb = _cil?.loadBalancer or {}
@@ -230,7 +353,7 @@ spec:
                         name = _cilGw?.name or "cilium-gateway"
                         namespace = _cilGw?.namespace or "default"
                         domain = _cilGw?.domain or _clusterDomain or "sthings.io"
-                        tlsSecretName = _cilGw?.tlsSecretName or "wildcard-tls"
+                        tlsSecretName = _cilGw?.tlsSecretName or _wcSecretName
                     }
                 }
 
@@ -279,10 +402,41 @@ spec:
                     }
                     _resources += [_ciliumUsesIpr]
 
+                # Usage: Cilium depends on VaultBaseSetup (ordering + deletion)
+                if _vbsEnabled:
+                    _ciliumUsesVbs = {
+                        apiVersion = "protection.crossplane.io/v1beta1"
+                        kind = "Usage"
+                        metadata = {
+                            name = "{}-cilium-uses-vault-base-setup".format(_name)
+                            annotations = {
+                                "crossplane.io/composition-resource-name" = "{}-cilium-uses-vault-base-setup".format(_name)
+                            }
+                        }
+                        spec = {
+                            replayDeletion = True
+                            of = {
+                                apiVersion = "resources.stuttgart-things.com/v1alpha1"
+                                kind = "VaultBaseSetup"
+                                resourceRef = {
+                                    name = _vbsKey
+                                }
+                            }
+                            by = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "XCilium"
+                                resourceRef = {
+                                    name = "{}-cilium".format(_name)
+                                }
+                            }
+                        }
+                    }
+                    _resources += [_ciliumUsesVbs]
+
                 # Gate: check if Cilium is ready before proceeding
                 _ciliumReady = _isReady("{}-cilium".format(_name))
 
-            # ── 2. FluxInit (gated on Cilium) ──────────────
+            # ── 6. FluxInit (gated on Cilium) ──────────────
             if _engine == "flux" and (_ciliumReady or not _cilEnabled):
                 _defaultSources = [
                     {name = "flux-infra", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-infra"}
@@ -311,53 +465,6 @@ spec:
                     spec = _fluxSpec
                 }
                 _resources += [_fluxInit]
-
-            # ── 3. cert-manager (gated on Cilium) ──────────
-            _cmEnabled = oxr.spec.certManager?.enabled or False
-            if _cmEnabled and (_ciliumReady or not _cilEnabled):
-                _cmSpec = {
-                    targetCluster = {
-                        name = _helmPcr
-                        kubernetesRef = _k8sPcr
-                    }
-                    install = {
-                        enabled = True
-                        version = oxr.spec.certManager?.version or "v1.19.1"
-                        namespace = oxr.spec.certManager?.namespace or "cert-manager"
-                    }
-                }
-
-                _ss = oxr.spec.certManager?.selfSigned or {}
-                _ssEnabled = _ss?.enabled if _ss?.enabled != None else True
-                if _ssEnabled:
-                    _wcIssuer = _ss?.wildcard?.issuerName or ""
-                    _cmSpec |= {
-                        selfSigned = {
-                            enabled = True
-                            caName = _ss?.caName or "cluster-ca"
-                            wildcard = {
-                                enabled = _ss?.wildcard?.enabled if _ss?.wildcard?.enabled != None else True
-                                domain = _ss?.wildcard?.domain or _clusterDomain or "sthings.io"
-                                secretName = _ss?.wildcard?.secretName or "wildcard-tls"
-                                namespace = _ss?.wildcard?.namespace or "default"
-                                **({} if not _wcIssuer else {"issuerName": _wcIssuer})
-                            }
-                        }
-                    }
-
-                _certManager = {
-                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
-                    kind = "XCertManager"
-                    metadata = {
-                        name = "{}-cert-manager".format(_name)
-                        namespace = _namespace
-                        annotations = {
-                            "crossplane.io/composition-resource-name" = "{}-cert-manager".format(_name)
-                        }
-                    }
-                    spec = _cmSpec
-                }
-                _resources += [_certManager]
 
             items = _resources
 
@@ -409,14 +516,21 @@ spec:
             _fqdn = ocds[_iprKey].Resource?.status?.fqdn or "" if _iprKey in ocds else ""
             _zone = ocds[_iprKey].Resource?.status?.zone or "" if _iprKey in ocds else ""
 
+            # VaultBaseSetup status
+            _vbs = oxr.spec?.vaultBaseSetup or {}
+            _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
+            _vbsEnabled = _vbs?.enabled if _vbs?.enabled != None else _vbsAutoEnabled
+            _vbsReady = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else True
+
             _oxr = oxr | {
                 status = {
-                    ready = _cilReady and _gitopsReady and _cmReady and _iprReady
+                    ready = _cilReady and _gitopsReady and _cmReady and _iprReady and _vbsReady
                     ciliumReady = _cilReady
                     gitopsEngine = _engine
                     gitopsReady = _gitopsReady
                     certManagerReady = _cmReady
                     ipReservationReady = _iprReady
+                    vaultBaseSetupReady = _vbsReady
                     ipAddresses = _ipAddresses
                     fqdn = _fqdn
                     zone = _zone
