@@ -14,8 +14,9 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | 1 | IP Reservation + PDNS | `XIPReservation` | observeReady | `ipReservationReady` | Reserves LB IP + creates wildcard DNS via clusterbook |
 | 2 | cert-manager | `XCertManager` | iprSatisfied | `certManagerReady` | Installs Helm chart (CRDs) + wildcard cert (vault-pki issuer) |
 | 3 | Vault Base Setup | `VaultBaseSetup` | certManagerReady | `vaultBaseSetupReady` | Creates vault-pki ClusterIssuer via OpenTofu |
-| 4 | Cilium | `XCilium` | iprSatisfied + vbsReady | `ciliumReady` | CNI + LoadBalancer (reserved IP) + Gateway (vault-issued cert) |
-| 5 | GitOps (Flux) | `FluxInit` | ciliumReady | `gitopsReady` | Flux operator + sources |
+| 4 | Trust Manager | `XTrustManager` | certManagerReady | `trustManagerReady` | Deploys trust-manager + cluster trust Bundle (system CAs + vault CA) |
+| 5 | Cilium | `XCilium` | iprSatisfied + vbsReady | `ciliumReady` | CNI + LoadBalancer (reserved IP) + Gateway (vault-issued cert) |
+| 6 | GitOps (Flux) | `FluxInit` | ciliumReady | `gitopsReady` | Flux operator + sources |
 
 ### kind Clusters
 
@@ -33,6 +34,7 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | IP Reservation (clusterbook) | skipped | auto | auto | auto |
 | PDNS wildcard DNS | skipped | auto | auto | auto |
 | VaultBaseSetup | skipped | auto (when vaultCaBundle set) | auto | auto |
+| TrustManager | skipped | auto (when vaultCaBundle set) | auto | auto |
 | Cilium LoadBalancer | skipped | auto (reserved IP) | auto | auto |
 | Cilium Gateway | skipped | auto (FQDN domain) | auto | auto |
 | Wildcard cert issuer | self-signed (cluster-ca) | vault-pki | vault-pki | vault-pki |
@@ -43,6 +45,7 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | Usage | Ensures |
 |-------|---------|
 | VaultBaseSetup depends on XCertManager | CRDs exist before creating ClusterIssuer |
+| XTrustManager depends on XCertManager | cert-manager namespace + CRDs exist |
 | XCilium depends on XIPReservation | IP reserved before LB pool created |
 | XCilium depends on VaultBaseSetup | Vault ClusterIssuer exists before Gateway cert |
 
@@ -76,6 +79,7 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | `ipReservationReady` | boolean | IP reservation from clusterbook |
 | `certManagerReady` | boolean | cert-manager Helm + wildcard cert |
 | `vaultBaseSetupReady` | boolean | Vault PKI ClusterIssuer |
+| `trustManagerReady` | boolean | trust-manager + cluster trust Bundle |
 | `ciliumReady` | boolean | Cilium CNI + LB + Gateway |
 | `gitopsReady` | boolean | Flux/ArgoCD |
 | `gitopsEngine` | string | Active engine (`flux` or `argocd`) |
@@ -158,6 +162,7 @@ Kind clusters skip IP reservation, VaultBaseSetup, LB, and Gateway automatically
 | IP Reservation | `XIPReservation` | `platform.stuttgart-things.com` | observe ready | integrated |
 | cert-manager | `XCertManager` | `platform.stuttgart-things.com` | IP reservation | integrated |
 | Vault Base Setup | `VaultBaseSetup` | `resources.stuttgart-things.com` | cert-manager ready | integrated |
+| Trust Manager | `XTrustManager` | `platform.stuttgart-things.com` | cert-manager ready | integrated |
 | Cilium | `XCilium` | `platform.stuttgart-things.com` | IPR + VBS ready | integrated |
 | Flux | `FluxInit` | `platform.stuttgart-things.com` | Cilium ready | integrated |
 | ArgoCD | `XArgoInit` | `platform.stuttgart-things.com` | Cilium ready | planned |
@@ -168,6 +173,7 @@ Kind clusters skip IP reservation, VaultBaseSetup, LB, and Gateway automatically
 - `XIPReservation` XRD + composition (`configurations/config/ip-reservation/`)
 - `XCertManager` XRD + composition (`configurations/infra/cert-manager/`)
 - `VaultBaseSetup` XRD + composition (`configurations/terraform/vault-base-setup/`)
+- `XTrustManager` XRD + composition (`configurations/infra/trust-manager/`)
 - `XCilium` XRD + composition (`configurations/infra/cilium/`)
 - `XFluxInit` XRD + composition (`configurations/config/flux-init/`)
 - Providers: `provider-clusterbook`, `provider-kubeconfig`, `provider-helm`, `provider-kubernetes`, `provider-opentofu`
@@ -204,6 +210,7 @@ Expected status when fully ready (non-kind):
   "ipReservationReady": true,
   "certManagerReady": true,
   "vaultBaseSetupReady": true,
+  "trustManagerReady": true,
   "ciliumReady": true,
   "gitopsReady": true,
   "gitopsEngine": "flux",
