@@ -61,3 +61,9 @@ spec:
                 reservationStatus:
                   type: string
                   description: IPReservation status (e.g. ASSIGNED, ASSIGNED:DNS)
+                fqdn:
+                  type: string
+                  description: Wildcard DNS name (e.g. *.mycluster.example.com), set when createDNS is true
+                zone:
+                  type: string
+                  description: DNS zone (e.g. example.com), set when createDNS is true

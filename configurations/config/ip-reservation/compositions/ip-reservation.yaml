@@ -141,6 +141,8 @@ spec:
             _ipKey = "{}-ip".format(_name)
             _ipAddresses = ocds[_ipKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.ipAddresses or [] if _ipKey in ocds else []
             _resStatus = ocds[_ipKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.status or "" if _ipKey in ocds else ""
+            _fqdn = ocds[_ipKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.fqdn or "" if _ipKey in ocds else ""
+            _zone = ocds[_ipKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.zone or "" if _ipKey in ocds else ""
             _ipReady = _isReady(_ipKey)
 
             _oxr = oxr | {
@@ -149,6 +151,8 @@ spec:
                     networkKey = _networkKey
                     ipAddresses = _ipAddresses
                     reservationStatus = _resStatus
+                    fqdn = _fqdn
+                    zone = _zone
                 }
             }
 

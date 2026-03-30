@@ -100,9 +100,13 @@ spec:
             _iprKey = "{}-ip-reservation".format(_name)
             _iprReady = _isReady(_iprKey) if _iprEnabled else True
 
-            # Read reserved IP — prefer oxr.status (set by status step in prior loop)
+            # Read reserved IP + DNS info — prefer oxr.status (set by status step in prior loop)
             _oxrIPs = oxr.status?.ipAddresses or []
             _reservedIP = _oxrIPs[0] if _oxrIPs else ""
+            _oxrFqdn = oxr.status?.fqdn or ""
+            _oxrZone = oxr.status?.zone or ""
+            # Strip "*." prefix from FQDN to get the bare domain for gateway/cert-manager
+            _clusterDomain = _oxrFqdn.removeprefix("*.") if _oxrFqdn else ""
 
             if _iprEnabled and _observeReady:
                 _ipReservation = {
@@ -225,7 +229,7 @@ spec:
                         enabled = _gwEnabled
                         name = _cilGw?.name or "cilium-gateway"
                         namespace = _cilGw?.namespace or "default"
-                        domain = _cilGw?.domain or "sthings.io"
+                        domain = _cilGw?.domain or _clusterDomain or "sthings.io"
                         tlsSecretName = _cilGw?.tlsSecretName or "wildcard-tls"
                     }
                 }
@@ -332,7 +336,7 @@ spec:
                             caName = _ss?.caName or "cluster-ca"
                             wildcard = {
                                 enabled = _ss?.wildcard?.enabled if _ss?.wildcard?.enabled != None else True
-                                domain = _ss?.wildcard?.domain or "sthings.io"
+                                domain = _ss?.wildcard?.domain or _clusterDomain or "sthings.io"
                                 secretName = _ss?.wildcard?.secretName or "wildcard-tls"
                                 namespace = _ss?.wildcard?.namespace or "default"
                             }
@@ -400,6 +404,8 @@ spec:
             _iprReady = _isReady("{}-ip-reservation".format(_name)) if _iprEnabled else True
             _iprKey = "{}-ip-reservation".format(_name)
             _ipAddresses = ocds[_iprKey].Resource?.status?.ipAddresses or [] if _iprKey in ocds else []
+            _fqdn = ocds[_iprKey].Resource?.status?.fqdn or "" if _iprKey in ocds else ""
+            _zone = ocds[_iprKey].Resource?.status?.zone or "" if _iprKey in ocds else ""
 
             _oxr = oxr | {
                 status = {
@@ -410,6 +416,8 @@ spec:
                     certManagerReady = _cmReady
                     ipReservationReady = _iprReady
                     ipAddresses = _ipAddresses
+                    fqdn = _fqdn
+                    zone = _zone
                     providerConfigRef = _helmPcr
                 }
             }

@@ -325,6 +325,12 @@ spec:
                   items:
                     type: string
                   description: Reserved IP addresses from clusterbook
+                fqdn:
+                  type: string
+                  description: Wildcard DNS name from clusterbook (e.g. *.mycluster.example.com)
+                zone:
+                  type: string
+                  description: DNS zone from clusterbook (e.g. example.com)
                 providerConfigRef:
                   type: string
                   description: Helm provider config ref carried through for downstream
