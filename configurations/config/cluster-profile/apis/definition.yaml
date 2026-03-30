@@ -370,6 +370,9 @@ spec:
                 vaultBaseSetupReady:
                   type: boolean
                   description: True when VaultBaseSetup is Ready
+                trustManagerReady:
+                  type: boolean
+                  description: True when TrustManager is Ready
                 ipAddresses:
                   type: array
                   items:

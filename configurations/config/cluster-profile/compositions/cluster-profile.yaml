@@ -249,7 +249,72 @@ spec:
                 }
                 _resources += [_vbsUsesCm]
 
-            # ── 5. Cilium (gated on IP reservation + vault-base-setup) ──
+            # ── 5. TrustManager (non-kind, when vault is enabled) ──
+            _tmKey = "{}-trust-manager".format(_name)
+            _tmReady = _isReady(_tmKey) if _vbsEnabled else True
+
+            if _vbsEnabled and _cmReady:
+                _tmSpec = {
+                    targetCluster = {
+                        name = _helmPcr
+                        kubernetesRef = _k8sPcr
+                    }
+                    install = {
+                        enabled = True
+                        namespace = oxr.spec.certManager?.namespace or "cert-manager"
+                    }
+                    bundle = {
+                        enabled = True
+                        secrets = [
+                            {name = "cluster-ca-secret", key = "ca.crt"}
+                        ]
+                        inlineCAs = [
+                            {name = "vault-pki-ca", ca = _vbs?.vaultCaBundle or ""}
+                        ]
+                    }
+                }
+
+                _trustManager = {
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                    kind = "XTrustManager"
+                    metadata = {
+                        name = _tmKey
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = _tmKey
+                        }
+                    }
+                    spec = _tmSpec
+                }
+                _resources += [_trustManager]
+
+                # Usage: TrustManager depends on cert-manager
+                _tmUsesCm = {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata = {
+                        name = "{}-tm-uses-cert-manager".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-tm-uses-cert-manager".format(_name)
+                        }
+                    }
+                    spec = {
+                        replayDeletion = True
+                        of = {
+                            apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                            kind = "XCertManager"
+                            resourceRef.name = "{}-cert-manager".format(_name)
+                        }
+                        by = {
+                            apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                            kind = "XTrustManager"
+                            resourceRef.name = _tmKey
+                        }
+                    }
+                }
+                _resources += [_tmUsesCm]
+
+            # ── 6. Cilium (gated on IP reservation + vault-base-setup) ──
             _cil = oxr.spec?.cilium or {}
             _cilEnabled = _cil?.enabled or False
             _ciliumReady = True
@@ -518,16 +583,18 @@ spec:
             _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
             _vbsEnabled = bool(_vbs?.vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
             _vbsReady = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else True
+            _tmReady = _isReady("{}-trust-manager".format(_name)) if _vbsEnabled else True
 
             _oxr = oxr | {
                 status = {
-                    ready = _cilReady and _gitopsReady and _cmReady and _iprReady and _vbsReady
+                    ready = _cilReady and _gitopsReady and _cmReady and _iprReady and _vbsReady and _tmReady
                     ciliumReady = _cilReady
                     gitopsEngine = _engine
                     gitopsReady = _gitopsReady
                     certManagerReady = _cmReady
                     ipReservationReady = _iprReady
                     vaultBaseSetupReady = _vbsReady
+                    trustManagerReady = _tmReady
                     ipAddresses = _ipAddresses
                     fqdn = _fqdn
                     zone = _zone
