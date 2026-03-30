@@ -171,6 +171,7 @@ spec:
                             wildcard = {
                                 enabled = _ss?.wildcard?.enabled if _ss?.wildcard?.enabled != None else True
                                 domain = _ss?.wildcard?.domain or _clusterDomain or "sthings.io"
+                                name = _ss?.wildcard?.name or _wcSecretName
                                 secretName = _ss?.wildcard?.secretName or _wcSecretName
                                 namespace = _ss?.wildcard?.namespace or "default"
                                 **({} if not _wcIssuer else {"issuerName": _wcIssuer})
