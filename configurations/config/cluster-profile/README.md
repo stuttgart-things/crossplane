@@ -1,6 +1,50 @@
 # ClusterProfile
 
-Crossplane composition that nests CNI (Cilium), GitOps (Flux/Argo), and cert-manager sub-compositions into a single claim. Supports distribution-aware defaults via `clusterType`.
+Crossplane composition that orchestrates a full cluster setup: IP reservation, cert-manager, Vault PKI, Cilium CNI (with LB + Gateway), and GitOps. Supports distribution-aware defaults via `clusterType` and automatic DNS/FQDN wiring from clusterbook.
+
+## Pipeline Ordering
+
+The composition deploys sub-compositions in a strict order with soft gates (KCL conditionals) and hard gates (Usage resources).
+
+### Non-kind Clusters (k3s, rke2, k8s)
+
+| Stage | Component | XR Kind | Gate | Status Field | What it does |
+|-------|-----------|---------|------|--------------|-------------|
+| 0 | Observe RemoteCluster | Object (Observe) | always | — | Reads apiEndpoint, clusterType, podCIDR |
+| 1 | IP Reservation + PDNS | `XIPReservation` | observeReady | `ipReservationReady` | Reserves LB IP + creates wildcard DNS via clusterbook |
+| 2 | cert-manager | `XCertManager` | iprSatisfied | `certManagerReady` | Installs Helm chart (CRDs) + wildcard cert (vault-pki issuer) |
+| 3 | Vault Base Setup | `VaultBaseSetup` | certManagerReady | `vaultBaseSetupReady` | Creates vault-pki ClusterIssuer via OpenTofu |
+| 4 | Cilium | `XCilium` | iprSatisfied + vbsReady | `ciliumReady` | CNI + LoadBalancer (reserved IP) + Gateway (vault-issued cert) |
+| 5 | GitOps (Flux) | `FluxInit` | ciliumReady | `gitopsReady` | Flux operator + sources |
+
+### kind Clusters
+
+| Stage | Component | XR Kind | Gate | Status Field | What it does |
+|-------|-----------|---------|------|--------------|-------------|
+| 0 | Observe RemoteCluster | Object (Observe) | always | — | Reads clusterType |
+| 1 | cert-manager | `XCertManager` | observeReady | `certManagerReady` | Installs Helm + self-signed CA chain + wildcard cert |
+| 2 | Cilium | `XCilium` | observeReady | `ciliumReady` | CNI only (no LB, no Gateway) |
+| 3 | GitOps (Flux) | `FluxInit` | ciliumReady | `gitopsReady` | Flux operator + sources |
+
+### What gets skipped per distribution
+
+| Feature | kind | k3s | rke2 | k8s |
+|---------|------|-----|------|-----|
+| IP Reservation (clusterbook) | skipped | auto | auto | auto |
+| PDNS wildcard DNS | skipped | auto | auto | auto |
+| VaultBaseSetup | skipped | auto (when vaultCaBundle set) | auto | auto |
+| Cilium LoadBalancer | skipped | auto (reserved IP) | auto | auto |
+| Cilium Gateway | skipped | auto (FQDN domain) | auto | auto |
+| Wildcard cert issuer | self-signed (cluster-ca) | vault-pki | vault-pki | vault-pki |
+| Wildcard cert secret | `wildcard-tls` | `wildcard-{clusterName}-tls` | `wildcard-{clusterName}-tls` | `wildcard-{clusterName}-tls` |
+
+### Usage (hard ordering) Resources
+
+| Usage | Ensures |
+|-------|---------|
+| VaultBaseSetup depends on XCertManager | CRDs exist before creating ClusterIssuer |
+| XCilium depends on XIPReservation | IP reserved before LB pool created |
+| XCilium depends on VaultBaseSetup | Vault ClusterIssuer exists before Gateway cert |
 
 ## API
 
@@ -13,49 +57,80 @@ Crossplane composition that nests CNI (Cilium), GitOps (Flux/Argo), and cert-man
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `helmProviderConfigRef` | string | yes | | Helm ClusterProviderConfig name |
-| `kubernetesProviderConfigRef` | string | yes | | Kubernetes ClusterProviderConfig name |
-| `clusterType` | string | no | | Kubernetes distribution (`kind`, `k3s`, `rke2`, `k8s`). Sets Cilium defaults per distribution |
-| `cilium.clusterName` | string | no | | Kind cluster name. For kind, derives `k8sServiceHost` as `{clusterName}-control-plane` |
-| `gitops.engine` | string | no | `flux` | GitOps engine (`flux`, `argocd`, or `none` to skip) |
-| `flux` | object | no | | Flux-specific overrides passed to XFluxInit |
+| `clusterName` | string | no | | RemoteCluster name — auto-derives provider configs, apiEndpoint, clusterType |
+| `helmProviderConfigRef` | string | no | `{clusterName}-helm` | Helm ClusterProviderConfig name |
+| `kubernetesProviderConfigRef` | string | no | `{clusterName}-kubernetes` | Kubernetes ClusterProviderConfig name |
+| `clusterType` | string | no | observed | Kubernetes distribution (`kind`, `k3s`, `rke2`, `k8s`) |
 | `cilium` | object | no | | Cilium CNI configuration (see below) |
-| `certManager` | object | no | | cert-manager configuration passed to XCertManager |
+| `certManager` | object | no | | cert-manager configuration |
+| `ipReservation` | object | no | | IP reservation from clusterbook (auto-enabled for non-kind) |
+| `vaultBaseSetup` | object | no | | Vault PKI integration (auto-enabled when `vaultCaBundle` is set + non-kind) |
+| `gitops.engine` | string | no | `flux` | GitOps engine (`flux`, `argocd`, or `none`) |
+| `flux` | object | no | | Flux-specific overrides passed to XFluxInit |
 
 ### Status Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `ready` | boolean | True when all sub-compositions are Ready |
-| `ciliumReady` | boolean | True when Cilium sub-composition is Ready |
+| `ready` | boolean | True when **all** sub-compositions are Ready |
+| `ipReservationReady` | boolean | IP reservation from clusterbook |
+| `certManagerReady` | boolean | cert-manager Helm + wildcard cert |
+| `vaultBaseSetupReady` | boolean | Vault PKI ClusterIssuer |
+| `ciliumReady` | boolean | Cilium CNI + LB + Gateway |
+| `gitopsReady` | boolean | Flux/ArgoCD |
 | `gitopsEngine` | string | Active engine (`flux` or `argocd`) |
-| `gitopsReady` | boolean | True when gitops sub-composition is Ready |
-| `certManagerReady` | boolean | True when cert-manager sub-composition is Ready |
+| `ipAddresses` | []string | Reserved IPs from clusterbook |
+| `fqdn` | string | Wildcard DNS name (e.g. `*.mycluster.example.com`) |
+| `zone` | string | DNS zone (e.g. `example.com`) |
 | `providerConfigRef` | string | Helm provider config ref for downstream |
 
 ## Cluster Type Defaults
 
-When `clusterType` is set, distribution-specific Cilium defaults are applied automatically. You only need to provide cluster-specific values like `k8sServiceHost`. Any field you set explicitly in the claim **always overrides** the defaults.
-
-### Default Values per Distribution
+When `clusterType` is set (or auto-detected via RemoteCluster), distribution-specific Cilium defaults are applied. Any field you set explicitly **always overrides** the defaults.
 
 | Field | `kind` | `k3s` | `rke2` | `k8s` |
 |-------|--------|-------|--------|-------|
-| `routingMode` | `native` | `native` | `native` | `tunnel` |
+| `routingMode` | `native` | `tunnel` | `native` | `tunnel` |
 | `ipv4NativeRoutingCIDR` | `10.244.0.0/16` | `10.42.0.0/16` | `10.42.0.0/16` | `10.244.0.0/16` |
-| `autoDirectNodeRoutes` | `true` | `true` | `true` | `false` |
-| `devices` | `[eth0, net0]` | `[eth0]` | `[eth0]` | `[eth0]` |
+| `autoDirectNodeRoutes` | `true` | `false` | `true` | `false` |
+| `devices` | `[eth0, net0]` | — | `[eth0]` | `[eth0]` |
 | `kubeProxyReplacement` | `true` | `true` | `true` | `true` |
 | `operator.replicas` | `1` | `1` | `2` | `2` |
 | `gatewayAPI.enabled` | `false` | `true` | `true` | `true` |
-| `l2Announcements.enabled` | `true` | `false` | `false` | `false` |
+| `l2Announcements.enabled` | `true` | `true` | `false` | `false` |
 | `externalIPs.enabled` | `true` | `true` | `true` | `true` |
-
-If `clusterType` is omitted, the composition falls back to hardcoded defaults (backwards compatible).
 
 ## Examples
 
-### Minimal kind Cluster (with clusterType defaults)
+### k3s Cluster (full pipeline)
+
+```yaml
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XClusterProfile
+metadata:
+  name: k3s-target-labul
+  namespace: crossplane-system
+spec:
+  clusterName: k3s-target-labul
+  cilium:
+    enabled: true
+  certManager:
+    enabled: true
+  vaultBaseSetup:
+    vaultCaBundle: "LS0tLS1CRUdJTi..."   # base64-encoded Vault CA
+  gitops:
+    engine: flux
+```
+
+This auto-configures the full pipeline:
+- Observes RemoteCluster for apiEndpoint, clusterType, podCIDR
+- Reserves an IP from clusterbook + creates PDNS wildcard DNS
+- Installs cert-manager + wildcard cert using `vault-pki` issuer
+- Runs vault-base-setup to create the `vault-pki` ClusterIssuer
+- Deploys Cilium with LB (reserved IP) + Gateway (auto-derived FQDN, vault cert)
+- Deploys Flux with default sources
+
+### kind Cluster (minimal)
 
 ```yaml
 apiVersion: platform.stuttgart-things.com/v1alpha1
@@ -64,131 +139,42 @@ metadata:
   name: dev-profile
   namespace: crossplane-system
 spec:
-  helmProviderConfigRef: dev-helm
-  kubernetesProviderConfigRef: dev-kubernetes
-  clusterType: kind
+  clusterName: xplane-test
   cilium:
     enabled: true
-    clusterName: dev
-  gitops:
-    engine: flux
-  flux:
-    instance:
-      sources:
-        - name: flux-infra
-          kind: OCIRepository
-          url: oci://ghcr.io/stuttgart-things/flux-infra
-          ref: latest
-```
-
-All Cilium values (`routingMode`, `devices`, `l2Announcements`, `k8sServiceHost`, etc.) are auto-derived from `clusterType: kind`. The `clusterName` is used to derive `k8sServiceHost` as `{clusterName}-control-plane`.
-
-### RKE2 Cluster with LoadBalancer
-
-```yaml
-apiVersion: platform.stuttgart-things.com/v1alpha1
-kind: XClusterProfile
-metadata:
-  name: prod-profile
-  namespace: crossplane-system
-spec:
-  helmProviderConfigRef: prod-helm
-  kubernetesProviderConfigRef: prod-kubernetes
-  clusterType: rke2
-  cilium:
-    enabled: true
-    k8sServiceHost: 10.31.102.10
-    k8sServicePort: 6443
-    loadBalancer:
-      enabled: true
-      ipMode: static
-      ipRange:
-        start: "10.31.102.100"
-        end: "10.31.102.110"
-  gitops:
-    engine: flux
-  flux:
-    instance:
-      sources:
-        - name: flux-infra
-          kind: OCIRepository
-          url: oci://ghcr.io/stuttgart-things/flux-infra
-          ref: latest
+    clusterName: crossplane-test
   certManager:
     enabled: true
-    selfSigned:
-      enabled: true
-      wildcard:
-        domain: sthings.io
+  gitops:
+    engine: flux
 ```
 
-Defaults from `clusterType: rke2` apply (`ipv4NativeRoutingCIDR: 10.42.0.0/16`, `operator.replicas: 2`, etc.). Only cluster-specific values need to be set.
-
-### Overriding Defaults
-
-Any default can be overridden by setting it explicitly in the claim. For example, to use tunnel routing on a kind cluster:
-
-```yaml
-spec:
-  clusterType: kind
-  cilium:
-    enabled: true
-    clusterName: dev
-    routingMode: tunnel          # overrides kind default "native"
-    autoDirectNodeRoutes: false  # overrides kind default "true"
-    devices:                     # overrides kind default ["eth0", "net0"]
-      - eth0
-```
-
-### Without clusterType (fully explicit)
-
-If `clusterType` is omitted, you must specify all Cilium values yourself:
-
-```yaml
-spec:
-  cilium:
-    enabled: true
-    k8sServiceHost: my-cluster-cp
-    k8sServicePort: 6443
-    routingMode: native
-    ipv4NativeRoutingCIDR: "10.244.0.0/16"
-    autoDirectNodeRoutes: true
-    devices:
-      - eth0
-      - net0
-    operator:
-      replicas: 2
-    l2Announcements:
-      enabled: true
-```
+Kind clusters skip IP reservation, VaultBaseSetup, LB, and Gateway automatically.
 
 ## Nested Sub-Compositions
 
-| Component | Emitted XR | Gated on | Status |
-|-----------|-----------|----------|--------|
-| Cilium | `XCilium` | — | integrated |
-| Flux | `XFluxInit` | Cilium ready | integrated |
-| ArgoCD | `XArgoInit` | Cilium ready | planned |
-| cert-manager | `XCertManager` | Cilium ready | integrated |
+| Component | XR Kind | API Group | Gated on | Status |
+|-----------|---------|-----------|----------|--------|
+| IP Reservation | `XIPReservation` | `platform.stuttgart-things.com` | observe ready | integrated |
+| cert-manager | `XCertManager` | `platform.stuttgart-things.com` | IP reservation | integrated |
+| Vault Base Setup | `VaultBaseSetup` | `resources.stuttgart-things.com` | cert-manager ready | integrated |
+| Cilium | `XCilium` | `platform.stuttgart-things.com` | IPR + VBS ready | integrated |
+| Flux | `FluxInit` | `platform.stuttgart-things.com` | Cilium ready | integrated |
+| ArgoCD | `XArgoInit` | `platform.stuttgart-things.com` | Cilium ready | planned |
 
 ## Prerequisites
 
 - Crossplane `>=2.13.0` on the management cluster
-- `XCilium` XRD and composition installed (from `configurations/infra/cilium/`)
-- `XFluxInit` XRD and composition installed (from `configurations/config/flux-init/`)
-- `XCertManager` XRD and composition installed (from `configurations/infra/cert-manager/`)
-- Functions: `function-kcl` (v0.10.4), `function-auto-ready` (v0.6.0)
-- A `ClusterProviderConfig` for both Helm and Kubernetes pointing at the target cluster kubeconfig secret
-
-Example provider configs (pointing at a secret `kubeconfig-xplane-test` in `crossplane-system`):
-
-```bash
-kubectl apply -f examples/provider-config.yaml
-```
+- `XIPReservation` XRD + composition (`configurations/config/ip-reservation/`)
+- `XCertManager` XRD + composition (`configurations/infra/cert-manager/`)
+- `VaultBaseSetup` XRD + composition (`configurations/terraform/vault-base-setup/`)
+- `XCilium` XRD + composition (`configurations/infra/cilium/`)
+- `XFluxInit` XRD + composition (`configurations/config/flux-init/`)
+- Providers: `provider-clusterbook`, `provider-kubeconfig`, `provider-helm`, `provider-kubernetes`, `provider-opentofu`
+- Functions: `function-kcl` (v0.10.4), `function-auto-ready` (v0.6.0), `function-go-templating` (v0.11.3)
+- Vault token secret (`vault-token`) in `crossplane-system` namespace
 
 ## Install
-
-Apply the XRD and composition on the management cluster:
 
 ```bash
 export KUBECONFIG=~/.kube/dev
@@ -199,72 +185,39 @@ kubectl apply -f compositions/cluster-profile.yaml
 
 ## Test
 
-Create the example XR targeting the remote cluster:
-
 ```bash
-kubectl apply -f examples/cluster-profile.yaml
+kubectl apply -f examples/cluster-profile-k3s.yaml
+
+# Watch status
+kubectl get clusterprofiles.platform.stuttgart-things.com -A -o wide
+
+# Full status
+kubectl get clusterprofile k3s-target-labul -n crossplane-system \
+  -o jsonpath='{.status}' | python3 -m json.tool
 ```
 
-Watch reconciliation:
-
-```bash
-# XClusterProfile status
-kubectl get clusterprofiles.platform.stuttgart-things.com -A
-
-# Nested Cilium
-kubectl get xciliums.platform.stuttgart-things.com -A
-
-# Nested FluxInit
-kubectl get fluxinits.platform.stuttgart-things.com -A
-
-# Nested cert-manager
-kubectl get xcertmanagers.platform.stuttgart-things.com -A
-
-# Helm releases
-kubectl get releases.helm.m.crossplane.io -A
-```
-
-Verify on the target cluster:
-
-```bash
-export KUBECONFIG=~/.kube/xplane-test
-
-# Cilium running
-kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium
-
-# Flux controllers running
-kubectl get pods -n flux-system
-
-# cert-manager running
-kubectl get pods -n cert-manager
-```
-
-Check XClusterProfile status fields:
-
-```bash
-export KUBECONFIG=~/.kube/dev
-kubectl get clusterprofiles.platform.stuttgart-things.com test-cluster-profile \
-  -n crossplane-system -o jsonpath='{.status}' | python3 -m json.tool
-```
-
-Expected status when fully ready:
+Expected status when fully ready (non-kind):
 
 ```json
 {
   "ready": true,
-  "ciliumReady": true,
-  "gitopsEngine": "flux",
-  "gitopsReady": true,
+  "ipReservationReady": true,
   "certManagerReady": true,
-  "providerConfigRef": "xplane-test-helm"
+  "vaultBaseSetupReady": true,
+  "ciliumReady": true,
+  "gitopsReady": true,
+  "gitopsEngine": "flux",
+  "ipAddresses": ["10.31.104.5"],
+  "fqdn": "*.k3s-target-labul.sthings-vsphere.labul.sva.de",
+  "zone": "sthings-vsphere.labul.sva.de",
+  "providerConfigRef": "k3s-target-labul-helm"
 }
 ```
 
 ## Cleanup
 
 ```bash
-export KUBECONFIG=~/.kube/dev
-kubectl delete -f examples/cluster-profile.yaml
+kubectl delete -f examples/cluster-profile-k3s.yaml
 kubectl delete -f compositions/cluster-profile.yaml
 kubectl delete -f apis/definition.yaml
 ```
