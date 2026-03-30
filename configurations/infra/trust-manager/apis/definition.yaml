@@ -1,0 +1,123 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xtrustmanagers.platform.stuttgart-things.com
+spec:
+  group: platform.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: XTrustManager
+    plural: xtrustmanagers
+    singular: xtrustmanager
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - targetCluster
+              properties:
+                targetCluster:
+                  type: object
+                  required:
+                    - name
+                    - kubernetesRef
+                  properties:
+                    name:
+                      type: string
+                      description: Helm ClusterProviderConfig for the target cluster
+                    kubernetesRef:
+                      type: string
+                      description: Kubernetes ClusterProviderConfig for the target cluster
+
+                install:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                      description: Deploy trust-manager Helm chart
+                    version:
+                      type: string
+                      default: "v0.22.0"
+                    namespace:
+                      type: string
+                      default: cert-manager
+                    trustNamespace:
+                      type: string
+                      default: cert-manager
+                      description: Namespace where trust-manager distributes trust bundles
+
+                bundle:
+                  type: object
+                  description: trust.cert-manager.io/v1alpha1 Bundle configuration
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                      description: Create a cluster trust Bundle
+                    name:
+                      type: string
+                      default: cluster-trust-bundle
+                    useDefaultCAs:
+                      type: boolean
+                      default: true
+                      description: Include system default CA certificates
+                    secrets:
+                      type: array
+                      description: Existing CA secrets to include in the bundle
+                      items:
+                        type: object
+                        required:
+                          - name
+                        properties:
+                          name:
+                            type: string
+                            description: Secret name containing the CA cert
+                          key:
+                            type: string
+                            default: ca.crt
+                            description: Key within the secret
+                    inlineCAs:
+                      type: array
+                      description: >-
+                        Inline CA certificates to create as secrets and include in the bundle.
+                        Each entry creates a Secret in the trust-manager namespace.
+                      items:
+                        type: object
+                        required:
+                          - name
+                          - ca
+                        properties:
+                          name:
+                            type: string
+                            description: Secret name to create (e.g. vault-pki-ca)
+                          ca:
+                            type: string
+                            description: Base64-encoded CA certificate (PEM)
+                    targetConfigMapKey:
+                      type: string
+                      default: trust-bundle.pem
+                      description: Key in the target ConfigMap
+
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                  description: True when all enabled components are Ready
+                installReady:
+                  type: boolean
+                bundleReady:
+                  type: boolean
+                trustManagerVersion:
+                  type: string

@@ -1,0 +1,24 @@
+---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XTrustManager
+metadata:
+  name: k3s-target-labul-trust-manager
+  namespace: crossplane-system
+spec:
+  targetCluster:
+    name: k3s-target-labul-helm
+    kubernetesRef: k3s-target-labul-kubernetes
+  install:
+    enabled: true
+    version: "v0.22.0"
+    namespace: cert-manager
+  bundle:
+    enabled: true
+    name: cluster-trust-bundle
+    useDefaultCAs: true
+    secrets:
+      - name: cluster-ca-secret
+        key: ca.crt
+      - name: vault-pki-ca
+        key: ca.crt
+    targetConfigMapKey: trust-bundle.pem

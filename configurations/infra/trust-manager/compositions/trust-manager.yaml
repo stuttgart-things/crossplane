@@ -1,0 +1,247 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: trustmanager-kcl
+  labels:
+    crossplane.io/xrd: xtrustmanagers.platform.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: platform.stuttgart-things.com/v1alpha1
+    kind: XTrustManager
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name    = oxr.metadata.name
+            _helmPcr = oxr.spec.targetCluster.name
+            _k8sPcr  = oxr.spec.targetCluster.kubernetesRef
+
+            # ── Defaults ────────────────────────────────────
+            _install = oxr.spec?.install or {}
+            _installEnabled = _install?.enabled if _install?.enabled != None else True
+            _version        = _install?.version or "v0.22.0"
+            _namespace      = _install?.namespace or "cert-manager"
+            _trustNs        = _install?.trustNamespace or _namespace
+
+            _bundle = oxr.spec?.bundle or {}
+            _bundleEnabled     = _bundle?.enabled if _bundle?.enabled != None else True
+            _bundleName        = _bundle?.name or "cluster-trust-bundle"
+            _useDefaultCAs     = _bundle?.useDefaultCAs if _bundle?.useDefaultCAs != None else True
+            _secrets           = _bundle?.secrets or []
+            _inlineCAs         = _bundle?.inlineCAs or []
+            _targetCMKey       = _bundle?.targetConfigMapKey or "trust-bundle.pem"
+
+            _resources = []
+
+            # ── 1. trust-manager Helm Release ───────────────
+            if _installEnabled:
+                _helmRelease = {
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
+                    metadata = {
+                        name = "{}-trust-manager".format(_name)
+                        annotations = {
+                            "crossplane.io/external-name" = "trust-manager"
+                            "crossplane.io/composition-resource-name" = "{}-trust-manager".format(_name)
+                        }
+                    }
+                    spec = {
+                        providerConfigRef = {
+                            name = _helmPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                        forProvider = {
+                            chart = {
+                                name = "trust-manager"
+                                repository = "https://charts.jetstack.io"
+                                version = _version
+                            }
+                            namespace = _namespace
+                            values = {
+                                app = {
+                                    trust = {
+                                        namespace = _trustNs
+                                    }
+                                }
+                            }
+                        }
+                        rollbackLimit = 3
+                    }
+                }
+                _resources += [_helmRelease]
+
+            # ── Usage: Bundle depends on Helm release (CRDs) ──
+            if _installEnabled and _bundleEnabled:
+                _bundleUsage = {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata = {
+                        name = "{}-bundle-uses-tm".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-bundle-uses-tm".format(_name)
+                        }
+                    }
+                    spec = {
+                        replayDeletion = True
+                        of = {
+                            apiVersion = "helm.m.crossplane.io/v1beta1"
+                            kind = "Release"
+                            resourceRef.name = "{}-trust-manager".format(_name)
+                        }
+                        by = {
+                            apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                            kind = "Object"
+                            resourceRef.name = "{}-trust-bundle".format(_name)
+                        }
+                    }
+                }
+                _resources += [_bundleUsage]
+
+            # ── 2. Inline CA Secrets ─────────────────────────
+            _inlineCaResources = [
+                {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-ca-{}".format(_name, ica.name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-ca-{}".format(_name, ica.name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "v1"
+                                kind = "Secret"
+                                metadata = {
+                                    name = ica.name
+                                    namespace = _namespace
+                                }
+                                type = "Opaque"
+                                data = {
+                                    "ca.crt" = ica.ca
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                for ica in _inlineCAs
+            ]
+            _resources += _inlineCaResources
+
+            # ── 3. Trust Bundle ─────────────────────────────
+            if _bundleEnabled:
+                _sources = []
+                if _useDefaultCAs:
+                    _sources += [{"useDefaultCAs": True}]
+                _sources += [
+                    {
+                        "secret": {
+                            "name": s.name
+                            "key": s?.key or "ca.crt"
+                        }
+                    }
+                    for s in _secrets
+                ]
+                # Add inline CA secrets as sources
+                _sources += [
+                    {
+                        "secret": {
+                            "name": ica.name
+                            "key": "ca.crt"
+                        }
+                    }
+                    for ica in _inlineCAs
+                ]
+
+                _trustBundle = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-trust-bundle".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-trust-bundle".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "trust.cert-manager.io/v1alpha1"
+                                kind = "Bundle"
+                                metadata = {
+                                    name = _bundleName
+                                }
+                                spec = {
+                                    sources = _sources
+                                    target = {
+                                        configMap = {
+                                            key = _targetCMKey
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_trustBundle]
+
+            items = _resources
+
+    - step: patch-status
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name = oxr.metadata.name
+
+            _installEnabled = oxr.spec?.install?.enabled if oxr.spec?.install?.enabled != None else True
+            _bundleEnabled = oxr.spec?.bundle?.enabled if oxr.spec?.bundle?.enabled != None else True
+
+            _isReady = lambda resourceName: str -> bool {
+                _found = resourceName in ocds
+                _conds = ocds[resourceName].Resource?.status?.conditions or [] if _found else []
+                any_true = len([c for c in _conds if c.type == "Ready" and c.status == "True"]) > 0
+                any_true if _found else False
+            }
+
+            _installReady = _isReady("{}-trust-manager".format(_name)) if _installEnabled else True
+            _bundleReady = _isReady("{}-trust-bundle".format(_name)) if _bundleEnabled else True
+
+            _oxr = oxr | {
+                status = {
+                    ready = _installReady and _bundleReady
+                    installReady = _installReady
+                    bundleReady = _bundleReady
+                    trustManagerVersion = oxr.spec?.install?.version or "v0.22.0"
+                }
+            }
+
+            items = [_oxr]
+
+    - step: ready
+      functionRef:
+        name: function-auto-ready
