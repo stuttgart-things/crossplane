@@ -271,7 +271,7 @@ spec:
                       description: Deploy cert-manager via nested XCertManager
                     version:
                       type: string
-                      default: "v1.20.0"
+                      default: "v1.19.1"
                     namespace:
                       type: string
                       default: cert-manager

@@ -318,7 +318,7 @@ spec:
                     }
                     install = {
                         enabled = True
-                        version = oxr.spec.certManager?.version or "v1.20.0"
+                        version = oxr.spec.certManager?.version or "v1.19.1"
                         namespace = oxr.spec.certManager?.namespace or "cert-manager"
                     }
                 }

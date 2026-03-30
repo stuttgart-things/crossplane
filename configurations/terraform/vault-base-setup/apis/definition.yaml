@@ -38,6 +38,16 @@ spec:
                 vaultCaBundle:
                   type: string
                   description: Base64-encoded Vault PKI root CA certificate
+                vaultTokenSecretRef:
+                  type: object
+                  description: Reference to the Vault token secret (must be in crossplane-system)
+                  properties:
+                    name:
+                      type: string
+                      default: vault-token
+                    key:
+                      type: string
+                      default: token
                 kubeconfigSecretRef:
                   type: object
                   description: Reference to the kubeconfig secret for the target cluster

@@ -38,6 +38,12 @@ spec:
             {{- $vsoEnabled := false -}}
             {{- if $spec.vso -}}{{- if $spec.vso.enabled -}}{{- $vsoEnabled = true -}}{{- end -}}{{- end -}}
             {{- $providerConfigRef := $spec.providerConfigRef | default "default" -}}
+            {{- $vaultTokenSecretName := "vault-token" -}}
+            {{- $vaultTokenSecretKey := "token" -}}
+            {{- if $spec.vaultTokenSecretRef -}}
+            {{- if $spec.vaultTokenSecretRef.name -}}{{- $vaultTokenSecretName = $spec.vaultTokenSecretRef.name -}}{{- end -}}
+            {{- if $spec.vaultTokenSecretRef.key -}}{{- $vaultTokenSecretKey = $spec.vaultTokenSecretRef.key -}}{{- end -}}
+            {{- end -}}
             {{- $kubeconfigSecretName := printf "kubeconfig-%s" $clusterName -}}
             {{- $kubeconfigSecretKey := "kubeconfig" -}}
             {{- if $spec.kubeconfigSecretRef -}}
@@ -62,6 +68,11 @@ spec:
                 module: git::https://github.com/stuttgart-things/vault-base-setup?ref=main
 
                 env:
+                  - name: VAULT_TOKEN
+                    secretKeyRef:
+                      name: {{ $vaultTokenSecretName }}
+                      key: {{ $vaultTokenSecretKey }}
+
                   - name: TF_VAR_kubeconfig_content
                     secretKeyRef:
                       name: {{ $kubeconfigSecretName }}
