@@ -293,6 +293,11 @@ spec:
                             domain:
                               type: string
                               description: Wildcard domain (e.g. sthings.io)
+                            issuerName:
+                              type: string
+                              description: >-
+                                ClusterIssuer for the wildcard cert (e.g. vault-pki).
+                                Defaults to cluster-ca.
                             secretName:
                               type: string
                               default: wildcard-tls

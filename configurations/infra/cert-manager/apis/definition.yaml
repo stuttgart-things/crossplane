@@ -91,6 +91,12 @@ spec:
                         domain:
                           type: string
                           description: Domain for wildcard cert (e.g. sthings.io for *.sthings.io)
+                        issuerName:
+                          type: string
+                          description: >-
+                            ClusterIssuer name for the wildcard cert.
+                            Defaults to cluster-ca (self-signed) or the vault issuer name when vaultIssuer is enabled.
+                            Use this to reference a pre-existing ClusterIssuer (e.g. vault-pki).
                         duration:
                           type: string
                           default: "2160h"
@@ -110,22 +116,32 @@ spec:
                       description: Create a Vault-backed ClusterIssuer
                     name:
                       type: string
-                      default: cluster-issuer-approle
+                      default: vault-pki
+                    authMethod:
+                      type: string
+                      enum:
+                        - appRole
+                        - token
+                      default: token
+                      description: Vault auth method (appRole or token)
                     vaultAddr:
                       type: string
                       description: Vault server URL
                     pkiPath:
                       type: string
-                      description: Vault PKI sign path
+                      description: Vault PKI sign path (e.g. sthings-vsphere)
                     caBundle:
                       type: string
                       description: Base64-encoded Vault CA bundle
+                    token:
+                      type: string
+                      description: Vault token (for token auth method)
                     roleId:
                       type: string
-                      description: Vault AppRole role ID
+                      description: Vault AppRole role ID (for appRole auth method)
                     secretId:
                       type: string
-                      description: Vault AppRole secret ID
+                      description: Vault AppRole secret ID (for appRole auth method)
 
             status:
               type: object

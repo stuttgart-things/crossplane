@@ -49,10 +49,12 @@ spec:
 
             _vi = oxr.spec?.vaultIssuer or {}
             _viEnabled  = _vi?.enabled or False
-            _viName     = _vi?.name or "cluster-issuer-approle"
+            _viName     = _vi?.name or "vault-pki"
+            _authMethod = _vi?.authMethod or "token"
             _vaultAddr  = _vi?.vaultAddr or ""
             _pkiPath    = _vi?.pkiPath or ""
             _caBundle   = _vi?.caBundle or ""
+            _vaultToken = _vi?.token or ""
             _roleId     = _vi?.roleId or ""
             _secretId   = _vi?.secretId or ""
 
@@ -123,11 +125,13 @@ spec:
                 _resources += [_usageTemplate("{}-ca-cert".format(_name))]
                 _resources += [_usageTemplate("{}-ca-issuer".format(_name))]
 
-            if _installEnabled and _ssEnabled and _wcEnabled and _wcDomain:
+            if _installEnabled and (_ssEnabled or _viEnabled) and _wcEnabled and _wcDomain:
                 _resources += [_usageTemplate("{}-wildcard-cert".format(_name))]
 
             if _installEnabled and _viEnabled:
                 _resources += [_usageTemplate("{}-vault-issuer".format(_name))]
+                if _authMethod == "token" and _vaultToken:
+                    _resources += [_usageTemplate("{}-vault-token-secret".format(_name))]
 
             # ── 2. SelfSigned ClusterIssuer ──────────────────
             if _ssEnabled:
@@ -228,7 +232,10 @@ spec:
                 _resources += [_caIssuer]
 
             # ── 5. Wildcard Certificate ──────────────────────
-            if _ssEnabled and _wcEnabled and _wcDomain:
+            # Explicit issuer override > vault issuer > cluster-ca
+            _wcIssuerName = _wc?.issuerName or (_viName if _viEnabled else "cluster-ca")
+            _wcEmit = (_ssEnabled or _viEnabled) and _wcEnabled and _wcDomain
+            if _wcEmit:
                 _wildcardCert = {
                     apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
                     kind = "Object"
@@ -236,7 +243,7 @@ spec:
                         name = "{}-wildcard-cert".format(_name)
                         annotations = {
                             "crossplane.io/composition-resource-name" = "{}-wildcard-cert".format(_name)
-                            "crossplane.io/uses" = "{}-ca-issuer".format(_name)
+                            "crossplane.io/uses" = "{}-vault-issuer".format(_name) if _viEnabled else "{}-ca-issuer".format(_name)
                         }
                     }
                     spec = {
@@ -251,7 +258,7 @@ spec:
                                 spec = {
                                     secretName = _wcSecretName
                                     issuerRef = {
-                                        name = "cluster-ca"
+                                        name = _wcIssuerName
                                         kind = "ClusterIssuer"
                                     }
                                     commonName = "*.{}".format(_wcDomain)
@@ -270,8 +277,8 @@ spec:
                 }
                 _resources += [_wildcardCert]
 
-            # ── 6. Vault AppRole Secret ──────────────────────
-            if _viEnabled and _secretId:
+            # ── 6. Vault Auth Secret ─────────────────────────
+            if _viEnabled and _authMethod == "appRole" and _secretId:
                 _approleSecret = {
                     apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
                     kind = "Object"
@@ -304,36 +311,28 @@ spec:
                 }
                 _resources += [_approleSecret]
 
-            # ── 7. Vault ClusterIssuer ───────────────────────
-            if _viEnabled and _vaultAddr and _pkiPath and _roleId:
-                _vaultIssuer = {
+            if _viEnabled and _authMethod == "token" and _vaultToken:
+                _tokenSecret = {
                     apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
                     kind = "Object"
                     metadata = {
-                        name = "{}-vault-issuer".format(_name)
+                        name = "{}-vault-token-secret".format(_name)
                         annotations = {
-                            "crossplane.io/composition-resource-name" = "{}-vault-issuer".format(_name)
-                            "crossplane.io/uses" = "{}-vault-approle-secret".format(_name)
+                            "crossplane.io/composition-resource-name" = "{}-vault-token-secret".format(_name)
                         }
                     }
                     spec = {
                         forProvider = {
                             manifest = {
-                                apiVersion = "cert-manager.io/v1"
-                                kind = "ClusterIssuer"
-                                metadata.name = _viName
-                                spec.vault = {
-                                    path = "pki/sign/{}".format(_pkiPath)
-                                    server = _vaultAddr
-                                    caBundle = _caBundle
-                                    auth.appRole = {
-                                        path = "approle"
-                                        roleId = _roleId
-                                        secretRef = {
-                                            name = "cert-manager-vault-approle"
-                                            key = "approle"
-                                        }
-                                    }
+                                apiVersion = "v1"
+                                kind = "Secret"
+                                metadata = {
+                                    name = "vault-pki-token"
+                                    namespace = _namespace
+                                }
+                                type = "Opaque"
+                                stringData = {
+                                    token = _vaultToken
                                 }
                             }
                         }
@@ -343,7 +342,65 @@ spec:
                         }
                     }
                 }
-                _resources += [_vaultIssuer]
+                _resources += [_tokenSecret]
+
+            # ── 7. Vault ClusterIssuer ───────────────────────
+            if _viEnabled and _vaultAddr and _pkiPath:
+                _vaultAuth = {}
+                _vaultUses = ""
+                if _authMethod == "appRole" and _roleId:
+                    _vaultAuth = {
+                        appRole = {
+                            path = "approle"
+                            roleId = _roleId
+                            secretRef = {
+                                name = "cert-manager-vault-approle"
+                                key = "approle"
+                            }
+                        }
+                    }
+                    _vaultUses = "{}-vault-approle-secret".format(_name)
+                if _authMethod == "token":
+                    _vaultAuth = {
+                        tokenSecretRef = {
+                            name = "vault-pki-token"
+                            key = "token"
+                        }
+                    }
+                    _vaultUses = "{}-vault-token-secret".format(_name)
+
+                if _vaultAuth:
+                    _vaultIssuer = {
+                        apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                        kind = "Object"
+                        metadata = {
+                            name = "{}-vault-issuer".format(_name)
+                            annotations = {
+                                "crossplane.io/composition-resource-name" = "{}-vault-issuer".format(_name)
+                                **({"crossplane.io/uses": _vaultUses} if _vaultUses else {})
+                            }
+                        }
+                        spec = {
+                            forProvider = {
+                                manifest = {
+                                    apiVersion = "cert-manager.io/v1"
+                                    kind = "ClusterIssuer"
+                                    metadata.name = _viName
+                                    spec.vault = {
+                                        path = "pki/sign/{}".format(_pkiPath)
+                                        server = _vaultAddr
+                                        **({"caBundle": _caBundle} if _caBundle else {})
+                                        auth = _vaultAuth
+                                    }
+                                }
+                            }
+                            providerConfigRef = {
+                                name = _k8sPcr
+                                kind = "ClusterProviderConfig"
+                            }
+                        }
+                    }
+                    _resources += [_vaultIssuer]
 
             items = _resources
 
@@ -377,16 +434,21 @@ spec:
             _ssReady = True
             if _ssEnabled:
                 _ssReady = _isReady("{}-ca-cert".format(_name)) and _isReady("{}-ca-issuer".format(_name))
-                _wcEnabled = oxr.spec?.selfSigned?.wildcard?.enabled if oxr.spec?.selfSigned?.wildcard?.enabled != None else True
-                _wcDomain = oxr.spec?.selfSigned?.wildcard?.domain or ""
-                if _wcEnabled and _wcDomain:
-                    _ssReady = _ssReady and _isReady("{}-wildcard-cert".format(_name))
 
             _viReady = _isReady("{}-vault-issuer".format(_name)) if _viEnabled else True
 
+            # Wildcard cert readiness (issued by vault or cluster-ca)
+            _wcEnabled = oxr.spec?.selfSigned?.wildcard?.enabled if oxr.spec?.selfSigned?.wildcard?.enabled != None else True
+            _wcDomain = oxr.spec?.selfSigned?.wildcard?.domain or ""
+            _wcReady = True
+            if (_ssEnabled or _viEnabled) and _wcEnabled and _wcDomain:
+                _wcReady = _isReady("{}-wildcard-cert".format(_name))
+            if _ssEnabled:
+                _ssReady = _ssReady and _wcReady
+
             _oxr = oxr | {
                 status = {
-                    ready = _installReady and _ssReady and _viReady
+                    ready = _installReady and _ssReady and _viReady and _wcReady
                     installReady = _installReady
                     selfSignedReady = _ssReady
                     vaultIssuerReady = _viReady

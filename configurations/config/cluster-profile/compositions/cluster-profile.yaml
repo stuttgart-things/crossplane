@@ -330,6 +330,7 @@ spec:
                 _ss = oxr.spec.certManager?.selfSigned or {}
                 _ssEnabled = _ss?.enabled if _ss?.enabled != None else True
                 if _ssEnabled:
+                    _wcIssuer = _ss?.wildcard?.issuerName or ""
                     _cmSpec |= {
                         selfSigned = {
                             enabled = True
@@ -339,6 +340,7 @@ spec:
                                 domain = _ss?.wildcard?.domain or _clusterDomain or "sthings.io"
                                 secretName = _ss?.wildcard?.secretName or "wildcard-tls"
                                 namespace = _ss?.wildcard?.namespace or "default"
+                                **({} if not _wcIssuer else {"issuerName": _wcIssuer})
                             }
                         }
                     }
