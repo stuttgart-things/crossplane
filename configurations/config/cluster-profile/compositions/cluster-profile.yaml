@@ -132,7 +132,7 @@ spec:
             # ── 2. VaultBaseSetup config (determines cert-manager + Cilium behavior) ──
             _vbs = oxr.spec?.vaultBaseSetup or {}
             _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
-            _vbsEnabled = _vbs?.enabled if _vbs?.enabled != None else _vbsAutoEnabled
+            _vbsEnabled = bool(_vbs?.vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
             _vbsKey = "{}-vault-base-setup".format(_name)
             _vbsReady = _isReady(_vbsKey) if _vbsEnabled else True
 
@@ -157,27 +157,23 @@ spec:
                     }
                 }
 
+                # Always enable selfSigned (CA chain) + wildcard cert
                 _ss = oxr.spec.certManager?.selfSigned or {}
-                _ssEnabled = _ss?.enabled if _ss?.enabled != None else True
-                if _ssEnabled:
-                    _wcIssuer = _ss?.wildcard?.issuerName or ""
-                    # For non-kind with vault: use vault-pki issuer for wildcard cert
-                    if _vbsEnabled and not _wcIssuer:
-                        _wcIssuer = "vault-pki"
-                    _cmSpec |= {
-                        selfSigned = {
+                _wcIssuer = _ss?.wildcard?.issuerName or ("vault-pki" if _vbsEnabled else "")
+                _cmSpec |= {
+                    selfSigned = {
+                        enabled = True
+                        caName = _ss?.caName or "cluster-ca"
+                        wildcard = {
                             enabled = True
-                            caName = _ss?.caName or "cluster-ca"
-                            wildcard = {
-                                enabled = _ss?.wildcard?.enabled if _ss?.wildcard?.enabled != None else True
-                                domain = _ss?.wildcard?.domain or _clusterDomain or "sthings.io"
-                                name = _ss?.wildcard?.name or _wcSecretName
-                                secretName = _ss?.wildcard?.secretName or _wcSecretName
-                                namespace = _ss?.wildcard?.namespace or "default"
-                                **({} if not _wcIssuer else {"issuerName": _wcIssuer})
-                            }
+                            domain = _ss?.wildcard?.domain or _clusterDomain or "sthings.io"
+                            name = _wcSecretName
+                            secretName = _wcSecretName
+                            namespace = _ss?.wildcard?.namespace or "default"
+                            **({} if not _wcIssuer else {"issuerName": _wcIssuer})
                         }
                     }
+                }
 
                 _certManager = {
                     apiVersion = "platform.stuttgart-things.com/v1alpha1"
@@ -520,7 +516,7 @@ spec:
             # VaultBaseSetup status
             _vbs = oxr.spec?.vaultBaseSetup or {}
             _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
-            _vbsEnabled = _vbs?.enabled if _vbs?.enabled != None else _vbsAutoEnabled
+            _vbsEnabled = bool(_vbs?.vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
             _vbsReady = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else True
 
             _oxr = oxr | {
