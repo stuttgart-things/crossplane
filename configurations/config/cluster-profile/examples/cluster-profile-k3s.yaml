@@ -2,13 +2,14 @@
 apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: XClusterProfile
 metadata:
-  name: k3s-target-labul
+  name: k3s-3
   namespace: crossplane-system
 spec:
-  clusterName: k3s-target-labul
+  clusterName: k3s-3
   cilium:
     enabled: true
   gitops:
     engine: flux
   certManager:
     enabled: true
+

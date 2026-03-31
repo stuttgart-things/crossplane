@@ -11,6 +11,17 @@ spec:
     kind: XClusterProfile
   mode: Pipeline
   pipeline:
+    - step: load-defaults
+      functionRef:
+        name: function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: cluster-profile-defaults
     - step: render
       functionRef:
         name: function-kcl
@@ -21,6 +32,7 @@ spec:
           source: | # pragma: allowlist secret
             oxr  = option("params").oxr
             ocds = option("params").ocds
+            env  = option("params").ctx["apiextensions.crossplane.io/environment"] or {}
 
             _name      = oxr.metadata.name
             _namespace = oxr.metadata.namespace or "crossplane-system"
@@ -77,6 +89,7 @@ spec:
                 _observedEndpoint = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.apiEndpoint or "" if _rcKey in ocds else ""
                 _observedClusterType = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.clusterType or "" if _rcKey in ocds else ""
                 _observedPodCIDR = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.podCIDR or "" if _rcKey in ocds else ""
+                _observedNodeCount = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.nodeCount or 0 if _rcKey in ocds else 0
 
             # Parse apiEndpoint (e.g. "https://10.31.104.101:6443") into host + port
             _apiHost = ""
@@ -131,15 +144,19 @@ spec:
 
             # ── 2. VaultBaseSetup config (determines cert-manager + Cilium behavior) ──
             _vbs = oxr.spec?.vaultBaseSetup or {}
-            _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
-            _vbsEnabled = bool(_vbs?.vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _envVault = env?.vault or {}
+            _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
+            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
             _vbsKey = "{}-vault-base-setup".format(_name)
             _vbsReady = _isReady(_vbsKey) if _vbsEnabled else True
 
             # Wildcard cert secret name: cluster-specific for non-kind, generic for kind
             _wcSecretName = "wildcard-{}-tls".format(_clusterName) if _vbsEnabled and _clusterName else "wildcard-tls"
 
-            # ── 3. cert-manager (moved before Cilium — provides CRDs for vault-base-setup) ──
+            # ── 3. cert-manager (provides CRDs for vault-base-setup) ──
+            # NOTE: cert-manager gates on _reservedIP which comes from oxr.status
+            # (set by the status step). This means cert-manager appears one reconcile
+            # cycle after IPR completes — the status must be patched and re-read first.
             _cmEnabled = oxr.spec.certManager?.enabled or False
             _iprSatisfied = (bool(_reservedIP) if _iprEnabled else True)
             _cmGateSatisfied = _iprSatisfied if _iprEnabled else _observeReady
@@ -159,7 +176,8 @@ spec:
 
                 # Always enable selfSigned (CA chain) + wildcard cert
                 _ss = oxr.spec.certManager?.selfSigned or {}
-                _wcIssuer = _ss?.wildcard?.issuerName or ("vault-pki" if _vbsEnabled else "")
+                _vbsReady_for_issuer = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else False
+                _wcIssuer = _ss?.wildcard?.issuerName or ("vault-pki" if _vbsReady_for_issuer else "")
                 _cmSpec |= {
                     selfSigned = {
                         enabled = True
@@ -205,8 +223,8 @@ spec:
                     }
                     spec = {
                         clusterName = _clusterName
-                        vaultAddr = _vbs?.vaultAddr or "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
-                        vaultCaBundle = _vbs?.vaultCaBundle or ""
+                        vaultAddr = _vbs?.vaultAddr or _envVault?.addr or "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
+                        vaultCaBundle = _vaultCaBundle
                         kubeconfigSecretRef = {
                             name = "kubeconfig-{}".format(_clusterName)
                             namespace = "crossplane-system"
@@ -214,8 +232,8 @@ spec:
                         }
                         certmanager = {
                             issuerEnabled = _vbs?.certmanager?.issuerEnabled if _vbs?.certmanager?.issuerEnabled != None else True
-                            pkiRole = _vbs?.certmanager?.pkiRole or "sthings-vsphere"
-                            policyName = _vbs?.certmanager?.policyName or "pki-issue"
+                            pkiRole = _vbs?.certmanager?.pkiRole or _envVault?.pkiRole or "sthings-vsphere"
+                            policyName = _vbs?.certmanager?.policyName or _envVault?.policyName or "pki-issue"
                         }
                         providerConfigRef = _vbs?.providerConfigRef or "default"
                         **({} if not _vbs?.vaultTokenSecretRef else {"vaultTokenSecretRef": _vbs.vaultTokenSecretRef})
@@ -250,6 +268,11 @@ spec:
                 _resources += [_vbsUsesCm]
 
             # ── 5. TrustManager (non-kind, when vault is enabled) ──
+            # Intentionally no VBS→TM Usage: TrustManager only needs the
+            # _vaultCaBundle string (already in spec), not VBS completion.
+            # Both are created in parallel once cert-manager is ready.
+            # The Gateway gate (_vbsReady and _tmReady) serializes the
+            # full chain — Gateway only opens once both have finished.
             _tmKey = "{}-trust-manager".format(_name)
             _tmReady = _isReady(_tmKey) if _vbsEnabled else True
 
@@ -269,7 +292,7 @@ spec:
                             {name = "cluster-ca-secret", key = "ca.crt"}
                         ]
                         inlineCAs = [
-                            {name = "vault-pki-ca", ca = _vbs?.vaultCaBundle or ""}
+                            {name = "vault-pki-ca", ca = _vaultCaBundle}
                         ]
                     }
                 }
@@ -314,10 +337,8 @@ spec:
                 }
                 _resources += [_tmUsesCm]
 
-            # ── 6. Cilium (gated on IP reservation + vault-base-setup) ──
+            # ── 6. Cilium ──
             _cil = oxr.spec?.cilium or {}
-            _cilEnabled = _cil?.enabled or False
-            _ciliumReady = True
 
             _ciliumDefaults = {
                 kind = {
@@ -366,20 +387,35 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
-            _ciliumGateSatisfied = _iprSatisfied and (_vbsReady if _vbsEnabled else True)
-            if _cilEnabled and _observeReady and _ciliumGateSatisfied:
-                # Merge: type defaults -> then user overrides win
+            # Cilium is deployed in three phases via XCilium spec mutation:
+            # Phase 1: Helm install (needs only observeReady — CNI must be first)
+            # Phase 2: LB pool + L2 policy (needs IP reservation ready)
+            # Phase 3: Gateway (needs VaultBaseSetup + TrustManager ready for TLS cert)
+            #
+            # This is intentional: XCilium is first created with gateway.enabled=False,
+            # then mutated to True once VBS+TM are ready. The XCilium XR goes through
+            # a spec change mid-lifecycle — this is by design, not a bug.
+            #
+            # deployCilium: defaults to true from EnvironmentConfig, can be
+            # disabled per-claim for clusters that already have a CNI.
+            _deployCilium = _cil?.enabled if _cil?.enabled != None else (env?.deployCilium if env?.deployCilium != None else True)
+            _ciliumReady = True
+            if _deployCilium and _observeReady:
                 _d = _typeDefaults
                 _cilLb = _cil?.loadBalancer or {}
+                _cilGw = _cil?.gateway or {}
+
+                # LB enabled independently: needs IP reservation ready
                 _lbAutoEnabled = bool(_reservedIP) and _clusterType != "kind"
-                _lbEnabled = _cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled
+                _lbEnabled = (_cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled) and _iprSatisfied
                 _lbIpRange = _cilLb?.ipRange or {}
                 if not _lbIpRange and _reservedIP:
                     _lbIpRange = {start = _reservedIP, end = _reservedIP}
 
-                _cilGw = _cil?.gateway or {}
+                # Gateway enabled independently: needs VaultBaseSetup + TrustManager ready
+                # (TLS cert requires VBS for the issuer, TM for CA bundle propagation)
                 _gwAutoEnabled = _clusterType != "kind"
-                _gwEnabled = _cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled
+                _gwEnabled = (_cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled) and (_vbsReady and _tmReady if _vbsEnabled else True)
 
                 _cilSpec = {
                     targetCluster = {
@@ -400,12 +436,15 @@ spec:
                         gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else _d?.gatewayAPI?.enabled if _d else True }
                         l2Announcements = { enabled = _cil?.l2Announcements?.enabled if _cil?.l2Announcements?.enabled != None else _d?.l2Announcements?.enabled if _d else True }
                         externalIPs = { enabled = _cil?.externalIPs?.enabled if _cil?.externalIPs?.enabled != None else _d?.externalIPs?.enabled if _d else True }
-                        operator = { replicas = _cil?.operator?.replicas or _d?.operator?.replicas or 1 }
+                        operator = {
+                            _desired = _cil?.operator?.replicas or _d?.operator?.replicas or 1
+                            replicas = min([_desired, _observedNodeCount]) if _observedNodeCount > 0 else _desired
+                        }
                     }
                     loadBalancer = {
                         enabled = _lbEnabled
                         ipMode = _cilLb?.ipMode or "static"
-                        ipRange = _lbIpRange
+                        ipRange = _lbIpRange if _lbEnabled else {}
                         **({"reservationRef": _cilLb.reservationRef} if _cilLb?.reservationRef else {})
                         poolName = _cilLb?.poolName or "default-pool"
                         l2PolicyName = _cilLb?.l2PolicyName or "default-l2-announcement-policy"
@@ -433,7 +472,7 @@ spec:
                 }
                 _resources += [_cilium]
 
-                # Usage: Cilium depends on IP reservation (ordering + deletion)
+                # Usage: Cilium depends on IP reservation (deletion ordering)
                 if _iprEnabled:
                     _ciliumUsesIpr = {
                         apiVersion = "protection.crossplane.io/v1beta1"
@@ -464,7 +503,7 @@ spec:
                     }
                     _resources += [_ciliumUsesIpr]
 
-                # Usage: Cilium depends on VaultBaseSetup (ordering + deletion)
+                # Usage: Cilium depends on VaultBaseSetup (deletion ordering)
                 if _vbsEnabled:
                     _ciliumUsesVbs = {
                         apiVersion = "protection.crossplane.io/v1beta1"
@@ -495,11 +534,14 @@ spec:
                     }
                     _resources += [_ciliumUsesVbs]
 
-                # Gate: check if Cilium is ready before proceeding
+                # Cilium install ready = Helm release deployed (CNI working)
+                # Full ready = install + LB + Gateway (used for overall status)
                 _ciliumReady = _isReady("{}-cilium".format(_name))
 
-            # ── 6. FluxInit (gated on Cilium) ──────────────
-            if _engine == "flux" and (_ciliumReady or not _cilEnabled):
+            # ── 7. FluxInit (gated on Cilium install, not LB/Gateway) ──
+            # Flux only needs a working CNI, not the full Cilium feature set
+            _ciliumInstallReady = _isReady("{}-cilium".format(_name)) if _deployCilium else True
+            if _engine == "flux" and _ciliumInstallReady:
                 _defaultSources = [
                     {name = "flux-infra", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-infra"}
                     {name = "flux-apps", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-apps"}
@@ -528,6 +570,35 @@ spec:
                 }
                 _resources += [_fluxInit]
 
+                # Usage: FluxInit depends on Cilium (deletion ordering —
+                # Flux kustomizations may reference Cilium CRDs like Gateway routes;
+                # deleting Cilium first could leave stuck finalizers)
+                if _deployCilium:
+                    _fluxUsesCilium = {
+                        apiVersion = "protection.crossplane.io/v1beta1"
+                        kind = "Usage"
+                        metadata = {
+                            name = "{}-flux-uses-cilium".format(_name)
+                            annotations = {
+                                "crossplane.io/composition-resource-name" = "{}-flux-uses-cilium".format(_name)
+                            }
+                        }
+                        spec = {
+                            replayDeletion = True
+                            of = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "XCilium"
+                                resourceRef.name = "{}-cilium".format(_name)
+                            }
+                            by = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "FluxInit"
+                                resourceRef.name = "{}-flux-init".format(_name)
+                            }
+                        }
+                    }
+                    _resources += [_fluxUsesCilium]
+
             items = _resources
 
     - step: patch-status
@@ -540,6 +611,7 @@ spec:
           source: |
             oxr  = option("params").oxr
             ocds = option("params").ocds
+            env  = option("params").ctx["apiextensions.crossplane.io/environment"] or {}
 
             _name   = oxr.metadata.name
             _engine = oxr.spec.gitops?.engine or "flux"
@@ -553,8 +625,9 @@ spec:
                 any_true if _found else False
             }
 
-            _cilEnabled = oxr.spec?.cilium?.enabled or False
-            _cilReady = _isReady("{}-cilium".format(_name)) if _cilEnabled else True
+            _cil = oxr.spec?.cilium or {}
+            _deployCilium = _cil?.enabled if _cil?.enabled != None else (env?.deployCilium if env?.deployCilium != None else True)
+            _cilReady = _isReady("{}-cilium".format(_name)) if _deployCilium else True
 
             _gitopsReady = True if _engine == "none" else False
             if _engine == "flux":
@@ -580,8 +653,9 @@ spec:
 
             # VaultBaseSetup status
             _vbs = oxr.spec?.vaultBaseSetup or {}
-            _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
-            _vbsEnabled = bool(_vbs?.vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _envVault = env?.vault or {}
+            _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
+            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
             _vbsReady = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else True
             _tmReady = _isReady("{}-trust-manager".format(_name)) if _vbsEnabled else True
 

@@ -131,6 +131,60 @@ spec:
                 }
             }
 
+            # Usage: Object depends on gateway-api Helm release (CRDs must exist)
+            _gwApiUsage = lambda objName: str -> any {
+                {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata = {
+                        name = "{}-uses-gw-api".format(objName)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-uses-gw-api".format(objName)
+                        }
+                    }
+                    spec = {
+                        replayDeletion = True
+                        of = {
+                            apiVersion = "helm.m.crossplane.io/v1beta1"
+                            kind = "Release"
+                            resourceRef.name = "{}-gateway-api".format(_name)
+                        }
+                        by = {
+                            apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                            kind = "Object"
+                            resourceRef.name = objName
+                        }
+                    }
+                }
+            }
+
+            # Usage: Gateway depends on GatewayClass Object
+            _gwClassUsage = lambda objName: str -> any {
+                {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata = {
+                        name = "{}-uses-gw-class".format(objName)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-uses-gw-class".format(objName)
+                        }
+                    }
+                    spec = {
+                        replayDeletion = True
+                        of = {
+                            apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                            kind = "Object"
+                            resourceRef.name = "{}-gateway-class".format(_name)
+                        }
+                        by = {
+                            apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                            kind = "Object"
+                            resourceRef.name = objName
+                        }
+                    }
+                }
+            }
+
             if _installEnabled and _lbEnabled:
                 _resources += [_ciliumUsage("{}-lb-pool".format(_name))]
                 _resources += [_ciliumUsage("{}-l2-policy".format(_name))]
@@ -245,7 +299,74 @@ spec:
                 }
                 _resources += [_l2Policy]
 
-            # ── 5. Gateway ───────────────────────────────────
+            # ── 5. Gateway API CRDs + GatewayClass (prerequisite for Gateway) ──
+            if _installEnabled and _gatewayAPIEnabled:
+                # Install Gateway API CRDs via upstream Helm chart
+                _gwApiRelease = {
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
+                    metadata = {
+                        name = "{}-gateway-api".format(_name)
+                        annotations = {
+                            "crossplane.io/external-name" = "gateway-api"
+                            "crossplane.io/composition-resource-name" = "{}-gateway-api".format(_name)
+                        }
+                    }
+                    spec = {
+                        providerConfigRef = {
+                            name = _helmPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                        forProvider = {
+                            chart = {
+                                name = "gateway-api"
+                                repository = "https://gateway-api-charts.sigs.k8s.io"
+                                version = "1.2.1"
+                            }
+                            namespace = _namespace
+                            values = {}
+                        }
+                        rollbackLimit = 3
+                    }
+                }
+                _resources += [_gwApiRelease]
+
+                # GatewayClass for Cilium (depends on Gateway API CRDs existing)
+                _gwClass = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-gateway-class".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-gateway-class".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "gateway.networking.k8s.io/v1"
+                                kind = "GatewayClass"
+                                metadata = {
+                                    name = "cilium"
+                                }
+                                spec = {
+                                    controllerName = "io.cilium/gateway-controller"
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_gwClass]
+
+                # Usages: GatewayClass depends on Cilium Helm + gateway-api CRDs
+                _resources += [_ciliumUsage("{}-gateway-class".format(_name))]
+                _resources += [_gwApiUsage("{}-gateway-class".format(_name))]
+
+            # ── 6. Gateway ───────────────────────────────────
             if _gwEnabled and _gwDomain:
                 _httpListener = {
                     name = "http"
@@ -304,6 +425,10 @@ spec:
                     }
                 }
                 _resources += [_gateway]
+
+                # Usage: Gateway depends on GatewayClass
+                if _installEnabled and _gatewayAPIEnabled:
+                    _resources += [_gwClassUsage("{}-gateway".format(_name))]
 
             items = _resources
 
