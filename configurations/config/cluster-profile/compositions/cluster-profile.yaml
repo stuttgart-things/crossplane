@@ -89,6 +89,7 @@ spec:
                 _observedEndpoint = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.apiEndpoint or "" if _rcKey in ocds else ""
                 _observedClusterType = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.clusterType or "" if _rcKey in ocds else ""
                 _observedPodCIDR = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.podCIDR or "" if _rcKey in ocds else ""
+                _observedNodeCount = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.nodeCount or 0 if _rcKey in ocds else 0
 
             # Parse apiEndpoint (e.g. "https://10.31.104.101:6443") into host + port
             _apiHost = ""
@@ -422,7 +423,10 @@ spec:
                         gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else _d?.gatewayAPI?.enabled if _d else True }
                         l2Announcements = { enabled = _cil?.l2Announcements?.enabled if _cil?.l2Announcements?.enabled != None else _d?.l2Announcements?.enabled if _d else True }
                         externalIPs = { enabled = _cil?.externalIPs?.enabled if _cil?.externalIPs?.enabled != None else _d?.externalIPs?.enabled if _d else True }
-                        operator = { replicas = _cil?.operator?.replicas or _d?.operator?.replicas or 1 }
+                        operator = {
+                            _desired = _cil?.operator?.replicas or _d?.operator?.replicas or 1
+                            replicas = min([_desired, _observedNodeCount]) if _observedNodeCount > 0 else _desired
+                        }
                     }
                     loadBalancer = {
                         enabled = _lbEnabled
