@@ -12,3 +12,4 @@ spec:
     engine: flux
   certManager:
     enabled: true
+

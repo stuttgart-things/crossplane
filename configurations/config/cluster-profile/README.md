@@ -33,11 +33,11 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 |---------|------|-----|------|-----|
 | IP Reservation (clusterbook) | skipped | auto | auto | auto |
 | PDNS wildcard DNS | skipped | auto | auto | auto |
-| VaultBaseSetup | skipped | auto (when vaultCaBundle set) | auto | auto |
-| TrustManager | skipped | auto (when vaultCaBundle set) | auto | auto |
+| VaultBaseSetup | skipped | auto (default CA) | auto (default CA) | auto (default CA) |
+| TrustManager | skipped | auto (default CA) | auto (default CA) | auto (default CA) |
 | Cilium LoadBalancer | skipped | auto (reserved IP) | auto | auto |
 | Cilium Gateway | skipped | auto (FQDN domain) | auto | auto |
-| Wildcard cert issuer | self-signed (cluster-ca) | vault-pki | vault-pki | vault-pki |
+| Wildcard cert issuer | self-signed (cluster-ca) | vault-pki (default) | vault-pki (default) | vault-pki (default) |
 | Wildcard cert secret | `wildcard-tls` | `wildcard-{clusterName}-tls` | `wildcard-{clusterName}-tls` | `wildcard-{clusterName}-tls` |
 
 ### Usage (hard ordering) Resources
@@ -67,7 +67,7 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | `cilium` | object | no | | Cilium CNI configuration (see below) |
 | `certManager` | object | no | | cert-manager configuration |
 | `ipReservation` | object | no | | IP reservation from clusterbook (auto-enabled for non-kind) |
-| `vaultBaseSetup` | object | no | | Vault PKI integration (auto-enabled when `vaultCaBundle` is set + non-kind) |
+| `vaultBaseSetup` | object | no | | Vault PKI integration (auto-enabled for non-kind clusters with built-in CA) |
 | `gitops.engine` | string | no | `flux` | GitOps engine (`flux`, `argocd`, or `none`) |
 | `flux` | object | no | | Flux-specific overrides passed to XFluxInit |
 
@@ -106,33 +106,70 @@ When `clusterType` is set (or auto-detected via RemoteCluster), distribution-spe
 
 ## Examples
 
-### k3s Cluster (full pipeline)
+### Step 1: Create a RemoteCluster (provider-kubeconfig)
+
+Before creating a ClusterProfile, the target cluster must be registered as a `RemoteCluster`. This decrypts a SOPS-encrypted kubeconfig from Git and creates downstream `ClusterProviderConfigs` for Helm and Kubernetes providers.
+
+```yaml
+apiVersion: kubeconfig.stuttgart-things.com/v1alpha1
+kind: RemoteCluster
+metadata:
+  name: k3s-2
+spec:
+  forProvider:
+    secretNamespace: crossplane-system
+    source:
+      path: secrets/kubeconfigs/k3s-2.yaml
+      key: kubeconfig
+      type: git
+    providerConfigs:
+      - name: k3s-2-kubernetes
+        type: provider-kubernetes
+        apiVersions:
+          - v2-cluster
+      - name: k3s-2-helm
+        type: provider-helm
+        apiVersions:
+          - v2-cluster
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: stuttgart-things   # Git repo + SOPS age key
+```
+
+Once ready, this creates `k3s-2-helm` and `k3s-2-kubernetes` ClusterProviderConfigs automatically.
+
+### Step 2: Create a ClusterProfile
+
+### k3s Cluster (minimal)
+
+Only `clusterName` and feature toggles are needed. Everything else is auto-derived from the RemoteCluster observation (clusterType, podCIDR, apiEndpoint) and distribution defaults.
 
 ```yaml
 apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: XClusterProfile
 metadata:
-  name: k3s-target-labul
+  name: k3s-2
   namespace: crossplane-system
 spec:
-  clusterName: k3s-target-labul
+  clusterName: k3s-2
   cilium:
     enabled: true
   certManager:
     enabled: true
-  vaultBaseSetup:
-    vaultCaBundle: "LS0tLS1CRUdJTi..."   # base64-encoded Vault CA
   gitops:
     engine: flux
 ```
 
-This auto-configures the full pipeline:
-- Observes RemoteCluster for apiEndpoint, clusterType, podCIDR
-- Reserves an IP from clusterbook + creates PDNS wildcard DNS
+This auto-configures the full k3s pipeline:
+- Observes RemoteCluster for apiEndpoint, clusterType=k3s, podCIDR
+- Reserves an IP from clusterbook (e.g. `10.31.102.14`)
+- Creates Vault PKI ClusterIssuer (`vault-pki`) via OpenTofu (default CA bundle)
 - Installs cert-manager + wildcard cert using `vault-pki` issuer
-- Runs vault-base-setup to create the `vault-pki` ClusterIssuer
-- Deploys Cilium with LB (reserved IP) + Gateway (auto-derived FQDN, vault cert)
-- Deploys Flux with default sources
+- Deploys trust-manager with system CAs + Vault CA bundle
+- Deploys Cilium with tunnel routing, LB (reserved IP), L2 announcements, Gateway
+- Deploys Flux with default OCI sources
+
+VaultBaseSetup and TrustManager are **enabled by default** for non-kind clusters — the Vault CA bundle, address, and PKI role are loaded from the `cluster-profile-defaults` EnvironmentConfig. Override per-claim via `spec.vaultBaseSetup.*` if needed.
 
 ### kind Cluster (minimal)
 
@@ -167,6 +204,38 @@ Kind clusters skip IP reservation, VaultBaseSetup, LB, and Gateway automatically
 | Flux | `FluxInit` | `platform.stuttgart-things.com` | Cilium ready | integrated |
 | ArgoCD | `XArgoInit` | `platform.stuttgart-things.com` | Cilium ready | planned |
 
+## EnvironmentConfig
+
+The composition loads defaults from a `cluster-profile-defaults` EnvironmentConfig. This externalizes environment-specific values (Vault address, CA bundle, PKI role) so the composition stays generic.
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: cluster-profile-defaults
+data:
+  vault:
+    addr: "https://vault.example.com"
+    caBundle: "<base64-encoded Vault PKI root CA>"
+    pkiRole: "my-pki-role"
+    policyName: "pki-issue"
+```
+
+**Precedence:** `spec.vaultBaseSetup.*` (per-claim) > `EnvironmentConfig` > hardcoded fallback
+
+| EnvironmentConfig field | Composition variable | Fallback |
+|------------------------|---------------------|----------|
+| `vault.caBundle` | `_vaultCaBundle` | `""` (disables VaultBaseSetup) |
+| `vault.addr` | vault address | `https://vault.sthings-infra.sthings-vsphere.labul.sva.de` |
+| `vault.pkiRole` | PKI role name | `sthings-vsphere` |
+| `vault.policyName` | Vault policy | `pki-issue` |
+
+Apply the EnvironmentConfig before creating any ClusterProfile:
+
+```bash
+kubectl apply -f examples/environment-config.yaml
+```
+
 ## Prerequisites
 
 - Crossplane `>=2.13.0` on the management cluster
@@ -177,7 +246,7 @@ Kind clusters skip IP reservation, VaultBaseSetup, LB, and Gateway automatically
 - `XCilium` XRD + composition (`configurations/infra/cilium/`)
 - `XFluxInit` XRD + composition (`configurations/config/flux-init/`)
 - Providers: `provider-clusterbook`, `provider-kubeconfig`, `provider-helm`, `provider-kubernetes`, `provider-opentofu`
-- Functions: `function-kcl` (v0.10.4), `function-auto-ready` (v0.6.0), `function-go-templating` (v0.11.3)
+- Functions: `function-kcl` (v0.10.4), `function-auto-ready` (v0.6.0), `function-environment-configs` (v0.3.0), `function-go-templating` (v0.11.3)
 - Vault token secret (`vault-token`) in `crossplane-system` namespace
 
 ## Install
@@ -185,6 +254,7 @@ Kind clusters skip IP reservation, VaultBaseSetup, LB, and Gateway automatically
 ```bash
 export KUBECONFIG=~/.kube/dev
 
+kubectl apply -f examples/environment-config.yaml
 kubectl apply -f apis/definition.yaml
 kubectl apply -f compositions/cluster-profile.yaml
 ```

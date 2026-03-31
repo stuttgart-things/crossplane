@@ -11,6 +11,17 @@ spec:
     kind: XClusterProfile
   mode: Pipeline
   pipeline:
+    - step: load-defaults
+      functionRef:
+        name: function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: cluster-profile-defaults
     - step: render
       functionRef:
         name: function-kcl
@@ -21,6 +32,7 @@ spec:
           source: | # pragma: allowlist secret
             oxr  = option("params").oxr
             ocds = option("params").ocds
+            env  = option("params").ctx["apiextensions.crossplane.io/environment"] or {}
 
             _name      = oxr.metadata.name
             _namespace = oxr.metadata.namespace or "crossplane-system"
@@ -131,8 +143,9 @@ spec:
 
             # ── 2. VaultBaseSetup config (determines cert-manager + Cilium behavior) ──
             _vbs = oxr.spec?.vaultBaseSetup or {}
-            _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
-            _vbsEnabled = bool(_vbs?.vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _envVault = env?.vault or {}
+            _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
+            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
             _vbsKey = "{}-vault-base-setup".format(_name)
             _vbsReady = _isReady(_vbsKey) if _vbsEnabled else True
 
@@ -205,8 +218,8 @@ spec:
                     }
                     spec = {
                         clusterName = _clusterName
-                        vaultAddr = _vbs?.vaultAddr or "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
-                        vaultCaBundle = _vbs?.vaultCaBundle or ""
+                        vaultAddr = _vbs?.vaultAddr or _envVault?.addr or "https://vault.sthings-infra.sthings-vsphere.labul.sva.de"
+                        vaultCaBundle = _vaultCaBundle
                         kubeconfigSecretRef = {
                             name = "kubeconfig-{}".format(_clusterName)
                             namespace = "crossplane-system"
@@ -214,8 +227,8 @@ spec:
                         }
                         certmanager = {
                             issuerEnabled = _vbs?.certmanager?.issuerEnabled if _vbs?.certmanager?.issuerEnabled != None else True
-                            pkiRole = _vbs?.certmanager?.pkiRole or "sthings-vsphere"
-                            policyName = _vbs?.certmanager?.policyName or "pki-issue"
+                            pkiRole = _vbs?.certmanager?.pkiRole or _envVault?.pkiRole or "sthings-vsphere"
+                            policyName = _vbs?.certmanager?.policyName or _envVault?.policyName or "pki-issue"
                         }
                         providerConfigRef = _vbs?.providerConfigRef or "default"
                         **({} if not _vbs?.vaultTokenSecretRef else {"vaultTokenSecretRef": _vbs.vaultTokenSecretRef})
@@ -269,7 +282,7 @@ spec:
                             {name = "cluster-ca-secret", key = "ca.crt"}
                         ]
                         inlineCAs = [
-                            {name = "vault-pki-ca", ca = _vbs?.vaultCaBundle or ""}
+                            {name = "vault-pki-ca", ca = _vaultCaBundle}
                         ]
                     }
                 }
@@ -540,6 +553,7 @@ spec:
           source: |
             oxr  = option("params").oxr
             ocds = option("params").ocds
+            env  = option("params").ctx["apiextensions.crossplane.io/environment"] or {}
 
             _name   = oxr.metadata.name
             _engine = oxr.spec.gitops?.engine or "flux"
@@ -580,8 +594,9 @@ spec:
 
             # VaultBaseSetup status
             _vbs = oxr.spec?.vaultBaseSetup or {}
-            _vbsAutoEnabled = bool(_clusterName) and _clusterType != "kind" and bool(_vbs?.vaultCaBundle)
-            _vbsEnabled = bool(_vbs?.vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _envVault = env?.vault or {}
+            _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
+            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
             _vbsReady = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else True
             _tmReady = _isReady("{}-trust-manager".format(_name)) if _vbsEnabled else True
 
