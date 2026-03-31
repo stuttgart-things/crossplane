@@ -11,15 +11,18 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | Stage | Component | XR Kind | Gate | Status Field | What it does |
 |-------|-----------|---------|------|--------------|-------------|
 | 0 | Observe RemoteCluster | Object (Observe) | always | — | Reads apiEndpoint, clusterType, podCIDR |
-| 1 | Cilium CNI install | `XCilium` (install only) | observeReady | `ciliumReady` | Helm install Cilium — **CNI must be first** so pods can start |
+| 1 | Cilium CNI install | `XCilium` (install only) | observeReady + deployCilium | `ciliumReady` | Helm install Cilium — **CNI must be first** so pods can start |
 | 1 | IP Reservation + PDNS | `XIPReservation` | observeReady | `ipReservationReady` | Reserves LB IP + creates wildcard DNS via clusterbook |
 | 2 | cert-manager | `XCertManager` | iprSatisfied | `certManagerReady` | Installs Helm chart (CRDs) + wildcard cert |
 | 3 | Vault Base Setup | `VaultBaseSetup` | certManagerReady | `vaultBaseSetupReady` | Creates vault-pki ClusterIssuer via OpenTofu |
 | 4 | Trust Manager | `XTrustManager` | certManagerReady | `trustManagerReady` | Deploys trust-manager + cluster trust Bundle (system CAs + vault CA) |
-| 5 | Cilium LB + Gateway | `XCilium` (updated) | iprSatisfied + vbsReady | `ciliumReady` | LoadBalancer pool (reserved IP) + Gateway (vault-issued cert) |
+| 5 | Cilium LB | `XCilium` (updated) | iprSatisfied | `ciliumReady` | LoadBalancer pool + L2 announcement policy (reserved IP) |
+| 5 | Cilium Gateway | `XCilium` (updated) | vbsReady | `ciliumReady` | Gateway resource (vault-issued TLS cert) |
 | 6 | GitOps (Flux) | `FluxInit` | ciliumInstallReady | `gitopsReady` | Flux operator + sources |
 
-Cilium is deployed in **two phases**: the Helm install happens at stage 1 (CNI must be available before any other pods can start), while LoadBalancer and Gateway features are added later once their dependencies are ready. Flux only needs a working CNI, not the full Cilium feature set.
+Cilium is deployed in **three phases**: the Helm install happens at stage 1 (CNI must be available before any other pods can start), LoadBalancer is enabled once an IP is reserved, and Gateway is enabled once VaultBaseSetup provides the TLS issuer. Each phase is independent. Flux only needs a working CNI, not the full Cilium feature set.
+
+Set `deployCilium: false` in the EnvironmentConfig or `cilium.enabled: false` in the claim for clusters that already have a CNI.
 
 ### kind Clusters
 
@@ -226,12 +229,13 @@ data:
 
 **Precedence:** `spec.vaultBaseSetup.*` (per-claim) > `EnvironmentConfig` > hardcoded fallback
 
-| EnvironmentConfig field | Composition variable | Fallback |
-|------------------------|---------------------|----------|
-| `vault.caBundle` | `_vaultCaBundle` | `""` (disables VaultBaseSetup) |
-| `vault.addr` | vault address | `https://vault.sthings-infra.sthings-vsphere.labul.sva.de` |
-| `vault.pkiRole` | PKI role name | `sthings-vsphere` |
-| `vault.policyName` | Vault policy | `pki-issue` |
+| EnvironmentConfig field | Composition variable | Fallback | Description |
+|------------------------|---------------------|----------|-------------|
+| `deployCilium` | `_deployCilium` | `true` | Set to `false` for clusters with an existing CNI |
+| `vault.caBundle` | `_vaultCaBundle` | `""` (disables VaultBaseSetup) | Base64-encoded Vault PKI root CA |
+| `vault.addr` | vault address | `https://vault.sthings-infra.sthings-vsphere.labul.sva.de` | Vault server URL |
+| `vault.pkiRole` | PKI role name | `sthings-vsphere` | Vault PKI role |
+| `vault.policyName` | Vault policy | `pki-issue` | Vault policy name |
 
 Apply the EnvironmentConfig before creating any ClusterProfile:
 

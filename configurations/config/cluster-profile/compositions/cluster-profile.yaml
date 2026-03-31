@@ -328,10 +328,8 @@ spec:
                 }
                 _resources += [_tmUsesCm]
 
-            # ── 6. Cilium (gated on IP reservation + vault-base-setup) ──
+            # ── 6. Cilium ──
             _cil = oxr.spec?.cilium or {}
-            _cilEnabled = _cil?.enabled or False
-            _ciliumReady = True
 
             _ciliumDefaults = {
                 kind = {
@@ -380,25 +378,30 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
-            # Cilium is deployed in two phases:
+            # Cilium is deployed in three phases:
             # Phase 1: Helm install (stage 1, needs only observeReady — CNI must be first)
-            # Phase 2: LB + Gateway (needs IP reservation + VaultBaseSetup)
-            _ciliumGateSatisfied = _iprSatisfied and (_vbsReady if _vbsEnabled else True)
+            # Phase 2: LB pool + L2 policy (needs IP reservation ready)
+            # Phase 3: Gateway (needs VaultBaseSetup ready for TLS cert)
+            #
+            # deployCilium: defaults to true from EnvironmentConfig, can be
+            # disabled per-claim for clusters that already have a CNI.
+            _deployCilium = _cil?.enabled if _cil?.enabled != None else (env?.deployCilium if env?.deployCilium != None else True)
             _ciliumReady = True
-            if _cilEnabled and _observeReady:
+            if _deployCilium and _observeReady:
                 _d = _typeDefaults
                 _cilLb = _cil?.loadBalancer or {}
                 _cilGw = _cil?.gateway or {}
 
-                # LB + Gateway only enabled once dependencies are ready
+                # LB enabled independently: needs IP reservation ready
                 _lbAutoEnabled = bool(_reservedIP) and _clusterType != "kind"
-                _lbEnabled = (_cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled) and _ciliumGateSatisfied
+                _lbEnabled = (_cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled) and _iprSatisfied
                 _lbIpRange = _cilLb?.ipRange or {}
                 if not _lbIpRange and _reservedIP:
                     _lbIpRange = {start = _reservedIP, end = _reservedIP}
 
+                # Gateway enabled independently: needs VaultBaseSetup ready (for TLS cert)
                 _gwAutoEnabled = _clusterType != "kind"
-                _gwEnabled = (_cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled) and _ciliumGateSatisfied
+                _gwEnabled = (_cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled) and (_vbsReady if _vbsEnabled else True)
 
                 _cilSpec = {
                     targetCluster = {
@@ -518,10 +521,10 @@ spec:
                 # Full ready = install + LB + Gateway (used for overall status)
                 _ciliumReady = _isReady("{}-cilium".format(_name))
 
-            # ── 6. FluxInit (gated on Cilium install, not LB/Gateway) ──
+            # ── 7. FluxInit (gated on Cilium install, not LB/Gateway) ──
             # Flux only needs a working CNI, not the full Cilium feature set
-            _ciliumInstallReady = _isReady("{}-cilium".format(_name)) if _cilEnabled else True
-            if _engine == "flux" and (_ciliumInstallReady or not _cilEnabled):
+            _ciliumInstallReady = _isReady("{}-cilium".format(_name)) if _deployCilium else True
+            if _engine == "flux" and _ciliumInstallReady:
                 _defaultSources = [
                     {name = "flux-infra", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-infra"}
                     {name = "flux-apps", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-apps"}
@@ -576,8 +579,9 @@ spec:
                 any_true if _found else False
             }
 
-            _cilEnabled = oxr.spec?.cilium?.enabled or False
-            _cilReady = _isReady("{}-cilium".format(_name)) if _cilEnabled else True
+            _cil = oxr.spec?.cilium or {}
+            _deployCilium = _cil?.enabled if _cil?.enabled != None else (env?.deployCilium if env?.deployCilium != None else True)
+            _cilReady = _isReady("{}-cilium".format(_name)) if _deployCilium else True
 
             _gitopsReady = True if _engine == "none" else False
             if _engine == "flux":
