@@ -172,7 +172,8 @@ spec:
 
                 # Always enable selfSigned (CA chain) + wildcard cert
                 _ss = oxr.spec.certManager?.selfSigned or {}
-                _wcIssuer = _ss?.wildcard?.issuerName or ("vault-pki" if _vbsEnabled else "")
+                _vbsReady_for_issuer = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else False
+                _wcIssuer = _ss?.wildcard?.issuerName or ("vault-pki" if _vbsReady_for_issuer else "")
                 _cmSpec |= {
                     selfSigned = {
                         enabled = True
