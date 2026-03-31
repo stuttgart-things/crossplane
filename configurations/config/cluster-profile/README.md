@@ -196,7 +196,38 @@ spec:
     engine: flux
 ```
 
-Kind clusters skip IP reservation, VaultBaseSetup, LB, and Gateway automatically.
+Kind clusters automatically apply different Cilium Helm values (native routing, `10.244.0.0/16` pod CIDR, `[eth0, net0]` devices) and skip IP reservation, VaultBaseSetup, TrustManager, LB, and Gateway.
+
+### Cluster with existing CNI (skip Cilium)
+
+```yaml
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XClusterProfile
+metadata:
+  name: managed-cluster
+  namespace: crossplane-system
+spec:
+  clusterName: my-cluster
+  cilium:
+    enabled: false          # skip Cilium — cluster already has a CNI
+  certManager:
+    enabled: true
+  gitops:
+    engine: flux
+```
+
+Or disable globally via EnvironmentConfig:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: cluster-profile-defaults
+data:
+  deployCilium: false       # all clusters skip Cilium by default
+  vault:
+    # ...
+```
 
 ## Nested Sub-Compositions
 
