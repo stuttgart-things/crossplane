@@ -245,7 +245,73 @@ spec:
                 }
                 _resources += [_l2Policy]
 
-            # ── 5. Gateway ───────────────────────────────────
+            # ── 5. Gateway API CRDs + GatewayClass (prerequisite for Gateway) ──
+            if _installEnabled and _gatewayAPIEnabled:
+                # Install Gateway API CRDs via upstream Helm chart
+                _gwApiRelease = {
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
+                    metadata = {
+                        name = "{}-gateway-api".format(_name)
+                        annotations = {
+                            "crossplane.io/external-name" = "gateway-api"
+                            "crossplane.io/composition-resource-name" = "{}-gateway-api".format(_name)
+                        }
+                    }
+                    spec = {
+                        providerConfigRef = {
+                            name = _helmPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                        forProvider = {
+                            chart = {
+                                name = "gateway-api"
+                                repository = "https://gateway-api-charts.sigs.k8s.io"
+                                version = "1.2.1"
+                            }
+                            namespace = _namespace
+                            values = {}
+                        }
+                        rollbackLimit = 3
+                    }
+                }
+                _resources += [_gwApiRelease]
+
+                # GatewayClass for Cilium (depends on Gateway API CRDs existing)
+                _gwClass = {
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                    kind = "Object"
+                    metadata = {
+                        name = "{}-gateway-class".format(_name)
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-gateway-class".format(_name)
+                        }
+                    }
+                    spec = {
+                        forProvider = {
+                            manifest = {
+                                apiVersion = "gateway.networking.k8s.io/v1"
+                                kind = "GatewayClass"
+                                metadata = {
+                                    name = "cilium"
+                                }
+                                spec = {
+                                    controllerName = "io.cilium/gateway-controller"
+                                }
+                            }
+                        }
+                        providerConfigRef = {
+                            name = _k8sPcr
+                            kind = "ClusterProviderConfig"
+                        }
+                    }
+                }
+                _resources += [_gwClass]
+
+                # Usages: GatewayClass depends on Cilium Helm
+                _resources += [_ciliumUsage("{}-gateway-class".format(_name))]
+
+            # ── 6. Gateway ───────────────────────────────────
             if _gwEnabled and _gwDomain:
                 _httpListener = {
                     name = "http"
