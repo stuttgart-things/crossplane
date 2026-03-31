@@ -11,12 +11,15 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | Stage | Component | XR Kind | Gate | Status Field | What it does |
 |-------|-----------|---------|------|--------------|-------------|
 | 0 | Observe RemoteCluster | Object (Observe) | always | — | Reads apiEndpoint, clusterType, podCIDR |
+| 1 | Cilium CNI install | `XCilium` (install only) | observeReady | `ciliumReady` | Helm install Cilium — **CNI must be first** so pods can start |
 | 1 | IP Reservation + PDNS | `XIPReservation` | observeReady | `ipReservationReady` | Reserves LB IP + creates wildcard DNS via clusterbook |
-| 2 | cert-manager | `XCertManager` | iprSatisfied | `certManagerReady` | Installs Helm chart (CRDs) + wildcard cert (vault-pki issuer) |
+| 2 | cert-manager | `XCertManager` | iprSatisfied | `certManagerReady` | Installs Helm chart (CRDs) + wildcard cert |
 | 3 | Vault Base Setup | `VaultBaseSetup` | certManagerReady | `vaultBaseSetupReady` | Creates vault-pki ClusterIssuer via OpenTofu |
 | 4 | Trust Manager | `XTrustManager` | certManagerReady | `trustManagerReady` | Deploys trust-manager + cluster trust Bundle (system CAs + vault CA) |
-| 5 | Cilium | `XCilium` | iprSatisfied + vbsReady | `ciliumReady` | CNI + LoadBalancer (reserved IP) + Gateway (vault-issued cert) |
-| 6 | GitOps (Flux) | `FluxInit` | ciliumReady | `gitopsReady` | Flux operator + sources |
+| 5 | Cilium LB + Gateway | `XCilium` (updated) | iprSatisfied + vbsReady | `ciliumReady` | LoadBalancer pool (reserved IP) + Gateway (vault-issued cert) |
+| 6 | GitOps (Flux) | `FluxInit` | ciliumInstallReady | `gitopsReady` | Flux operator + sources |
+
+Cilium is deployed in **two phases**: the Helm install happens at stage 1 (CNI must be available before any other pods can start), while LoadBalancer and Gateway features are added later once their dependencies are ready. Flux only needs a working CNI, not the full Cilium feature set.
 
 ### kind Clusters
 

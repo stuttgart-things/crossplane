@@ -380,20 +380,25 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
+            # Cilium is deployed in two phases:
+            # Phase 1: Helm install (stage 1, needs only observeReady — CNI must be first)
+            # Phase 2: LB + Gateway (needs IP reservation + VaultBaseSetup)
             _ciliumGateSatisfied = _iprSatisfied and (_vbsReady if _vbsEnabled else True)
-            if _cilEnabled and _observeReady and _ciliumGateSatisfied:
-                # Merge: type defaults -> then user overrides win
+            _ciliumReady = True
+            if _cilEnabled and _observeReady:
                 _d = _typeDefaults
                 _cilLb = _cil?.loadBalancer or {}
+                _cilGw = _cil?.gateway or {}
+
+                # LB + Gateway only enabled once dependencies are ready
                 _lbAutoEnabled = bool(_reservedIP) and _clusterType != "kind"
-                _lbEnabled = _cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled
+                _lbEnabled = (_cilLb?.enabled if _cilLb?.enabled != None else _lbAutoEnabled) and _ciliumGateSatisfied
                 _lbIpRange = _cilLb?.ipRange or {}
                 if not _lbIpRange and _reservedIP:
                     _lbIpRange = {start = _reservedIP, end = _reservedIP}
 
-                _cilGw = _cil?.gateway or {}
                 _gwAutoEnabled = _clusterType != "kind"
-                _gwEnabled = _cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled
+                _gwEnabled = (_cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled) and _ciliumGateSatisfied
 
                 _cilSpec = {
                     targetCluster = {
@@ -419,7 +424,7 @@ spec:
                     loadBalancer = {
                         enabled = _lbEnabled
                         ipMode = _cilLb?.ipMode or "static"
-                        ipRange = _lbIpRange
+                        ipRange = _lbIpRange if _lbEnabled else {}
                         **({"reservationRef": _cilLb.reservationRef} if _cilLb?.reservationRef else {})
                         poolName = _cilLb?.poolName or "default-pool"
                         l2PolicyName = _cilLb?.l2PolicyName or "default-l2-announcement-policy"
@@ -447,7 +452,7 @@ spec:
                 }
                 _resources += [_cilium]
 
-                # Usage: Cilium depends on IP reservation (ordering + deletion)
+                # Usage: Cilium depends on IP reservation (deletion ordering)
                 if _iprEnabled:
                     _ciliumUsesIpr = {
                         apiVersion = "protection.crossplane.io/v1beta1"
@@ -478,7 +483,7 @@ spec:
                     }
                     _resources += [_ciliumUsesIpr]
 
-                # Usage: Cilium depends on VaultBaseSetup (ordering + deletion)
+                # Usage: Cilium depends on VaultBaseSetup (deletion ordering)
                 if _vbsEnabled:
                     _ciliumUsesVbs = {
                         apiVersion = "protection.crossplane.io/v1beta1"
@@ -509,11 +514,14 @@ spec:
                     }
                     _resources += [_ciliumUsesVbs]
 
-                # Gate: check if Cilium is ready before proceeding
+                # Cilium install ready = Helm release deployed (CNI working)
+                # Full ready = install + LB + Gateway (used for overall status)
                 _ciliumReady = _isReady("{}-cilium".format(_name))
 
-            # ── 6. FluxInit (gated on Cilium) ──────────────
-            if _engine == "flux" and (_ciliumReady or not _cilEnabled):
+            # ── 6. FluxInit (gated on Cilium install, not LB/Gateway) ──
+            # Flux only needs a working CNI, not the full Cilium feature set
+            _ciliumInstallReady = _isReady("{}-cilium".format(_name)) if _cilEnabled else True
+            if _engine == "flux" and (_ciliumInstallReady or not _cilEnabled):
                 _defaultSources = [
                     {name = "flux-infra", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-infra"}
                     {name = "flux-apps", kind = "OCIRepository", url = "oci://ghcr.io/stuttgart-things/flux-apps"}
