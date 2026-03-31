@@ -17,7 +17,7 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | 3 | Vault Base Setup | `VaultBaseSetup` | certManagerReady | `vaultBaseSetupReady` | Creates vault-pki ClusterIssuer via OpenTofu |
 | 4 | Trust Manager | `XTrustManager` | certManagerReady | `trustManagerReady` | Deploys trust-manager + cluster trust Bundle (system CAs + vault CA) |
 | 5 | Cilium LB | `XCilium` (updated) | iprSatisfied | `ciliumReady` | LoadBalancer pool + L2 announcement policy (reserved IP) |
-| 5 | Cilium Gateway | `XCilium` (updated) | vbsReady | `ciliumReady` | Gateway resource (vault-issued TLS cert) |
+| 5 | Cilium Gateway | `XCilium` (updated) | vbsReady + tmReady | `ciliumReady` | Gateway resource (vault-issued TLS cert + CA bundle) |
 | 6 | GitOps (Flux) | `FluxInit` | ciliumInstallReady | `gitopsReady` | Flux operator + sources |
 
 Cilium is deployed in **three phases**: the Helm install happens at stage 1 (CNI must be available before any other pods can start), LoadBalancer is enabled once an IP is reserved, and Gateway is enabled once VaultBaseSetup provides the TLS issuer. Each phase is independent. Flux only needs a working CNI, not the full Cilium feature set.
@@ -61,6 +61,7 @@ Set `deployCilium: false` in the EnvironmentConfig or `cilium.enabled: false` in
 | XTrustManager depends on XCertManager | cert-manager namespace + CRDs exist |
 | XCilium depends on XIPReservation | IP reserved before LB pool created |
 | XCilium depends on VaultBaseSetup | Vault ClusterIssuer exists before Gateway cert |
+| FluxInit depends on XCilium | Flux kustomizations may reference Cilium CRDs (e.g. Gateway routes) — prevents stuck finalizers on teardown |
 
 </details>
 
@@ -399,11 +400,49 @@ kubectl delete -f apis/definition.yaml
 
 ## DEV
 
-Local render (no cluster required):
+Local render (no cluster required). The `--extra-resources` flag supplies the EnvironmentConfig that the `load-defaults` pipeline step expects.
+
+### Render kind cluster example
 
 ```bash
 crossplane render examples/cluster-profile.yaml \
   compositions/cluster-profile.yaml \
   examples/functions.yaml \
+  --extra-resources=examples/environment-config.yaml \
   --include-function-results
+```
+
+### Render k3s cluster example
+
+```bash
+crossplane render examples/cluster-profile-k3s.yaml \
+  compositions/cluster-profile.yaml \
+  examples/functions.yaml \
+  --extra-resources=examples/environment-config.yaml \
+  --include-function-results
+```
+
+### Render and filter specific resources
+
+```bash
+# Show only XCilium spec
+crossplane render examples/cluster-profile-k3s.yaml \
+  compositions/cluster-profile.yaml \
+  examples/functions.yaml \
+  --extra-resources=examples/environment-config.yaml \
+  --include-function-results | yq 'select(.kind == "XCilium")'
+
+# Show only Usage resources (dependency chain)
+crossplane render examples/cluster-profile-k3s.yaml \
+  compositions/cluster-profile.yaml \
+  examples/functions.yaml \
+  --extra-resources=examples/environment-config.yaml \
+  --include-function-results | yq 'select(.kind == "Usage")'
+
+# Show composed XR status
+crossplane render examples/cluster-profile-k3s.yaml \
+  compositions/cluster-profile.yaml \
+  examples/functions.yaml \
+  --extra-resources=examples/environment-config.yaml \
+  --include-function-results | yq 'select(.kind == "XClusterProfile") | .status'
 ```

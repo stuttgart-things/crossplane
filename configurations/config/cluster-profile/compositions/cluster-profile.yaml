@@ -153,7 +153,10 @@ spec:
             # Wildcard cert secret name: cluster-specific for non-kind, generic for kind
             _wcSecretName = "wildcard-{}-tls".format(_clusterName) if _vbsEnabled and _clusterName else "wildcard-tls"
 
-            # ── 3. cert-manager (moved before Cilium — provides CRDs for vault-base-setup) ──
+            # ── 3. cert-manager (provides CRDs for vault-base-setup) ──
+            # NOTE: cert-manager gates on _reservedIP which comes from oxr.status
+            # (set by the status step). This means cert-manager appears one reconcile
+            # cycle after IPR completes — the status must be patched and re-read first.
             _cmEnabled = oxr.spec.certManager?.enabled or False
             _iprSatisfied = (bool(_reservedIP) if _iprEnabled else True)
             _cmGateSatisfied = _iprSatisfied if _iprEnabled else _observeReady
@@ -265,6 +268,11 @@ spec:
                 _resources += [_vbsUsesCm]
 
             # ── 5. TrustManager (non-kind, when vault is enabled) ──
+            # Intentionally no VBS→TM Usage: TrustManager only needs the
+            # _vaultCaBundle string (already in spec), not VBS completion.
+            # Both are created in parallel once cert-manager is ready.
+            # The Gateway gate (_vbsReady and _tmReady) serializes the
+            # full chain — Gateway only opens once both have finished.
             _tmKey = "{}-trust-manager".format(_name)
             _tmReady = _isReady(_tmKey) if _vbsEnabled else True
 
@@ -379,10 +387,14 @@ spec:
             }
             _typeDefaults = _ciliumDefaults[_clusterType] if _clusterType in _ciliumDefaults else {}
 
-            # Cilium is deployed in three phases:
-            # Phase 1: Helm install (stage 1, needs only observeReady — CNI must be first)
+            # Cilium is deployed in three phases via XCilium spec mutation:
+            # Phase 1: Helm install (needs only observeReady — CNI must be first)
             # Phase 2: LB pool + L2 policy (needs IP reservation ready)
-            # Phase 3: Gateway (needs VaultBaseSetup ready for TLS cert)
+            # Phase 3: Gateway (needs VaultBaseSetup + TrustManager ready for TLS cert)
+            #
+            # This is intentional: XCilium is first created with gateway.enabled=False,
+            # then mutated to True once VBS+TM are ready. The XCilium XR goes through
+            # a spec change mid-lifecycle — this is by design, not a bug.
             #
             # deployCilium: defaults to true from EnvironmentConfig, can be
             # disabled per-claim for clusters that already have a CNI.
@@ -400,9 +412,10 @@ spec:
                 if not _lbIpRange and _reservedIP:
                     _lbIpRange = {start = _reservedIP, end = _reservedIP}
 
-                # Gateway enabled independently: needs VaultBaseSetup ready (for TLS cert)
+                # Gateway enabled independently: needs VaultBaseSetup + TrustManager ready
+                # (TLS cert requires VBS for the issuer, TM for CA bundle propagation)
                 _gwAutoEnabled = _clusterType != "kind"
-                _gwEnabled = (_cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled) and (_vbsReady if _vbsEnabled else True)
+                _gwEnabled = (_cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled) and (_vbsReady and _tmReady if _vbsEnabled else True)
 
                 _cilSpec = {
                     targetCluster = {
@@ -556,6 +569,35 @@ spec:
                     spec = _fluxSpec
                 }
                 _resources += [_fluxInit]
+
+                # Usage: FluxInit depends on Cilium (deletion ordering —
+                # Flux kustomizations may reference Cilium CRDs like Gateway routes;
+                # deleting Cilium first could leave stuck finalizers)
+                if _deployCilium:
+                    _fluxUsesCilium = {
+                        apiVersion = "protection.crossplane.io/v1beta1"
+                        kind = "Usage"
+                        metadata = {
+                            name = "{}-flux-uses-cilium".format(_name)
+                            annotations = {
+                                "crossplane.io/composition-resource-name" = "{}-flux-uses-cilium".format(_name)
+                            }
+                        }
+                        spec = {
+                            replayDeletion = True
+                            of = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "XCilium"
+                                resourceRef.name = "{}-cilium".format(_name)
+                            }
+                            by = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "FluxInit"
+                                resourceRef.name = "{}-flux-init".format(_name)
+                            }
+                        }
+                    }
+                    _resources += [_fluxUsesCilium]
 
             items = _resources
 
