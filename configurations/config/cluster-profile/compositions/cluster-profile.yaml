@@ -146,7 +146,8 @@ spec:
             _vbs = oxr.spec?.vaultBaseSetup or {}
             _envVault = env?.vault or {}
             _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
-            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _vbsExplicit = _vbs?.enabled if _vbs?.enabled != None else False
+            _vbsEnabled = bool(_vaultCaBundle) and (_vbsExplicit or (bool(_clusterName) and _clusterType != "kind"))
             _vbsKey = "{}-vault-base-setup".format(_name)
             _vbsReady = _isReady(_vbsKey) if _vbsEnabled else True
 
@@ -659,7 +660,8 @@ spec:
             _vbs = oxr.spec?.vaultBaseSetup or {}
             _envVault = env?.vault or {}
             _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
-            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _vbsExplicit = _vbs?.enabled if _vbs?.enabled != None else False
+            _vbsEnabled = bool(_vaultCaBundle) and (_vbsExplicit or (bool(_clusterName) and _clusterType != "kind"))
             _vbsReady = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else True
             _tmReady = _isReady("{}-trust-manager".format(_name)) if _vbsEnabled else True
 
