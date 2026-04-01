@@ -1,0 +1,28 @@
+---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XClusterProfile
+metadata:
+  name: kind-dev-test1-profile
+  namespace: crossplane-system
+spec:
+  clusterName: kind-dev-test1
+  clusterType: kind
+  cilium:
+    enabled: true
+    clusterName: dev
+    k8sServiceHost: dev-control-plane
+  gitops:
+    engine: flux
+  flux:
+    instance:
+      sources:
+        - name: flux-infra
+          kind: OCIRepository
+          url: oci://ghcr.io/stuttgart-things/flux-infra
+          ref: latest
+        - name: flux-apps
+          kind: OCIRepository
+          url: oci://ghcr.io/stuttgart-things/flux-apps
+          ref: latest
+  certManager:
+    enabled: false
