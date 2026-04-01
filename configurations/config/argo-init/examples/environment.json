@@ -1,0 +1,22 @@
+{
+  "chart": {
+    "version": "9.4.17",
+    "repoURL": "https://argoproj.github.io/argo-helm",
+    "values": {
+      "crds": {
+        "install": true,
+        "keep": true
+      },
+      "server": {
+        "insecure": false
+      },
+      "dex": {
+        "enabled": false
+      },
+      "notifications": {
+        "enabled": false
+      }
+    }
+  },
+  "namespace": "argocd"
+}

@@ -1,0 +1,84 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: argoinits.platform.stuttgart-things.com
+spec:
+  group: platform.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: ArgoInit
+    plural: argoinits
+    singular: argoinit
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              properties:
+                clusterName:
+                  type: string
+                  description: Cluster name - used to derive provider config refs as {clusterName}-helm and {clusterName}-kubernetes when not explicitly set
+                helmProviderConfigRef:
+                  type: string
+                  description: Name of the Helm ClusterProviderConfig (defaults to {clusterName}-helm)
+                kubernetesProviderConfigRef:
+                  type: string
+                  description: Name of the Kubernetes ClusterProviderConfig (defaults to {clusterName}-kubernetes)
+                namespace:
+                  type: string
+                  default: argocd
+                chart:
+                  type: object
+                  properties:
+                    version:
+                      type: string
+                    repoURL:
+                      type: string
+                    values:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      description: Helm values override for argo-cd chart
+                repositories:
+                  type: array
+                  description: Optional list of ArgoCD repository connections
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - url
+                    properties:
+                      name:
+                        type: string
+                        description: Unique name for this repository
+                      url:
+                        type: string
+                        description: Repository URL (Git or Helm)
+                      type:
+                        type: string
+                        enum:
+                          - git
+                          - helm
+                        default: git
+                      secretName:
+                        type: string
+                        description: Secret name in argocd namespace for private repo credentials
+            status:
+              type: object
+              properties:
+                chartReady:
+                  type: boolean
+                repositoriesReady:
+                  type: boolean
+                ready:
+                  type: boolean
+                repositoryCount:
+                  type: integer

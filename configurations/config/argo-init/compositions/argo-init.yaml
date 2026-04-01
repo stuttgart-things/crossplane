@@ -1,0 +1,184 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: argo-init
+  labels:
+    crossplane.io/xrd: argoinits.platform.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: platform.stuttgart-things.com/v1alpha1
+    kind: ArgoInit
+  mode: Pipeline
+  pipeline:
+    - step: load-environment
+      functionRef:
+        name: function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: argo-defaults
+    - step: render
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr = option("params").oxr
+            env = option("params").ctx["apiextensions.crossplane.io/environment"]
+
+            _name         = oxr.metadata.name
+            _clusterName  = oxr.spec?.clusterName or ""
+            _helmPcr      = oxr.spec?.helmProviderConfigRef or "{}-helm".format(_clusterName)
+            _k8sPcr       = oxr.spec?.kubernetesProviderConfigRef or "{}-kubernetes".format(_clusterName)
+            _ns           = oxr.spec?.namespace or env.namespace
+            _version      = oxr.spec.chart?.version or env.chart.version
+            _repoURL      = oxr.spec.chart?.repoURL or env.chart.repoURL
+            _values        = oxr.spec.chart?.values or env.chart.values
+            _repositories = oxr.spec?.repositories or []
+            _helmResName  = "{}-argo-cd".format(_name)
+
+            # Helper to build a Usage resource
+            _mkUsage = lambda byKind: str, byName: str, usageName: str -> any {
+                {
+                    apiVersion: "protection.crossplane.io/v1beta1"
+                    kind: "Usage"
+                    metadata: {
+                        name: usageName
+                        annotations: {
+                            "crossplane.io/composition-resource-name": usageName
+                        }
+                    }
+                    spec: {
+                        replayDeletion: True
+                        of: {
+                            apiVersion: "helm.m.crossplane.io/v1beta1"
+                            kind: "Release"
+                            resourceRef: {
+                                name: _helmResName
+                            }
+                        }
+                        by: {
+                            apiVersion: byKind
+                            kind: "Object"
+                            resourceRef: {
+                                name: byName
+                            }
+                        }
+                    }
+                }
+            }
+
+            # Resource 1 - HelmRelease (argo-cd)
+            _helmRelease = {
+                apiVersion: "helm.m.crossplane.io/v1beta1"
+                kind: "Release"
+                metadata: {
+                    name: _helmResName
+                    annotations: {
+                        "crossplane.io/external-name": "argo-cd"
+                    }
+                }
+                spec: {
+                    providerConfigRef: {
+                        name: _helmPcr
+                        kind: "ClusterProviderConfig"
+                    }
+                    forProvider: {
+                        chart: {
+                            name: "argo-cd"
+                            repository: _repoURL
+                            version: _version
+                        }
+                        namespace: _ns
+                        wait: True
+                        values: _values
+                    }
+                    rollbackLimit: 3
+                }
+            }
+
+            # Repository Secret Objects (depend on Helm release)
+            _repoObjects = [{
+                apiVersion: "kubernetes.m.crossplane.io/v1alpha1"
+                kind: "Object"
+                metadata: {
+                    name: "{}-repo-{}".format(_name, r.name)
+                    annotations: {
+                        "crossplane.io/uses": _helmResName
+                    }
+                }
+                spec: {
+                    providerConfigRef: {
+                        name: _k8sPcr
+                        kind: "ClusterProviderConfig"
+                    }
+                    forProvider: {
+                        manifest: {
+                            apiVersion: "v1"
+                            kind: "Secret"
+                            metadata: {
+                                name: "repo-{}".format(r.name)
+                                namespace: _ns
+                                labels: {
+                                    "argocd.argoproj.io/secret-type": "repository"
+                                }
+                            }
+                            stringData: {
+                                name: r.name
+                                url: r.url
+                                type: r?.type or "git"
+                            }
+                        }
+                    }
+                }
+            } for r in _repositories]
+
+            # Build Usage resources via helper
+            _repoUsages = [_mkUsage("kubernetes.m.crossplane.io/v1alpha1", "{}-repo-{}".format(_name, r.name), "{}-repo-{}-uses-chart".format(_name, r.name)) for r in _repositories]
+
+            items = [_helmRelease] + _repoObjects + _repoUsages
+    - step: patch-status
+      functionRef:
+        name: function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        spec:
+          source: |
+            oxr  = option("params").oxr
+            ocds = option("params").ocds
+
+            _name         = oxr.metadata.name
+            _repositories = oxr.spec?.repositories or []
+
+            _isReady = lambda resourceName: str -> bool {
+                _found = resourceName in ocds
+                _conds = ocds[resourceName].Resource?.status?.conditions or [] if _found else []
+                any_true = len([c for c in _conds if c.type == "Ready" and c.status == "True"]) > 0
+                any_true if _found else False
+            }
+
+            _chartReady = _isReady("{}-argo-cd".format(_name))
+            _readyRepos = [r.name for r in _repositories if _isReady("{}-repo-{}".format(_name, r.name))]
+            _repositoriesReady = len(_readyRepos) == len(_repositories) if _repositories else True
+
+            _oxr = oxr | {
+                status = {
+                    chartReady = _chartReady
+                    repositoriesReady = _repositoriesReady
+                    ready = _chartReady and _repositoriesReady
+                    repositoryCount = len(_repositories)
+                }
+            }
+
+            items = [_oxr]
+    - step: ready
+      functionRef:
+        name: function-auto-ready

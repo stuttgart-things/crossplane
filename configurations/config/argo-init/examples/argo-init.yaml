@@ -1,0 +1,15 @@
+---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: ArgoInit
+metadata:
+  name: test-argo-init
+  namespace: crossplane-system
+spec:
+  clusterName: kind-dev-test1
+  repositories:
+    - name: crossplane
+      url: https://github.com/stuttgart-things/crossplane.git
+      type: git
+    - name: argo-helm
+      url: https://argoproj.github.io/argo-helm
+      type: helm

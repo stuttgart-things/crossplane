@@ -1,0 +1,8 @@
+---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: ArgoInit
+metadata:
+  name: lab-argocd
+  namespace: crossplane-system
+spec:
+  clusterName: lab-cluster
