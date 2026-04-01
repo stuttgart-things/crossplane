@@ -101,6 +101,43 @@ spec:
                                 default: "."
                               pullSecret:
                                 type: string
+                argocd:
+                  type: object
+                  description: ArgoCD-specific overrides passed through to ArgoInit
+                  properties:
+                    namespace:
+                      type: string
+                      default: argocd
+                    chart:
+                      type: object
+                      properties:
+                        version:
+                          type: string
+                        repoURL:
+                          type: string
+                        values:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                    repositories:
+                      type: array
+                      items:
+                        type: object
+                        required:
+                          - name
+                          - url
+                        properties:
+                          name:
+                            type: string
+                          url:
+                            type: string
+                          type:
+                            type: string
+                            enum:
+                              - git
+                              - helm
+                            default: git
+                          secretName:
+                            type: string
                 clusterType:
                   type: string
                   enum:
