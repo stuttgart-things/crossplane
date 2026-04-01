@@ -90,6 +90,7 @@ spec:
                 _observedClusterType = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.clusterType or "" if _rcKey in ocds else ""
                 _observedPodCIDR = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.podCIDR or "" if _rcKey in ocds else ""
                 _observedNodeCount = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.nodeCount or 0 if _rcKey in ocds else 0
+                _observedKindName = ocds[_rcKey].Resource?.status?.atProvider?.manifest?.status?.atProvider?.kindClusterName or "" if _rcKey in ocds else ""
 
             # Parse apiEndpoint (e.g. "https://10.31.104.101:6443") into host + port
             _apiHost = ""
@@ -432,7 +433,7 @@ spec:
                         version = _cil?.version or "1.19.2"
                         namespace = _cil?.namespace or "kube-system"
                         kubeProxyReplacement = _cil?.kubeProxyReplacement if _cil?.kubeProxyReplacement != None else _d?.kubeProxyReplacement if _d else True
-                        k8sServiceHost = _cil?.k8sServiceHost or ("{}-control-plane".format(_cil.clusterName) if _clusterType == "kind" and _cil?.clusterName else "") or _apiHost
+                        k8sServiceHost = _cil?.k8sServiceHost or ("{}-control-plane".format(_observedKindName) if _clusterType == "kind" and _observedKindName else "") or ("{}-control-plane".format(_cil.clusterName) if _clusterType == "kind" and _cil?.clusterName else "") or _apiHost
                         k8sServicePort = _cil?.k8sServicePort or _apiPort
                         routingMode = _cil?.routingMode or _d?.routingMode or "native"
                         ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or _d?.ipv4NativeRoutingCIDR or _observedPodCIDR or "10.244.0.0/16"
@@ -604,6 +605,56 @@ spec:
                     }
                     _resources += [_fluxUsesCilium]
 
+            # ── 8. ArgoInit (gated on Cilium install, same as Flux) ──
+            if _engine == "argocd" and _ciliumInstallReady:
+                _userArgo = oxr.spec.argocd or {}
+                _argoSpec = {
+                    helmProviderConfigRef = _helmPcr
+                    kubernetesProviderConfigRef = _k8sPcr
+                    **_userArgo
+                }
+
+                _argoInit = {
+                    apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                    kind = "ArgoInit"
+                    metadata = {
+                        name = "{}-argo-init".format(_name)
+                        namespace = _namespace
+                        annotations = {
+                            "crossplane.io/composition-resource-name" = "{}-argo-init".format(_name)
+                        }
+                    }
+                    spec = _argoSpec
+                }
+                _resources += [_argoInit]
+
+                # Usage: ArgoInit depends on Cilium (deletion ordering)
+                if _deployCilium:
+                    _argoUsesCilium = {
+                        apiVersion = "protection.crossplane.io/v1beta1"
+                        kind = "Usage"
+                        metadata = {
+                            name = "{}-argo-uses-cilium".format(_name)
+                            annotations = {
+                                "crossplane.io/composition-resource-name" = "{}-argo-uses-cilium".format(_name)
+                            }
+                        }
+                        spec = {
+                            replayDeletion = True
+                            of = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "XCilium"
+                                resourceRef.name = "{}-cilium".format(_name)
+                            }
+                            by = {
+                                apiVersion = "platform.stuttgart-things.com/v1alpha1"
+                                kind = "ArgoInit"
+                                resourceRef.name = "{}-argo-init".format(_name)
+                            }
+                        }
+                    }
+                    _resources += [_argoUsesCilium]
+
             items = _resources
 
     - step: patch-status
@@ -638,7 +689,7 @@ spec:
             if _engine == "flux":
                 _gitopsReady = _isReady("{}-flux-init".format(_name))
             if _engine == "argocd":
-                _gitopsReady = False
+                _gitopsReady = _isReady("{}-argo-init".format(_name))
 
             _cmEnabled = oxr.spec.certManager?.enabled or False
             _cmReady = _isReady("{}-cert-manager".format(_name)) if _cmEnabled else True

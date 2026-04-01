@@ -18,7 +18,7 @@ The composition deploys sub-compositions in a strict order with soft gates (KCL 
 | 4 | Trust Manager | `XTrustManager` | certManagerReady | `trustManagerReady` | Deploys trust-manager + cluster trust Bundle (system CAs + vault CA) |
 | 5 | Cilium LB | `XCilium` (updated) | iprSatisfied | `ciliumReady` | LoadBalancer pool + L2 announcement policy (reserved IP) |
 | 5 | Cilium Gateway | `XCilium` (updated) | vbsReady + tmReady | `ciliumReady` | Gateway resource (vault-issued TLS cert + CA bundle) |
-| 6 | GitOps (Flux) | `FluxInit` | ciliumInstallReady | `gitopsReady` | Flux operator + sources |
+| 6 | GitOps (Flux or ArgoCD) | `FluxInit` / `ArgoInit` | ciliumInstallReady | `gitopsReady` | Flux operator + sources / ArgoCD + repositories |
 
 Cilium is deployed in **three phases**: the Helm install happens at stage 1 (CNI must be available before any other pods can start), LoadBalancer is enabled once an IP is reserved, and Gateway is enabled once VaultBaseSetup provides the TLS issuer. Each phase is independent. Flux only needs a working CNI, not the full Cilium feature set.
 
@@ -32,7 +32,7 @@ Set `deployCilium: false` in the EnvironmentConfig or `cilium.enabled: false` in
 | 0 | Observe RemoteCluster | Object (Observe) | always | — | Reads clusterType |
 | 1 | cert-manager | `XCertManager` | observeReady | `certManagerReady` | Installs Helm + self-signed CA chain + wildcard cert |
 | 2 | Cilium | `XCilium` | observeReady | `ciliumReady` | CNI only (no LB, no Gateway) |
-| 3 | GitOps (Flux) | `FluxInit` | ciliumReady | `gitopsReady` | Flux operator + sources |
+| 3 | GitOps (Flux or ArgoCD) | `FluxInit` / `ArgoInit` | ciliumReady | `gitopsReady` | Flux operator + sources / ArgoCD + repositories |
 
 </details>
 
@@ -62,6 +62,7 @@ Set `deployCilium: false` in the EnvironmentConfig or `cilium.enabled: false` in
 | XCilium depends on XIPReservation | IP reserved before LB pool created |
 | XCilium depends on VaultBaseSetup | Vault ClusterIssuer exists before Gateway cert |
 | FluxInit depends on XCilium | Flux kustomizations may reference Cilium CRDs (e.g. Gateway routes) — prevents stuck finalizers on teardown |
+| ArgoInit depends on XCilium | Same as FluxInit — ArgoCD applications may reference Cilium CRDs |
 
 </details>
 
@@ -87,6 +88,10 @@ Set `deployCilium: false` in the EnvironmentConfig or `cilium.enabled: false` in
 | `vaultBaseSetup` | object | no | | Vault PKI integration (auto-enabled for non-kind clusters with built-in CA) |
 | `gitops.engine` | string | no | `flux` | GitOps engine (`flux`, `argocd`, or `none`) |
 | `flux` | object | no | | Flux-specific overrides passed to XFluxInit |
+| `argocd` | object | no | | ArgoCD-specific overrides passed to ArgoInit |
+| `argocd.namespace` | string | no | `argocd` | Namespace for ArgoCD deployment |
+| `argocd.chart` | object | no | | Helm chart overrides (version, repoURL, values) |
+| `argocd.repositories` | []object | no | | ArgoCD repository connections (name, url, type, secretName) |
 
 </details>
 
@@ -224,20 +229,46 @@ VaultBaseSetup and TrustManager are **enabled by default** for non-kind clusters
 apiVersion: platform.stuttgart-things.com/v1alpha1
 kind: XClusterProfile
 metadata:
-  name: dev-profile
+  name: kind-dev-test1-profile
   namespace: crossplane-system
 spec:
-  clusterName: xplane-test
-  cilium:
-    enabled: true
-    clusterName: crossplane-test
+  clusterName: kind-dev-test1
+  gitops:
+    engine: none
   certManager:
     enabled: true
-  gitops:
-    engine: flux
 ```
 
-Kind clusters automatically apply different Cilium Helm values (native routing, `10.244.0.0/16` pod CIDR, `[eth0, net0]` devices) and skip IP reservation, VaultBaseSetup, TrustManager, LB, and Gateway.
+Kind clusters automatically apply different Cilium Helm values (native routing, `10.244.0.0/16` pod CIDR, `[eth0, net0]` devices) and skip IP reservation, VaultBaseSetup, TrustManager, LB, and Gateway. The kind cluster name (for `k8sServiceHost`) is auto-derived from RemoteCluster status (`kindClusterName`, requires provider-kubeconfig v0.11.7+).
+
+</details>
+
+<details>
+<summary>ArgoCD instead of Flux</summary>
+
+```yaml
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XClusterProfile
+metadata:
+  name: my-cluster
+  namespace: crossplane-system
+spec:
+  clusterName: my-cluster
+  gitops:
+    engine: argocd
+  argocd:
+    repositories:
+      - name: crossplane
+        url: https://github.com/stuttgart-things/crossplane.git
+        type: git
+      - name: argo-helm
+        url: https://argoproj.github.io/argo-helm
+        type: helm
+  certManager:
+    enabled: true
+```
+
+ArgoCD chart version, namespace, and Helm values are loaded from the `argo-defaults` EnvironmentConfig. Override per-claim via `spec.argocd.chart.*` or `spec.argocd.namespace`.
 
 </details>
 
@@ -286,7 +317,7 @@ data:
 | Trust Manager | `XTrustManager` | `platform.stuttgart-things.com` | cert-manager ready | integrated |
 | Cilium | `XCilium` | `platform.stuttgart-things.com` | observe ready (install) / IPR + VBS (LB + GW) | integrated |
 | Flux | `FluxInit` | `platform.stuttgart-things.com` | Cilium install ready | integrated |
-| ArgoCD | `XArgoInit` | `platform.stuttgart-things.com` | Cilium install ready | planned |
+| ArgoCD | `ArgoInit` | `platform.stuttgart-things.com` | Cilium install ready | integrated |
 
 </details>
 
@@ -339,6 +370,7 @@ kubectl apply -f examples/environment-config.yaml
 - `XTrustManager` XRD + composition (`configurations/infra/trust-manager/`)
 - `XCilium` XRD + composition (`configurations/infra/cilium/`)
 - `XFluxInit` XRD + composition (`configurations/config/flux-init/`)
+- `ArgoInit` XRD + composition (`configurations/config/argo-init/`) — only if using `gitops.engine: argocd`
 - Providers: `provider-clusterbook`, `provider-kubeconfig`, `provider-helm`, `provider-kubernetes`, `provider-opentofu`
 - Functions: `function-kcl` (v0.10.4), `function-auto-ready` (v0.6.0), `function-environment-configs` (v0.3.0), `function-go-templating` (v0.11.3)
 - Vault token secret (`vault-token`) in `crossplane-system` namespace
