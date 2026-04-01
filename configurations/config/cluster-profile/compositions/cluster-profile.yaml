@@ -146,7 +146,8 @@ spec:
             _vbs = oxr.spec?.vaultBaseSetup or {}
             _envVault = env?.vault or {}
             _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
-            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _vbsExplicit = _vbs?.enabled if _vbs?.enabled != None else False
+            _vbsEnabled = bool(_vaultCaBundle) and (_vbsExplicit or (bool(_clusterName) and _clusterType != "kind"))
             _vbsKey = "{}-vault-base-setup".format(_name)
             _vbsReady = _isReady(_vbsKey) if _vbsEnabled else True
 
@@ -417,6 +418,10 @@ spec:
                 _gwAutoEnabled = _clusterType != "kind"
                 _gwEnabled = (_cilGw?.enabled if _cilGw?.enabled != None else _gwAutoEnabled) and (_vbsReady and _tmReady if _vbsEnabled else True)
 
+                _cilAutoRoutes = _d?.autoDirectNodeRoutes if _d else True
+                if "autoDirectNodeRoutes" in _cil:
+                    _cilAutoRoutes = _cil.autoDirectNodeRoutes
+
                 _cilSpec = {
                     targetCluster = {
                         name = _helmPcr
@@ -427,11 +432,11 @@ spec:
                         version = _cil?.version or "1.19.2"
                         namespace = _cil?.namespace or "kube-system"
                         kubeProxyReplacement = _cil?.kubeProxyReplacement if _cil?.kubeProxyReplacement != None else _d?.kubeProxyReplacement if _d else True
-                        k8sServiceHost = _cil?.k8sServiceHost or _apiHost or ("{}-control-plane".format(_cil.clusterName) if _clusterType == "kind" and _cil?.clusterName else "")
+                        k8sServiceHost = _cil?.k8sServiceHost or ("{}-control-plane".format(_cil.clusterName) if _clusterType == "kind" and _cil?.clusterName else "") or _apiHost
                         k8sServicePort = _cil?.k8sServicePort or _apiPort
                         routingMode = _cil?.routingMode or _d?.routingMode or "native"
-                        ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or _observedPodCIDR or _d?.ipv4NativeRoutingCIDR or "10.244.0.0/16"
-                        autoDirectNodeRoutes = _cil.autoDirectNodeRoutes if _cil?.autoDirectNodeRoutes != None else (True if not _d else _d.autoDirectNodeRoutes)
+                        ipv4NativeRoutingCIDR = _cil?.ipv4NativeRoutingCIDR or _d?.ipv4NativeRoutingCIDR or _observedPodCIDR or "10.244.0.0/16"
+                        autoDirectNodeRoutes = _cilAutoRoutes
                         **({} if not (_cil?.devices or _d?.devices) else {"devices": _cil?.devices or _d?.devices})
                         gatewayAPI = { enabled = _cil?.gatewayAPI?.enabled if _cil?.gatewayAPI?.enabled != None else _d?.gatewayAPI?.enabled if _d else True }
                         l2Announcements = { enabled = _cil?.l2Announcements?.enabled if _cil?.l2Announcements?.enabled != None else _d?.l2Announcements?.enabled if _d else True }
@@ -655,7 +660,8 @@ spec:
             _vbs = oxr.spec?.vaultBaseSetup or {}
             _envVault = env?.vault or {}
             _vaultCaBundle = _vbs?.vaultCaBundle or _envVault?.caBundle or ""
-            _vbsEnabled = bool(_vaultCaBundle) and (bool(_clusterName) and _clusterType != "kind")
+            _vbsExplicit = _vbs?.enabled if _vbs?.enabled != None else False
+            _vbsEnabled = bool(_vaultCaBundle) and (_vbsExplicit or (bool(_clusterName) and _clusterType != "kind"))
             _vbsReady = _isReady("{}-vault-base-setup".format(_name)) if _vbsEnabled else True
             _tmReady = _isReady("{}-trust-manager".format(_name)) if _vbsEnabled else True
 

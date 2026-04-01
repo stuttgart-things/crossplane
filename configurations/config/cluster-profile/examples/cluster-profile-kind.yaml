@@ -1,0 +1,37 @@
+# ---
+# apiVersion: platform.stuttgart-things.com/v1alpha1
+# kind: XClusterProfile
+# metadata:
+#   name: kind-dev-test1-profile
+#   namespace: crossplane-system
+# spec:
+#   clusterName: kind-dev-test1
+#   clusterType: kind
+#   cilium:
+#     enabled: true
+#     clusterName: dev
+#     k8sServiceHost: dev-control-plane
+#   gitops:
+#     engine: none
+#   certManager:
+#     enabled: true
+#     selfSigned:
+#       enabled: true
+# ---
+apiVersion: platform.stuttgart-things.com/v1alpha1
+kind: XClusterProfile
+metadata:
+  name: kind-dev-test1-profile
+  namespace: crossplane-system
+spec:
+  clusterName: kind-dev-test1
+  # clusterType: kind
+  cilium:
+    # enabled: true
+    clusterName: dev
+  gitops:
+    engine: none
+  certManager:
+    enabled: true
+    selfSigned:
+      enabled: true
