@@ -1,0 +1,29 @@
+---
+apiVersion: infrastructure.stuttgart-things.com/v1alpha1
+kind: XVsphereVM
+metadata:
+  name: movie-scripts5
+  namespace: crossplane2
+spec:
+  name: movie-scripts5
+  size: l
+  guestId: ubuntu64Guest
+  firmware: bios
+  annotation: "VSPHERE-VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS"
+  providerConfigName: default
+---
+apiVersion: infrastructure.stuttgart-things.com/v1alpha1
+kind: XVsphereVM
+metadata:
+  name: movie-scripts6
+  namespace: crossplane2
+spec:
+  name: movie-scripts6
+  numCpus: 4
+  memory: 8192
+  diskSize: 100
+  os: sthings-u24
+  guestId: ubuntu64Guest
+  firmware: bios
+  annotation: "VSPHERE-VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS"
+  providerConfigName: default
