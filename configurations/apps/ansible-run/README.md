@@ -3,8 +3,8 @@
 ## DEV
 
 ```bash
-crossplane render examples/claim.yaml \
-apis/composition.yaml \
+crossplane render examples/ansible-run.yaml \
+compositions/ansible-run.yaml \
 examples/functions.yaml \
 --include-function-results
 ```

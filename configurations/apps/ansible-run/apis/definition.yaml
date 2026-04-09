@@ -155,8 +155,32 @@ spec:
                   description: Timeout for Crossplane operations
                   default: "60"
 
+                # Target Cluster
+                targetCluster:
+                  type: object
+                  description: Target cluster configuration
+                  properties:
+                    name:
+                      type: string
+                      description: Name of the ProviderConfig
+                      default: in-cluster
+                    scope:
+                      type: string
+                      description: Scope of the ProviderConfig (Namespaced or Cluster)
+                      default: Namespaced
+                      enum:
+                        - Namespaced
+                        - Cluster
+
               required:
                 - pipelineRunName
                 - namespace
                 - gitRepoUrl
                 - ansiblePlaybooks
+
+            status:
+              type: object
+              properties:
+                installed:
+                  type: boolean
+                  description: Whether the AnsibleRun has been installed
