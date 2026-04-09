@@ -39,7 +39,7 @@ spec:
   configuration: |
     terraform {
       backend "kubernetes" {
-        secret_suffix    = "providerconfig-default"
+        secret_suffix    = "providerconfig-default" # pragma: allowlist secret
         namespace        = "crossplane-system"
         in_cluster_config = true
       }

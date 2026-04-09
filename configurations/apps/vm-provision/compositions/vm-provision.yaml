@@ -20,7 +20,7 @@ spec:
         metadata:
           name: render
         spec:
-          source: |
+          source: | # pragma: allowlist secret
             import regex
 
             oxr = option("params").oxr
