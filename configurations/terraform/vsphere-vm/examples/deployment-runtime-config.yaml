@@ -13,5 +13,5 @@ spec:
             - name: package-runtime
               args:
                 - -d
-                - --poll=5m
+                - --poll=30s
                 - --max-reconcile-rate=10
