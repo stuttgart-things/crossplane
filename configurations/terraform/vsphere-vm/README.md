@@ -103,7 +103,7 @@ spec:
 ### Render Composition Locally
 
 ```bash
-crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml \
+crossplane render examples/vsphere-vm.yaml compositions/vsphere-vm.yaml examples/functions.yaml \
   --include-function-results
 ```
 
