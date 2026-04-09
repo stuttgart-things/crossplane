@@ -1,0 +1,68 @@
+---
+# vSphere VM with Ansible baseos provisioning
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: VMProvision
+metadata:
+  name: test-vsphere-vm
+  namespace: default
+spec:
+  provider: vsphere
+  providerRef:
+    name: default
+    kind: ClusterProviderConfig
+  vm:
+    name: test-vsphere-vm
+    cpu: "4"
+    ram: "4096"
+    disk: "64"
+    firmware: bios
+    template: sthings-u24
+  vsphere:
+    folderPath: stuttgart-things/testing
+    datacenter: /LabUL
+    datastore: /LabUL/datastore/UL-ESX-SAS-02
+    resourcePool: /LabUL/host/Cluster-V6.7/Resources
+    network: /LabUL/network/LAB-10.31.103
+  tfvars:
+    secretName: vsphere-tfvars
+    secretKey: terraform.tfvars
+  connectionSecret:
+    name: test-vsphere-vm
+  ansible:
+    enabled: true
+    playbooks:
+      - sthings.baseos.setup
+    varsFile:
+      - manage_filesystem+-true
+      - update_packages+-true
+      - ansible_become+-true
+      - ansible_become_method+-sudo
+---
+# Proxmox VM without Ansible
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: VMProvision
+metadata:
+  name: test-proxmox-vm
+  namespace: default
+spec:
+  provider: proxmox
+  providerRef:
+    name: default
+    kind: ClusterProviderConfig
+  vm:
+    name: test-proxmox-vm
+    cpu: "4"
+    ram: "4096"
+    disk: "32G"
+    firmware: seabios
+    template: ubuntu24
+  proxmox:
+    node: ul-pve01
+    datastore: V5010-01-1
+    folderPath: stuttgart-things
+    network: vmbr0
+  tfvars:
+    secretName: proxmox-tfvars
+    secretKey: terraform.tfvars
+  connectionSecret:
+    name: test-proxmox-vm
