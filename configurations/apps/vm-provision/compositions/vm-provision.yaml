@@ -43,6 +43,29 @@ spec:
 
             if _provider == "vsphere":
                 _vs = _spec?.vsphere or {}
+                _vsVm = {
+                    name = _vm.name
+                    count = _vm?.count or "1"
+                    cpu = _vm?.cpu or "4"
+                    ram = _vm?.ram or "4096"
+                    disk = _vm?.disk or "64"
+                    firmware = _vm?.firmware or "bios"
+                    template = _vm.template
+                    bootstrap = '["echo STUTTGART-THINGS"]'
+                    annotation = _vm?.annotation or "VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS"
+                    unverifiedSsl = _vs?.unverifiedSsl or "true"
+                }
+                if _vs?.folderPath:
+                    _vsVm |= {folderPath = _vs.folderPath}
+                if _vs?.datacenter:
+                    _vsVm |= {datacenter = _vs.datacenter}
+                if _vs?.datastore:
+                    _vsVm |= {datastore = _vs.datastore}
+                if _vs?.resourcePool:
+                    _vsVm |= {resourcePool = _vs.resourcePool}
+                if _vs?.network:
+                    _vsVm |= {network = _vs.network}
+
                 _vsphereVM = {
                     apiVersion = "resources.stuttgart-things.com/v1alpha1"
                     kind = "VsphereVM"
@@ -58,18 +81,7 @@ spec:
                             name = _providerRef.name
                             kind = _providerRef?.kind or "ClusterProviderConfig"
                         }
-                        vm = {
-                            name = _vm.name
-                            count = _vm?.count or "1"
-                            cpu = _vm?.cpu or "4"
-                            ram = _vm?.ram or "4096"
-                            disk = _vm?.disk or "64"
-                            firmware = _vm?.firmware or "bios"
-                            template = _vm.template
-                            bootstrap = '["echo STUTTGART-THINGS"]'
-                            annotation = _vm?.annotation or "VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS"
-                            unverifiedSsl = _vs?.unverifiedSsl or "true"
-                        }
+                        vm = _vsVm
                         tfvars = {
                             secretName = _tfvars.secretName
                             secretKey = _tfvars?.secretKey or "terraform.tfvars"
@@ -77,16 +89,6 @@ spec:
                         connectionSecret = {
                             name = _connSecret.name
                         }
-                        if _vs?.folderPath:
-                            vm = {folderPath = _vs.folderPath}
-                        if _vs?.datacenter:
-                            vm = {datacenter = _vs.datacenter}
-                        if _vs?.datastore:
-                            vm = {datastore = _vs.datastore}
-                        if _vs?.resourcePool:
-                            vm = {resourcePool = _vs.resourcePool}
-                        if _vs?.network:
-                            vm = {network = _vs.network}
                     }
                 }
                 _resources += [_vsphereVM]
