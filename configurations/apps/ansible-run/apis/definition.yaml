@@ -45,7 +45,7 @@ spec:
                 ansibleWorkingImage:
                   type: string
                   description: Ansible working container image
-                  default: ghcr.io/stuttgart-things/sthings-ansible:13.5.0
+                  default: ghcr.io/stuttgart-things/sthings-ansible:13.5.0-test
                 createInventory:
                   type: string
                   description: Whether to create an Ansible inventory
