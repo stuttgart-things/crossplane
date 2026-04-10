@@ -24,7 +24,7 @@ spec:
                 name: cluster-profile-defaults
     - step: render
       functionRef:
-        name: function-kcl
+        name: crossplane-contrib-function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
         kind: KCLInput
@@ -659,7 +659,7 @@ spec:
 
     - step: patch-status
       functionRef:
-        name: function-kcl
+        name: crossplane-contrib-function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
         kind: KCLInput
@@ -737,4 +737,4 @@ spec:
 
     - step: ready
       functionRef:
-        name: function-auto-ready
+        name: crossplane-contrib-function-auto-ready

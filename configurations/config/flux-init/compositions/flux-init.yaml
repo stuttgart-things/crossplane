@@ -24,7 +24,7 @@ spec:
                 name: flux-defaults
     - step: render
       functionRef:
-        name: function-kcl
+        name: crossplane-contrib-function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
         kind: KCLInput
@@ -190,7 +190,7 @@ spec:
             items = _resources
     - step: patch-status
       functionRef:
-        name: function-kcl
+        name: crossplane-contrib-function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
         kind: KCLInput
@@ -227,4 +227,4 @@ spec:
             items = [_oxr]
     - step: ready
       functionRef:
-        name: function-auto-ready
+        name: crossplane-contrib-function-auto-ready

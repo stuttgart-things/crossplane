@@ -1,0 +1,40 @@
+---
+# Minimal claim — medium vSphere VM in LabUL with Ansible (all defaults)
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: XVirtualMachine
+metadata:
+  name: my-dev-vm
+  namespace: default
+spec:
+  size: medium
+  provider: vsphere
+  environment: labul
+---
+# Large Proxmox VM in LabUL, Ubuntu 22, no Ansible
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: XVirtualMachine
+metadata:
+  name: my-build-vm
+  namespace: default
+spec:
+  size: large
+  provider: proxmox
+  environment: labul
+  os: ubuntu22
+  ansible: false
+---
+# XLarge vSphere VM in LabDA with custom providerRef
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: XVirtualMachine
+metadata:
+  name: my-perf-vm
+  namespace: default
+spec:
+  size: xlarge
+  provider: vsphere
+  environment: labda
+  os: ubuntu24
+  ansible: true
+  providerRef:
+    name: labda-vsphere
+    kind: ClusterProviderConfig

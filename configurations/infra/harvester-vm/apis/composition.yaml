@@ -17,7 +17,7 @@ spec:
   # ---------------------------------------------------------------------------
   - step: create-volume-claim
     functionRef:
-      name: function-patch-and-transform
+      name: crossplane-contrib-function-patch-and-transform
     input:
       apiVersion: pt.fn.crossplane.io/v1beta1
       kind: Resources
@@ -98,7 +98,7 @@ spec:
   # ---------------------------------------------------------------------------
   - step: create-cloud-init
     functionRef:
-      name: function-patch-and-transform
+      name: crossplane-contrib-function-patch-and-transform
     input:
       apiVersion: pt.fn.crossplane.io/v1beta1
       kind: Resources
@@ -199,7 +199,7 @@ spec:
   # ---------------------------------------------------------------------------
   - step: create-vm
     functionRef:
-      name: function-go-templating
+      name: crossplane-contrib-function-go-templating
     input:
       apiVersion: gotemplating.fn.crossplane.io/v1beta1
       kind: GoTemplate

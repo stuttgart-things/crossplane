@@ -1,0 +1,224 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: virtual-machine
+  labels:
+    crossplane.io/xrd: xvirtualmachines.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: XVirtualMachine
+
+  mode: Pipeline
+  pipeline:
+    - step: render
+      functionRef:
+        name: crossplane-contrib-function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        metadata:
+          name: render
+        spec:
+          source: | # pragma: allowlist secret
+            oxr = option("params").oxr
+            ocds = option("params").ocds
+
+            _spec = oxr.spec
+            _name = oxr.metadata.name
+            _namespace = oxr.metadata.namespace or "default"
+            _provider = _spec.provider
+            _environment = _spec.environment
+            _os = _spec?.os or "ubuntu24"
+            _count = _spec?.count or "1"
+            _ansibleEnabled = False if _spec?.ansible == False else True
+
+            # --- T-shirt size map ---
+            _sizes = {
+                small:  {cpu: "2",  ram: "2048",  disk: "32"}
+                medium: {cpu: "4",  ram: "4096",  disk: "64"}
+                large:  {cpu: "8",  ram: "8192",  disk: "128"}
+                xlarge: {cpu: "16", ram: "16384", disk: "256"}
+            }
+
+            _size = _sizes[_spec.size]
+
+            # --- Environment config maps ---
+            _envs = {
+                labul: {
+                    vsphere: {
+                        folderPath: "stuttgart-things/testing"
+                        datacenter: "/LabUL"
+                        datastore: "/LabUL/datastore/UL-ESX-SAS-02"
+                        resourcePool: "/LabUL/host/Cluster-V6.7/Resources"
+                        network: "/LabUL/network/LAB-10.31.103"
+                        firmware: "bios"
+                        tfvarsSecretName: "vsphere-tfvars"
+                        tfvarsSecretKey: "terraform.tfvars"
+                        templates: {ubuntu24: "sthings-u24", ubuntu22: "sthings-u22"}
+                    }
+                    proxmox: {
+                        node: "ul-pve01"
+                        datastore: "V5010-01-1"
+                        folderPath: "stuttgart-things"
+                        network: "vmbr0"
+                        firmware: "seabios"
+                        tfvarsSecretName: "proxmox-tfvars"
+                        tfvarsSecretKey: "terraform.tfvars"
+                        templates: {ubuntu24: "ubuntu24", ubuntu22: "ubuntu22"}
+                    }
+                }
+                labda: {
+                    vsphere: {
+                        folderPath: "stuttgart-things/testing"
+                        datacenter: "/LabDA"
+                        datastore: "/LabDA/datastore/DA-ESX-SAS-01"
+                        resourcePool: "/LabDA/host/Cluster-V7/Resources"
+                        network: "/LabDA/network/LAB-10.31.104"
+                        firmware: "bios"
+                        tfvarsSecretName: "vsphere-tfvars"
+                        tfvarsSecretKey: "terraform.tfvars"
+                        templates: {ubuntu24: "sthings-u24", ubuntu22: "sthings-u22"}
+                    }
+                    proxmox: {
+                        node: "da-pve01"
+                        datastore: "V5010-DA-1"
+                        folderPath: "stuttgart-things"
+                        network: "vmbr0"
+                        firmware: "seabios"
+                        tfvarsSecretName: "proxmox-tfvars"
+                        tfvarsSecretKey: "terraform.tfvars"
+                        templates: {ubuntu24: "ubuntu24", ubuntu22: "ubuntu22"}
+                    }
+                }
+            }
+
+            _env = _envs[_environment][_provider]
+
+            # --- Resolve from environment ---
+            _template = _env.templates[_os]
+            _firmware = _env.firmware
+            _tfvarsSecretName = _env.tfvarsSecretName # pragma: allowlist secret
+            _tfvarsSecretKey = _env.tfvarsSecretKey # pragma: allowlist secret
+
+            # --- Disk formatting (Proxmox needs G suffix) ---
+            _diskVal = _size.disk
+            _disk = _diskVal if _provider == "vsphere" else "{}G".format(_diskVal)
+
+            # --- Provider-specific topology ---
+            _vsphereBlock = {
+                folderPath: _env.folderPath
+                datacenter: _env.datacenter
+                datastore: _env.datastore
+                resourcePool: _env.resourcePool
+                network: _env.network
+            } if _provider == "vsphere" else {}
+
+            _proxmoxBlock = {
+                node: _env.node
+                datastore: _env.datastore
+                folderPath: _env.folderPath
+                network: _env.network
+            } if _provider == "proxmox" else {}
+
+            # --- Ansible spec ---
+            _ansibleSpec = {
+                enabled: True
+                playbooks: ["sthings.baseos.setup"]
+                varsFile: [
+                    "manage_filesystem+-true"
+                    "update_packages+-true"
+                    "ansible_become+-true"
+                    "ansible_become_method+-sudo"
+                ]
+            } if _ansibleEnabled else {enabled: False}
+
+            # --- ProviderRef ---
+            _providerRefName = _spec?.providerRef?.name or "default"
+            _providerRefKind = _spec?.providerRef?.kind or "ClusterProviderConfig"
+
+            # --- Compose VMProvision ---
+            _vmProvision = {
+                apiVersion = "resources.stuttgart-things.com/v1alpha1"
+                kind = "VMProvision"
+                metadata = {
+                    name = _name
+                    namespace = _namespace
+                    annotations = {
+                        "crossplane.io/composition-resource-name" = "vm-provision"
+                    }
+                }
+                spec = {
+                    provider = _provider
+                    providerRef = {
+                        name = _providerRefName
+                        kind = _providerRefKind
+                    }
+                    vm = {
+                        name = _name
+                        count = _count
+                        cpu = _size.cpu
+                        ram = _size.ram
+                        disk = _disk
+                        firmware = _firmware
+                        template = _template
+                    }
+                    if _provider == "vsphere":
+                        vsphere = _vsphereBlock
+                    if _provider == "proxmox":
+                        proxmox = _proxmoxBlock
+                    tfvars = {
+                        secretName = _tfvarsSecretName
+                        secretKey = _tfvarsSecretKey
+                    }
+                    connectionSecret = {
+                        name = _name
+                    }
+                    ansible = _ansibleSpec
+                }
+            }
+
+            items = [_vmProvision]
+
+    - step: patch-status
+      functionRef:
+        name: crossplane-contrib-function-kcl
+      input:
+        apiVersion: krm.kcl.dev/v1alpha1
+        kind: KCLInput
+        metadata:
+          name: patch-status
+        spec:
+          source: |
+            oxr = option("params").oxr
+            ocds = option("params").ocds
+
+            # Find VMProvision status from any ocds entry
+            _vmStatus = {}
+            _entries = [v.Resource?.status or {} for _, v in ocds if v.Resource?.kind == "VMProvision"]
+            if len(_entries) > 0:
+                _vmStatus = _entries[0]
+
+            _vmIPs = _vmStatus?.share?.ip or []
+            _vmReady = _vmStatus?.vmReady or False
+            _ansibleReady = _vmStatus?.ansibleReady or False
+
+            _oxr = oxr | {
+                status = {
+                    share = {
+                        ip = _vmIPs
+                        provider = oxr.spec.provider
+                        size = oxr.spec.size
+                        environment = oxr.spec.environment
+                    }
+                    vmReady = _vmReady
+                    ansibleReady = _ansibleReady
+                }
+            }
+
+            items = [_oxr]
+
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready

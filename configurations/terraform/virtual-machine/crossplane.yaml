@@ -1,0 +1,27 @@
+---
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: virtual-machine
+  annotations:
+    meta.crossplane.io/maintainer: patrick.hermann@sva.de
+    meta.crossplane.io/source: github.com/stuttgart-things/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      T-shirt sized VM provisioning abstraction on top of VMProvision.
+      Maps simple size/provider/environment inputs to full VM specs
+      using EnvironmentConfigs for datacenter topology.
+    meta.crossplane.io/readme: |
+      VirtualMachine provides a high-level VM provisioning API with t-shirt sizes.
+      Users specify size (small/medium/large/xlarge), provider, and environment.
+      Datacenter topology is externalized into EnvironmentConfig objects.
+spec:
+  crossplane:
+    version: ">=2.13.0"
+  dependsOn:
+    - configuration: ghcr.io/stuttgart-things/crossplane/vm-provision
+      version: ">=v0.1.0"
+    - function: xpkg.upbound.io/crossplane-contrib/function-kcl
+      version: ">=v0.12.0"
+    - function: xpkg.crossplane.io/crossplane-contrib/function-auto-ready
+      version: ">=v0.6.0"

@@ -11,7 +11,7 @@ spec:
   pipeline:
     - step: render-workspace
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:  # pragma: allowlist secret
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate

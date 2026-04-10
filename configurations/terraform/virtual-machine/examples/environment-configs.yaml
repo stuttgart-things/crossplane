@@ -1,0 +1,82 @@
+---
+# LabUL / vSphere
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: env-labul-vsphere
+  labels:
+    environment: labul
+    provider: vsphere
+data:
+  folderPath: stuttgart-things/testing
+  datacenter: /LabUL
+  datastore: /LabUL/datastore/UL-ESX-SAS-02
+  resourcePool: /LabUL/host/Cluster-V6.7/Resources
+  network: /LabUL/network/LAB-10.31.103
+  firmware: bios
+  templates:
+    ubuntu24: sthings-u24
+    ubuntu22: sthings-u22
+  tfvarsSecretName: vsphere-tfvars
+  tfvarsSecretKey: terraform.tfvars
+---
+# LabUL / Proxmox
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: env-labul-proxmox
+  labels:
+    environment: labul
+    provider: proxmox
+data:
+  node: ul-pve01
+  datastore: V5010-01-1
+  folderPath: stuttgart-things
+  network: vmbr0
+  firmware: seabios
+  templates:
+    ubuntu24: ubuntu24
+    ubuntu22: ubuntu22
+  tfvarsSecretName: proxmox-tfvars
+  tfvarsSecretKey: terraform.tfvars
+---
+# LabDA / vSphere — fill in actual values
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: env-labda-vsphere
+  labels:
+    environment: labda
+    provider: vsphere
+data:
+  folderPath: stuttgart-things/testing
+  datacenter: /LabDA
+  datastore: /LabDA/datastore/DA-ESX-SAS-01
+  resourcePool: /LabDA/host/Cluster-V7/Resources
+  network: /LabDA/network/LAB-10.31.104
+  firmware: bios
+  templates:
+    ubuntu24: sthings-u24
+    ubuntu22: sthings-u22
+  tfvarsSecretName: vsphere-tfvars
+  tfvarsSecretKey: terraform.tfvars
+---
+# LabDA / Proxmox — fill in actual values
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: env-labda-proxmox
+  labels:
+    environment: labda
+    provider: proxmox
+data:
+  node: da-pve01
+  datastore: V5010-DA-1
+  folderPath: stuttgart-things
+  network: vmbr0
+  firmware: seabios
+  templates:
+    ubuntu24: ubuntu24
+    ubuntu22: ubuntu22
+  tfvarsSecretName: proxmox-tfvars
+  tfvarsSecretKey: terraform.tfvars
