@@ -20,7 +20,7 @@ spec:
       enabled: true
       name: wildcard-tls
       namespace: default
-      secretName: wildcard-tls
+      secretName: wildcard-tls # pragma: allowlist secret
       domain: sthings.io
   vaultIssuer:
     enabled: false
