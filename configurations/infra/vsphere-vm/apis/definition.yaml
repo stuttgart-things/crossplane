@@ -1,0 +1,133 @@
+---
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xvspherevm.infrastructure.stuttgart-things.com
+spec:
+  group: infrastructure.stuttgart-things.com
+  defaultCompositeDeletePolicy: Foreground
+  scope: Namespaced
+  names:
+    kind: XVsphereVM
+    plural: xvspherevm
+    singular: xvspherevm
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Name of the virtual machine
+                size:
+                  type: string
+                  default: m
+                  enum:
+                    - s
+                    - m
+                    - l
+                  description: "T-shirt size (s/m/l) for CPU, memory, and disk. Resolved from EnvironmentConfig. Explicit numCpus/memory/diskSize override."
+                numCpus:
+                  type: integer
+                  description: Number of virtual CPUs (overrides size)
+                memory:
+                  type: integer
+                  description: Memory size in MB (overrides size)
+                diskSize:
+                  type: integer
+                  description: Primary disk size in GB (overrides size)
+                thinProvisioned:
+                  type: boolean
+                  default: true
+                  description: Use thin provisioning for the disk
+                guestId:
+                  type: string
+                  default: ubuntu64Guest
+                  description: Guest OS identifier
+                firmware:
+                  type: string
+                  default: bios
+                  enum:
+                    - bios
+                    - efi
+                  description: Firmware type (bios or efi)
+                folder:
+                  type: string
+                  default: ""
+                  description: VM folder path (overrides EnvironmentConfig default)
+                annotation:
+                  type: string
+                  default: "VSPHERE-VM BUILD w/ CROSSPLANE"
+                  description: VM annotation
+                resourcePool:
+                  type: string
+                  description: "Resource pool alias (e.g. Cluster-V6.7). Resolved to resourcePoolId from EnvironmentConfig."
+                resourcePoolId:
+                  type: string
+                  default: ""
+                  description: "Resource pool ID (overrides resourcePool alias and EnvironmentConfig)"
+                datastore:
+                  type: string
+                  description: "Datastore alias (e.g. UL-ESX-SAS-02). Resolved to datastoreId from EnvironmentConfig."
+                datastoreId:
+                  type: string
+                  default: ""
+                  description: "Datastore ID (overrides datastore alias and EnvironmentConfig)"
+                os:
+                  type: string
+                  description: "OS template alias (e.g. sthings-u24). Resolved to templateUuid from EnvironmentConfig."
+                templateUuid:
+                  type: string
+                  default: ""
+                  description: "Template UUID for cloning (overrides os alias and EnvironmentConfig)"
+                network:
+                  type: string
+                  description: "Network alias (e.g. LAB-10.31.103). Resolved to networkId from EnvironmentConfig."
+                networkId:
+                  type: string
+                  default: ""
+                  description: "Network ID (overrides network alias and EnvironmentConfig)"
+                providerConfigName:
+                  type: string
+                  default: default
+                  description: Name of the ProviderConfig to use
+
+            status:
+              type: object
+              properties:
+                ready:
+                  type: boolean
+                  description: True when the VM is Ready
+                ipAddress:
+                  type: string
+                  description: Primary IP address of the VM
+                guestIpAddresses:
+                  type: array
+                  items:
+                    type: string
+                  description: All IP addresses reported by VMware Tools
+                powerState:
+                  type: string
+                  description: Power state of the VM (poweredOn, poweredOff, suspended)
+                vmwareToolsStatus:
+                  type: string
+                  description: VMware Tools status
+                uuid:
+                  type: string
+                  description: UUID of the virtual machine
+                moid:
+                  type: string
+                  description: vSphere managed object reference ID
+                vmName:
+                  type: string
+                  description: Name of the VM as reported by vSphere

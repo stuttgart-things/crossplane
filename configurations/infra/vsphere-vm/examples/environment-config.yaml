@@ -1,0 +1,35 @@
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: vsphere-vm-defaults
+data:
+  vsphere:
+    defaultResourcePool: Cluster-V6.7
+    resourcePools:
+      Cluster-V6.7: "resgroup-481"
+    defaultDatastore: UL-ESX-SAS-02
+    datastores:
+      UL-ESX-SAS-02: "datastore-255"
+    defaultOs: sthings-u24
+    templates:
+      sthings-u24: "423483d0-5dd4-def9-5c87-94c0f513bab4"
+      sthings-u22: "REPLACE-WITH-UUID"
+      sthings-rh9: "REPLACE-WITH-UUID"
+    defaultNetwork: LAB-10.31.103
+    networks:
+      LAB-10.31.103: "network-263"
+    folder: "stuttgart-things/testing"
+    sizes:
+      s:
+        numCpus: 2
+        memory: 2048
+        diskSize: 32
+      m:
+        numCpus: 4
+        memory: 4096
+        diskSize: 64
+      l:
+        numCpus: 8
+        memory: 8192
+        diskSize: 128
