@@ -11,7 +11,7 @@ spec:
   pipeline:
     - step: render-pvc
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
@@ -81,4 +81,4 @@ spec:
 
     - step: ready
       functionRef:
-        name: function-auto-ready
+        name: crossplane-contrib-function-auto-ready

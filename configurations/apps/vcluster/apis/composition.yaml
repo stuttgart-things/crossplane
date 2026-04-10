@@ -12,7 +12,7 @@ spec:
   mode: Pipeline
   pipeline:
     - functionRef:
-        name: function-kcl
+        name: crossplane-contrib-function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
         kind: KCLRun
