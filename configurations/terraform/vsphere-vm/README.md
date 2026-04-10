@@ -24,14 +24,37 @@ kubectl apply -f examples/cluster-provider-config.yaml
 kubectl apply -f examples/configuration.yaml
 ```
 
-## Configuration
+## Prerequisites
+
+### Create OpenTofu ClusterProviderConfig
+
+```bash
+kubectl apply -f - <<EOF
+---
+apiVersion: opentofu.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  configuration: |
+    terraform {
+      backend "kubernetes" {
+        secret_suffix    = "providerconfig-default" # pragma: allowlist secret
+        namespace        = "crossplane-system"
+        in_cluster_config = true
+      }
+    }
+EOF
+```
 
 ### Create TFVars Secret
 
-The Terraform provider requires vSphere credentials stored as a Kubernetes secret:
+The OpenTofu provider requires vSphere credentials stored as a Kubernetes secret.
+The secret must exist in the **same namespace as the VsphereVM XR** (typically `default`):
 
 ```bash
 kubectl create secret generic vsphere-tfvars \
+  -n default \
   --from-literal=terraform.tfvars="$(cat <<EOF
 vsphere_user = "<your-user>"
 vsphere_password = "<your-password>"
@@ -40,6 +63,68 @@ vm_ssh_password = "<ssh-password>"
 vsphere_server = "<vcenter-server>"
 EOF
 )"
+```
+
+If using SOPS-encrypted secrets:
+
+```bash
+kubectl create secret generic vsphere-tfvars \
+  -n default \
+  --from-literal=terraform.tfvars="$(sops --decrypt /path/to/labul.tfvars.enc.json | \
+    python3 -c 'import json,sys; [print(f"{k} = \"{v}\"") for k,v in json.load(sys.stdin).items() if k != "sops"]')"
+```
+
+### Grant RBAC for OpenTofu Provider
+
+The OpenTofu provider service account needs permission to read secrets across namespaces.
+Adjust the service account name to match your cluster's provider revision.
+
+```bash
+kubectl apply -f - <<EOF
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: provider-opentofu-secrets
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: provider-opentofu-secrets
+subjects:
+- kind: ServiceAccount
+  name: <provider-opentofu-service-account>
+  namespace: crossplane-system
+roleRef:
+  kind: ClusterRole
+  name: provider-opentofu-secrets
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+To find the correct service account name:
+
+```bash
+kubectl get sa -n crossplane-system | grep opentofu
+```
+
+### DeploymentRuntimeConfig (optional)
+
+Configure the OpenTofu provider poll interval and reconcile rate:
+
+```bash
+kubectl apply -f examples/deployment-runtime-config.yaml
+```
+
+Then link it to the provider:
+
+```bash
+kubectl patch providers.pkg.crossplane.io upbound-provider-opentofu \
+  --type=merge -p '{"spec":{"runtimeConfigRef":{"name":"opentofu"}}}'
 ```
 
 ## Claim Parameters
@@ -103,7 +188,7 @@ spec:
 ### Render Composition Locally
 
 ```bash
-crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml \
+crossplane render examples/vsphere-vm.yaml compositions/vsphere-vm.yaml examples/functions.yaml \
   --include-function-results
 ```
 

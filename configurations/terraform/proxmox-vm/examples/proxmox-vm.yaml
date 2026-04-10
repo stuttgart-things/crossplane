@@ -1,0 +1,29 @@
+---
+apiVersion: resources.stuttgart-things.com/v1alpha1
+kind: ProxmoxVM
+metadata:
+  name: test-vm
+  namespace: default
+spec:
+  providerRef:
+    name: default
+    kind: ClusterProviderConfig
+  vm:
+    count: "1"
+    name: test-vm
+    cpu: "4"
+    ram: "8192"
+    disk: "64G"
+    firmware: seabios
+    template: ubuntu24
+    annotation: PROXMOX-VM BUILD w/ CROSSPLANE FOR STUTTGART-THINGS
+  proxmox:
+    node: sthings-pve1
+    datastore: v3700
+    folderPath: stuttgart-things
+    network: vmbr101
+  tfvars:
+    secretName: proxmox-tfvars # pragma: allowlist secret
+    secretKey: terraform.tfvars # pragma: allowlist secret
+  connectionSecret:
+    name: test-vm

@@ -13,7 +13,7 @@ metadata:
       deploys AnsibleRun w/ crossplane
 spec:
   crossplane:
-    version: ">=v2.1.3"
+    version: ">=2.13.0"
   dependsOn:
     - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
       version: ">=v1.2.0"

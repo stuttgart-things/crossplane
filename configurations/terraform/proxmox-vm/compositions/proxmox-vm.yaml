@@ -1,0 +1,137 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: proxmox-vm
+  labels:
+    crossplane.io/xrd: proxmoxvms.resources.stuttgart-things.com
+spec:
+  compositeTypeRef:
+    apiVersion: resources.stuttgart-things.com/v1alpha1
+    kind: ProxmoxVM
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: crossplane-contrib-function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: proxmox-vm
+            base:
+              kind: Workspace
+              apiVersion: opentofu.m.upbound.io/v1beta1
+              metadata:
+                annotations:
+                  crossplane.io/external-name: proxmoxvm
+              spec:
+                providerConfigRef:
+                  name: default
+                  kind: ClusterProviderConfig
+                writeConnectionSecretToRef:
+                  name: proxmox-vm-test
+                forProvider:
+                  source: Remote
+                  module: git::https://github.com/stuttgart-things/proxmox-vm.git?ref=3.0.2-rc08-20260407
+                  vars:
+                    - key: vm_count
+                      value: "1"
+                    - key: vm_name
+                      value: ""
+                    - key: vm_num_cpus
+                      value: "4"
+                    - key: vm_memory
+                      value: "4096"
+                    - key: vm_disk_size
+                      value: "32G"
+                    - key: vm_firmware
+                      value: "seabios"
+                    - key: vm_notes
+                      value: ""
+                    - key: vm_template
+                      value: ""
+                    - key: pve_cluster_node
+                      value: ""
+                    - key: pve_datastore
+                      value: ""
+                    - key: pve_folder_path
+                      value: ""
+                    - key: pve_network
+                      value: ""
+                  varFiles:
+                    - source: SecretKey
+                      secretKeyRef:
+                        name: proxmox-tfvars
+                        key: terraform.tfvars
+            patches:
+              - type: CombineFromComposite
+                combine:
+                  strategy: string
+                  string:
+                    fmt: "proxmoxvm-%s"
+                  variables:
+                    - fromFieldPath: spec.vm.name
+                toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+              # VM Configuration
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.count
+                toFieldPath: spec.forProvider.vars[0].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.name
+                toFieldPath: spec.forProvider.vars[1].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.cpu
+                toFieldPath: spec.forProvider.vars[2].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.ram
+                toFieldPath: spec.forProvider.vars[3].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.disk
+                toFieldPath: spec.forProvider.vars[4].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.firmware
+                toFieldPath: spec.forProvider.vars[5].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.annotation
+                toFieldPath: spec.forProvider.vars[6].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.vm.template
+                toFieldPath: spec.forProvider.vars[7].value
+              # Proxmox Infrastructure
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.proxmox.node
+                toFieldPath: spec.forProvider.vars[8].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.proxmox.datastore
+                toFieldPath: spec.forProvider.vars[9].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.proxmox.folderPath
+                toFieldPath: spec.forProvider.vars[10].value
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.proxmox.network
+                toFieldPath: spec.forProvider.vars[11].value
+              # TFVars Secret
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.tfvars.secretName
+                toFieldPath: spec.forProvider.varFiles[0].secretKeyRef.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.tfvars.secretKey
+                toFieldPath: spec.forProvider.varFiles[0].secretKeyRef.key
+              # Connection Secret
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.connectionSecret.name
+                toFieldPath: spec.writeConnectionSecretToRef.name
+              # Provider Reference
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.providerRef.name
+                toFieldPath: spec.providerConfigRef.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.providerRef.kind
+                toFieldPath: spec.providerConfigRef.kind
+              # Status Output
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.outputs.ip
+                toFieldPath: status.share.ip
+                policy:
+                  fromFieldPath: Optional

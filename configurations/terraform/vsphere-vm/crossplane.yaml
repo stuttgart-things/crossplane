@@ -74,7 +74,7 @@ metadata:
 
 spec:
   crossplane:
-    version: ">=v2.1.3"
+    version: ">=2.13.0"
 
   dependsOn:
     # Required for vSphere VM provisioning via OpenTofu
