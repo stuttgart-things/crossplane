@@ -5,10 +5,8 @@ metadata:
   name: vault-auth
   namespace: default
 spec:
-  compositionRef:
-    name: vault-auth
   clusterName: vcluster-tink2
-  vaultAddr: https://vault.demo-infra.sthings-vsphere.labul.sva.de
+  vaultAddr: https://vault.example.com
   skipTlsVerify: true
 
   providerConfigName: default
@@ -19,8 +17,11 @@ spec:
   vaultTokenSecret: vault
   vaultTokenSecretKey: terraform.tfvars
 
-  # Used when any k8sAuths entry has `backendConfig` set.
-  kubernetesHost: https://kubernetes.default.svc:443
+  # Only used when any k8sAuths entry has `backendConfig` set (see note below).
+  # - In-cluster Vault: leave unset (defaults to https://kubernetes.default.svc:443)
+  # - External Vault: set to a URL reachable from Vault's network
+  #   (what `kubectl cluster-info` prints for the cluster you're wiring up)
+  # kubernetesHost: https://kubernetes.default.svc:443
 
   k8sAuths:
     - name: dev
@@ -28,13 +29,18 @@ spec:
       tokenTtl: 3600
       boundServiceAccountNames: ["default"]
       boundServiceAccountNamespaces: ["default"]
-      backendConfig:
-        secretName: vault-dev # pragma: allowlist secret
+      # Optional: renders vault_kubernetes_auth_backend_config via the
+      # kubernetes TF provider's `data "kubernetes_secret"`. The referenced
+      # Secret MUST exist before this XR is applied — it's typically a
+      # ServiceAccount token Secret (with `ca.crt` + `token` keys). If the
+      # Secret is missing, `tofu plan` will fail with
+      # "Attempt to index null value" because the data source returns
+      # a null .data map for non-existent secrets.
+      # See the README "backendConfig prerequisites" section.
+      # backendConfig:
+      #   secretName: vault-dev
     - name: cicd
       tokenPolicies: ["read-all-tektoncd-kvv2"]
       tokenTtl: 3600
       boundServiceAccountNames: ["default"]
-      boundServiceAccountNamespaces: ["tektoncd"]
-      backendConfig:
-        secretName: vault-cicd # pragma: allowlist secret
-        secretNamespace: tektoncd
+      boundServiceAccountNamespaces: ["default"]
