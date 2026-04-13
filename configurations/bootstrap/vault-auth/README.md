@@ -1,282 +1,94 @@
-# Vault Kubernetes Authentication Configuration
+# Vault Kubernetes Authentication (Crossplane v2 + OpenTofu)
 
-This Crossplane configuration manages Vault Kubernetes authentication backends using Terraform.
+Crossplane v2 **namespaced** `VaultK8sAuth` configuration that creates Vault Kubernetes auth backends (plus optional `backend_config`) via the **OpenTofu** provider.
 
-## Security Model
+The composition is a thin wrapper around the [`xplane-vault-auth`](https://github.com/stuttgart-things/kcl/tree/main/crossplane/xplane-vault-auth) KCL module (pulled from OCI at render time by `function-kcl`).
 
-This configuration uses **Secret-based credential management** for enhanced security:
+- **XR group/kind:** `config.stuttgart-things.com/v1alpha1` / `VaultK8sAuth`
+- **Scope:** Namespaced
+- **Workspaces generated:** one `opentofu.m.upbound.io/v1beta1` `Workspace` per `k8sAuths` entry
 
-- ✅ **Vault tokens stored in Kubernetes Secrets** (not in claims)
-- ✅ **No sensitive data in Git repositories**
-- ✅ **Proper secret rotation support**
-- ✅ **Namespace-scoped credential access**
-
-## Quick Start
-
-### 1. Create Vault Credentials Secret
-
-Create a Kubernetes secret containing your Vault token:
+## Install
 
 ```bash
-kubectl create secret generic vault-credentials \
-  --from-literal='terraform.tfvars.json={"vault_token":"hvs.YOUR-ACTUAL-VAULT-TOKEN"}' \
-  --namespace default
-```
+# Functions + provider
+kubectl apply -f examples/function.yaml
+kubectl apply -f opentofu-provider.yaml
+kubectl apply -f provider-config.yaml
 
-Or apply the example (with your real token):
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: vault-credentials
-  namespace: default
-type: Opaque
-stringData:
-  terraform.tfvars.json: |
-    {
-      "vault_token": "hvs.YOUR-ACTUAL-VAULT-TOKEN"
-    }
-```
-
-### 2. Apply the Configuration
-
-```bash
-# Apply XRD and Composition
+# XRD + Composition
 kubectl apply -f apis/definition.yaml
 kubectl apply -f apis/composition.yaml
-
-# Apply your claim
-kubectl apply -f examples/claim.yaml
 ```
 
-### 3. Monitor the Workspace
+## Use
 
-```bash
-# Check the workspace status
-kubectl get workspace.tf.upbound.io
+1. Create the Vault token Secret in the same namespace you'll use for the `VaultK8sAuth`:
 
-# Check the claim status
-kubectl get vaultk8sauth
-```
+   ```bash
+   kubectl apply -f examples/vault-secret.yaml
+   ```
 
-## Configuration Structure
+   (the default Secret name is `vault`, key `terraform.tfvars`, containing `vault_token = "hvs...."`.)
 
-### Claim Example
+2. Apply a claim:
 
-```yaml
-apiVersion: config.stuttgart-things.com/v1alpha1
-kind: VaultK8sAuth
-metadata:
-  name: vault-auth-claim
-spec:
-  compositionRef:
-    name: vault-auth-composition
-  cluster_name: "my-cluster"
-  vault_addr: "https://vault.example.com:8200"
-  # Optional: specify custom ProviderConfig (defaults to "default")
-  providerConfigRef: "custom-terraform-config"
-  skip_tls_verify: false
-  k8s_auths:
-    - name: dev
-      namespace: default
-      token_policies: ["read-policy", "write-policy"]  # pragma: allowlist secret
-      token_ttl: 3600  # pragma: allowlist secret
-    - name: prod
-      namespace: production
-      token_policies: ["prod-policy"]  # pragma: allowlist secret
-      token_ttl: 1800  # pragma: allowlist secret
-```
+   ```bash
+   kubectl apply -f examples/claim.yaml
+   ```
 
-### Secret Format
+3. Watch the generated Workspaces reconcile:
 
-The Vault credentials must be provided as JSON in the secret:
+   ```bash
+   kubectl get workspaces.opentofu.m.upbound.io -A
+   ```
 
-```json
-{
-  "vault_token": "hvs.your-actual-vault-token"
-}
-```
+## Spec
 
-## Security Features
+| Field | Required | Default | Notes |
+|---|---|---|---|
+| `clusterName` | ✅ | — | Prefix for Vault backend paths (`<cluster>-<authName>`). |
+| `vaultAddr` | ✅ | — | Vault server URL. |
+| `skipTlsVerify` | | `true` | |
+| `kubernetesHost` | | `https://kubernetes.default.svc:443` | Used when any `k8sAuths` entry has `backendConfig`. |
+| `vaultTokenSecret` | | `vault` | Name of the Secret (same ns) holding `vault_token`. |
+| `vaultTokenSecretKey` | | `terraform.tfvars` | |
+| `providerConfigName` | | `default` | OpenTofu `(Cluster)ProviderConfig` name. |
+| `providerConfigKind` | | `ClusterProviderConfig` | Or `ProviderConfig`. |
+| `k8sAuths[]` | ✅ | — | See below. |
 
-### 🔐 **Secret Management**
-- Vault tokens stored in Kubernetes Secrets
-- No hardcoded credentials in Git
-- Namespace-scoped access control
-- Support for secret rotation
+### `k8sAuths[]`
 
-### 🛡️ **State Management**
-- Terraform state stored in Kubernetes backend
-- State isolation per workspace
-- Crossplane managed lifecycle
+| Field | Required | Default |
+|---|---|---|
+| `name` | ✅ | — |
+| `tokenPolicies` | ✅ | — |
+| `tokenTtl` | | `3600` |
+| `boundServiceAccountNames` | | `["default"]` |
+| `boundServiceAccountNamespaces` | | `["default"]` |
+| `backendConfig` | | (unset) |
 
-### 🔄 **GitOps Ready**
-- All configuration in Git (except secrets)
-- Declarative resource management
-- Version controlled compositions
+### `backendConfig`
 
-## Terraform Resources Created
+If set, the generated Workspace additionally renders a `vault_kubernetes_auth_backend_config` resource that reads the CA cert and token reviewer JWT from a Kubernetes Secret (typically a ServiceAccount token secret). Requires the OpenTofu provider's in-cluster kube credentials to have read access to that Secret.
 
-For each auth backend in `k8s_auths`, the composition creates:
+| Field | Required | Default |
+|---|---|---|
+| `secretName` | ✅ | — |
+| `secretNamespace` | | XR namespace |
+| `caCertKey` | | `ca.crt` |
+| `tokenKey` | | `token` |
+| `disableIssValidation` | | `true` |
+| `disableLocalCaJwt` | | `true` |
 
-1. **vault_auth_backend** - Kubernetes auth method
-2. **vault_kubernetes_auth_backend_config** - Connection configuration
-3. **vault_kubernetes_auth_backend_role** - Service account roles
+## Upgrading from the legacy go-templating composition
 
-## Troubleshooting
+This configuration replaces a previous `tf.upbound.io/v1beta1` + `function-go-templating` implementation. Breaking changes:
 
-### Check Workspace Status
-```bash
-kubectl describe workspace.tf.upbound.io <workspace-name>
-```
+- Provider: `provider-terraform` → `provider-opentofu` (namespaced `opentofu.m.upbound.io/v1beta1`)
+- XRD: `apiextensions.crossplane.io/v1` → `v2`, now `scope: Namespaced`
+- Fields: all renamed from `snake_case` → `camelCase` (`cluster_name` → `clusterName`, `k8s_auths` → `k8sAuths`, etc.)
+- Vault token Secret: previously referenced cross-namespace via `secretRef.namespace`; now must be **co-located** in the XR's namespace, and the format is plain HCL `terraform.tfvars` (was JSON).
+- `namespace` field on each auth entry replaced by `boundServiceAccountNamespaces[]`.
 
-### Check Secret Exists
-```bash
-# Check default secret location
-kubectl get secret vault-credentials -o yaml
-
-# Check custom secret location (if using secretRef)
-kubectl get secret <custom-secret-name> -n <custom-namespace> -o yaml
-```
-
-### Validate Terraform Execution
-```bash
-kubectl logs -l app.kubernetes.io/name=provider-terraform
-```
-
-### Common Issues
-
-1. **Secret not found**: Ensure the secret exists in the correct namespace (check `secretRef` configuration)
-2. **Invalid token**: Verify the Vault token has sufficient permissions  # pragma: allowlist secret
-3. **TLS errors**: Set `skip_tls_verify: true` for self-signed certificates
-4. **Wrong secret key**: Verify the `secretRef.key` points to the correct key containing terraform.tfvars.json
-5. **Namespace access**: Ensure Crossplane can access secrets in the specified `secretRef.namespace`
-
-## Advanced Configuration
-
-### Custom ProviderConfig
-
-For environment-specific configurations, you can use custom ProviderConfigs:
-
-```yaml
-spec:
-  providerConfigRef: "production-terraform-config"
-  cluster_name: "prod-cluster"
-  # ... rest of config
-```
-
-This enables:
-- Different state backends per environment
-- Custom Terraform configurations
-- Multi-tenant ProviderConfig separation
-- Environment-specific provider settings
-
-### Custom Secret Reference
-
-By default, the composition looks for `vault-credentials` secret in the claim's namespace. You can customize this:
-
-```yaml
-spec:
-  cluster_name: "production-cluster"
-  vault_addr: "https://vault.production.com"
-
-  # Custom secret reference
-  secretRef:
-    namespace: "vault-secrets"        # Different namespace
-    name: "production-credentials"    # Different secret name
-    key: "terraform.tfvars.json"     # Different key (optional)
-
-  k8s_auths:
-    - name: "workload-identity"
-      # ... rest of config
-```
-
-**Use cases for custom secret references:**
-- **Multi-namespace deployments**: Secrets in dedicated namespaces
-- **Environment separation**: Different secrets per environment
-- **Security policies**: Namespace-based access controls
-- **Migration scenarios**: Gradual secret name changes
-
-**Default values:**
-- `namespace`: Same as claim namespace (or "default")
-- `name`: "vault-credentials"
-- `key`: "terraform.tfvars.json"
-
-## Troubleshooting
-
-### Custom ProviderConfig
-
-You can specify a custom Terraform ProviderConfig for different environments:
-
-```yaml
-apiVersion: config.stuttgart-things.com/v1alpha1
-kind: VaultK8sAuth
-metadata:
-  name: vault-auth-production
-spec:
-  cluster_name: "prod-cluster"
-  vault_addr: "https://vault-prod.example.com:8200"
-  providerConfigRef: "production-terraform-config"  # Custom ProviderConfig
-  k8s_auths: [...]
-```
-
-Create a custom ProviderConfig with different state backend or configuration:
-
-```yaml
-apiVersion: tf.upbound.io/v1beta1
-kind: ProviderConfig
-metadata:
-  name: production-terraform-config
-spec:
-  configuration: |  # pragma: allowlist secret
-    terraform {
-      backend "kubernetes" {
-        secret_suffix    = "providerconfig-production"  # pragma: allowlist secret
-        namespace        = "terraform-system"
-        in_cluster_config = true  # pragma: allowlist secret
-      }
-    }
-```
-
-### Custom Secret Name/Namespace
-
-You can customize the secret reference in the composition:
-
-```yaml
-varFiles:
-  - source: SecretKey
-    secretKeyRef:
-      namespace: vault-system
-      name: custom-vault-creds
-      key: terraform.tfvars.json
-    format: JSON
-```
-
-### Multiple Vault Environments
-
-Create separate secrets for different environments:
-
-```bash
-# Development
-kubectl create secret generic vault-dev-credentials \
-  --from-literal='terraform.tfvars.json={"vault_token":"hvs.dev-token"}' \
-  --namespace default
-
-# Production
-kubectl create secret generic vault-prod-credentials \
-  --from-literal='terraform.tfvars.json={"vault_token":"hvs.prod-token"}' \
-  --namespace production
-```
-
-## Testing
-
-Test the configuration rendering:
-
-```bash
-crossplane render examples/claim.yaml apis/composition.yaml examples/functions.yaml --include-function-results
-```
-
----
-
-**Security Note**: Never commit actual Vault tokens to Git. Always use Kubernetes Secrets for credential management.
+See [`examples/claim.yaml`](examples/claim.yaml) for the new shape.
