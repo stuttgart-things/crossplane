@@ -21,6 +21,8 @@ kubectl apply -f apis/definition.yaml
 kubectl apply -f apis/composition.yaml
 ```
 
+> **Function names.** The composition references `crossplane-contrib-function-kcl` and `crossplane-contrib-function-auto-ready` — the names that `examples/function.yaml` creates and that `crossplane` CLI / `kubectl crossplane install function` produce by default. If your cluster has these installed under different names (e.g. plain `function-kcl`, which some ad-hoc setups use), either rename your installed `Function` resources to match or patch `apis/composition.yaml` in place.
+
 ## Use
 
 1. Create the Vault token Secret in the same namespace you'll use for the `VaultK8sAuth`:
@@ -80,6 +82,27 @@ If set, the generated Workspace additionally renders a `vault_kubernetes_auth_ba
 | `tokenKey` | | `token` |
 | `disableIssValidation` | | `true` |
 | `disableLocalCaJwt` | | `true` |
+
+#### `backendConfig` prerequisites
+
+The composition's HCL uses the Terraform `kubernetes` provider's `data "kubernetes_secret"` block to read the CA cert and token reviewer JWT at `tofu apply` time. This means:
+
+1. **The referenced Secret must already exist** in the cluster **before** the `VaultK8sAuth` XR is applied. If it's missing, `tofu plan` fails with `Attempt to index null value` (the data source returns a `null` `.data` map for non-existent Secrets rather than erroring out upfront).
+2. **It must be a ServiceAccount token Secret** — since Kubernetes 1.24 these are no longer auto-created. You have to make one explicitly:
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: vault-dev
+     namespace: default
+     annotations:
+       kubernetes.io/service-account.name: vault-auth-reviewer
+   type: kubernetes.io/service-account-token
+   ```
+   (plus the `vault-auth-reviewer` ServiceAccount and a `system:auth-delegator` ClusterRoleBinding for the token-review call to succeed).
+3. **The opentofu provider's pod SA** needs RBAC to read that Secret via the Kubernetes API (since the TF kubernetes provider uses in-cluster config).
+
+For a minimal smoke test, leave `backendConfig` unset on every entry — the Workspace will still create the Vault auth backend and the role, and you can wire up `kubernetes_host` / `kubernetes_ca_cert` / `token_reviewer_jwt` manually in Vault afterwards.
 
 ## Upgrading from the legacy go-templating composition
 
