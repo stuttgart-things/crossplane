@@ -15,14 +15,14 @@ spec:
   pipeline:
     - step: vault-auth
       functionRef:
-        name: crossplane-contrib-function-kcl
+        name: function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
         kind: KCLInput
         metadata:
           name: vault-auth
         spec:
-          source: oci://ghcr.io/stuttgart-things/xplane-vault-auth:0.3.1
+          source: oci://ghcr.io/stuttgart-things/xplane-vault-auth:0.4.0
     - step: automatically-detect-ready-composed-resources
       functionRef:
-        name: crossplane-contrib-function-auto-ready
+        name: function-auto-ready
