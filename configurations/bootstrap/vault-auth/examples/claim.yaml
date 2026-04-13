@@ -2,26 +2,39 @@
 apiVersion: config.stuttgart-things.com/v1alpha1
 kind: VaultK8sAuth
 metadata:
-  name: vault-auth-claim
+  name: vault-auth
+  namespace: default
 spec:
   compositionRef:
-    name: vault-auth-composition
-  cluster_name: "vcluster-tink2"
-  vault_addr: "https://vault.demo-infra.sthings-vsphere.labul.sva.de"
-  # providerConfigRef: "custom-terraform-config"  # Optional: use custom ProviderConfig
+    name: vault-auth
+  clusterName: vcluster-tink2
+  vaultAddr: https://vault.demo-infra.sthings-vsphere.labul.sva.de
+  skipTlsVerify: true
 
-  # Optional: Custom secret reference (defaults to vault-credentials in current namespace)
-  # secretRef:
-  #   namespace: "vault-secrets"
-  #   name: "custom-vault-credentials"
-  #   key: "terraform.tfvars.json"
+  providerConfigName: default
+  providerConfigKind: ClusterProviderConfig
 
-  k8s_auths:
+  # Secret (same namespace as this XR) containing `terraform.tfvars` with
+  #   vault_token = "hvs...."
+  vaultTokenSecret: vault
+  vaultTokenSecretKey: terraform.tfvars
+
+  # Used when any k8sAuths entry has `backendConfig` set.
+  kubernetesHost: https://kubernetes.default.svc:443
+
+  k8sAuths:
     - name: dev
-      namespace: default
-      token_policies: ["read-all-s3-kvv2", "read-write-all-s3-kvv2"]
-      token_ttl: 3600
+      tokenPolicies: ["read-all-s3-kvv2", "read-write-all-s3-kvv2"]
+      tokenTtl: 3600
+      boundServiceAccountNames: ["default"]
+      boundServiceAccountNamespaces: ["default"]
+      backendConfig:
+        secretName: vault-dev # pragma: allowlist secret
     - name: cicd
-      namespace: tektoncd
-      token_policies: ["read-all-tektoncd-kvv2"]
-      token_ttl: 3600
+      tokenPolicies: ["read-all-tektoncd-kvv2"]
+      tokenTtl: 3600
+      boundServiceAccountNames: ["default"]
+      boundServiceAccountNamespaces: ["tektoncd"]
+      backendConfig:
+        secretName: vault-cicd # pragma: allowlist secret
+        secretNamespace: tektoncd
