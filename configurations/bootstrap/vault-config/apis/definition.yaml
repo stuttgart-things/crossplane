@@ -35,6 +35,13 @@ spec:
                 providerConfigName:
                   type: string
                   description: "Name of the provider-helm / provider-kubernetes ProviderConfig. Defaults to clusterName."
+                providerConfigKind:
+                  type: string
+                  description: "Kind of the ProviderConfig referenced by composed MRs. Namespaced v2 MRs typically consume a cluster-scoped ClusterProviderConfig."
+                  default: "ClusterProviderConfig"
+                  enum:
+                    - ClusterProviderConfig
+                    - ProviderConfig
                 namespace:
                   type: string
                   description: "Namespace that composed Release/Object resources are created in. Defaults to the VaultConfig's own metadata.namespace."
