@@ -202,6 +202,13 @@ kubectl get deployment -n external-secrets-system
 |-----------|------|---------|-------------|
 | `k8sAuths` | array | `[{"name": "vault-auth-default", "namespace": "default"}]` | Kubernetes auth configurations |
 
+### Provider Config
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `providerConfigName` | string | `clusterName` | Name of the provider-helm / provider-kubernetes ProviderConfig on the target cluster. Defaults to `clusterName` if unset. |
+| `providerConfigKind` | string | `"ClusterProviderConfig"` | Kind of the ProviderConfig referenced by composed MRs. Must be `ClusterProviderConfig` or `ProviderConfig`. Namespaced v2 MRs (as used by `xplane-vault-config` >= 0.5.0) typically consume a cluster-scoped `ClusterProviderConfig`. |
+
 ### Connection Secrets
 
 | Parameter | Type | Default | Description |
@@ -436,7 +443,7 @@ kubectl describe secret VAULT_CONFIG_NAME-connection -n crossplane-system
 - **KCL Function**: `xpkg.upbound.io/crossplane-contrib/function-kcl:>=v0.9.0`
 - **Stuttgart-Things Helm Provider**: `ghcr.io/stuttgart-things/crossplane-provider-helm:>=v0.1.1`
 - **Kubernetes Provider**: `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:>=v0.18.0`
-- **KCL Module**: `oci://ghcr.io/stuttgart-things/xplane-vault-config:0.1.0`
+- **KCL Module**: `oci://ghcr.io/stuttgart-things/xplane-vault-config:0.5.0`
 - **Docker**: Required for KCL function runtime during testing
 
 ## Integration Examples
