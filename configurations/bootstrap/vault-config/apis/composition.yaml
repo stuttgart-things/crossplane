@@ -2,27 +2,28 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: xvault-config-kcl
+  name: vault-config
   labels:
+    crossplane.io/xrd: vaultconfigs.config.stuttgart-things.com
     provider: stuttgart-things
     category: config
     service: vault
 spec:
   compositeTypeRef:
     apiVersion: config.stuttgart-things.com/v1alpha1
-    kind: XVaultConfig
-
+    kind: VaultConfig
   mode: Pipeline
-
   pipeline:
-    - step: vault-config-kcl
+    - step: vault-config
       functionRef:
         name: crossplane-contrib-function-kcl
       input:
         apiVersion: krm.kcl.dev/v1alpha1
-        kind: KCLRun
+        kind: KCLInput
         metadata:
-          name: vault-config-kcl
+          name: vault-config
         spec:
-          source: oci://ghcr.io/stuttgart-things/xplane-vault-config:0.1.0
-          target: Resources
+          source: oci://ghcr.io/stuttgart-things/xplane-vault-config:0.4.0
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready

@@ -1,22 +1,16 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: xvaultconfigs.config.stuttgart-things.com
+  name: vaultconfigs.config.stuttgart-things.com
 spec:
   group: config.stuttgart-things.com
+  scope: Namespaced
+  defaultCompositeDeletePolicy: Foreground
   names:
-    kind: XVaultConfig
-    plural: xvaultconfigs
-  claimNames:
     kind: VaultConfig
     plural: vaultconfigs
-  defaultCompositionRef:
-    name: xvault-config-kcl
-  connectionSecretKeys:
-    - csi-token
-    - vso-token
-    - eso-token
+    singular: vaultconfig
   versions:
     - name: v1alpha1
       served: true
@@ -28,7 +22,6 @@ spec:
             spec:
               type: object
               properties:
-                # Basic Configuration
                 name:
                   type: string
                   description: "Name of the vault configuration"
@@ -37,8 +30,14 @@ spec:
                   maxLength: 63
                 clusterName:
                   type: string
-                  description: "Crossplane provider config reference for target cluster"
+                  description: "Target cluster name (used for resource naming suffixes)"
                   default: "default"
+                providerConfigName:
+                  type: string
+                  description: "Name of the provider-helm / provider-kubernetes ProviderConfig. Defaults to clusterName."
+                namespace:
+                  type: string
+                  description: "Namespace that composed Release/Object resources are created in. Defaults to the VaultConfig's own metadata.namespace."
 
                 # Service Enablement Flags
                 csiEnabled:
@@ -52,6 +51,10 @@ spec:
                 esoEnabled:
                   type: boolean
                   description: "Enable External Secrets Operator"
+                  default: false
+                isVcluster:
+                  type: boolean
+                  description: "Disable liveness/readiness probes on ESO (vcluster-friendly)"
                   default: false
 
                 # Chart Versions
@@ -68,30 +71,30 @@ spec:
                 esoChartVersion:
                   type: string
                   description: "Chart version for External Secrets Operator"
-                  default: "0.20.3"
+                  default: "0.11.3"
                   pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
 
-                # Namespace Configuration
+                # Chart install namespaces (forProvider.namespace on each Helm Release)
                 namespaceCsi:
                   type: string
-                  description: "Namespace for Secrets Store CSI Driver"
+                  description: "Chart install namespace for Secrets Store CSI Driver"
                   default: "secrets-store-csi"
                   pattern: "^[a-z0-9-]+$"
                 namespaceVso:
                   type: string
-                  description: "Namespace for Vault Secrets Operator"
+                  description: "Chart install namespace for Vault Secrets Operator"
                   default: "vault-secrets-operator"
                   pattern: "^[a-z0-9-]+$"
                 namespaceEso:
                   type: string
-                  description: "Namespace for External Secrets Operator"
+                  description: "Chart install namespace for External Secrets Operator"
                   default: "external-secrets"
                   pattern: "^[a-z0-9-]+$"
 
                 # Kubernetes Auth Configuration
                 k8sAuths:
                   type: array
-                  description: "Kubernetes authentication configurations"
+                  description: "Kubernetes ServiceAccount + token Secret + auth-delegator binding to bootstrap per Vault Kubernetes auth backend"
                   items:
                     type: object
                     properties:
@@ -101,87 +104,18 @@ spec:
                         pattern: "^[a-z0-9-]+$"
                       namespace:
                         type: string
-                        description: "Namespace for the auth resources"
+                        description: "Namespace of the ServiceAccount + Secret + CRB target"
                         default: "default"
                         pattern: "^[a-z0-9-]+$"
                     required:
                       - name
-                  default:
-                    - name: "vault-auth-default"
-                      namespace: "default"
-
-                # Connection Secret Configuration
-                connectionSecret:
-                  type: object
-                  description: "Connection secret configuration"
-                  properties:
-                    enabled:
-                      type: boolean
-                      description: "Enable connection secret creation"
-                      default: true
-                    name:
-                      type: string
-                      description: "Name of the connection secret"
-                    namespace:
-                      type: string
-                      description: "Namespace for connection secret"
-                      default: "crossplane-system"
-                  default:
-                    enabled: true
-                    namespace: "crossplane-system"
-
               required:
                 - name
                 - clusterName
-
             status:
               type: object
+              description: "Observed state of the VaultConfig."
               properties:
-                ready:
-                  type: boolean
-                  description: "Indicates if all vault services are ready"
-                conditions:
-                  type: array
-                  description: "Detailed status of each service"
-                  items:
-                    type: object
-                    properties:
-                      type:
-                        type: string
-                      status:
-                        type: string
-                      reason:
-                        type: string
-                      message:
-                        type: string
-                servicesStatus:
+                share:
                   type: object
-                  description: "Status of individual vault services"
-                  properties:
-                    csi:
-                      type: object
-                      properties:
-                        enabled:
-                          type: boolean
-                        ready:
-                          type: boolean
-                        namespace:
-                          type: string
-                    vso:
-                      type: object
-                      properties:
-                        enabled:
-                          type: boolean
-                        ready:
-                          type: boolean
-                        namespace:
-                          type: string
-                    eso:
-                      type: object
-                      properties:
-                        enabled:
-                          type: boolean
-                        ready:
-                          type: boolean
-                        namespace:
-                          type: string
+                  x-kubernetes-preserve-unknown-fields: true
