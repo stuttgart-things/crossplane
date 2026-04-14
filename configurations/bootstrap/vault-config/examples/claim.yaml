@@ -1,37 +1,38 @@
 ---
 apiVersion: config.stuttgart-things.com/v1alpha1
-kind: XVaultConfig
+kind: VaultConfig
 metadata:
-  name: vault-config-example
-  namespace: crossplane-system
+  name: vault-config
+  namespace: default
 spec:
-  name: vault-config-test
-  clusterName: "k3s-prod"
+  name: vault-config
+  clusterName: vcluster-tink2
 
-  # Enable all services for comprehensive testing
+  # Name of the provider-helm / provider-kubernetes ProviderConfig on the
+  # target cluster. Defaults to clusterName if unset.
+  providerConfigName: default
+
+  # Service enablement
   csiEnabled: true
   vsoEnabled: true
   esoEnabled: true
+  # isVcluster: true  # disable ESO probes if running inside a vcluster
 
-  # Use specific chart versions
+  # Chart versions
   csiChartVersion: "1.5.4"
   vsoChartVersion: "1.0.1"
-  esoChartVersion: "0.20.3"
+  esoChartVersion: "0.11.3"
 
-  # Custom namespaces
-  namespaceCsi: "secrets-store-csi"
-  namespaceVso: "vault-secrets-operator"
-  namespaceEso: "external-secrets-system"
+  # Chart install namespaces
+  namespaceCsi: secrets-store-csi
+  namespaceVso: vault-secrets-operator
+  namespaceEso: external-secrets
 
-  # Kubernetes Auth configurations
+  # ServiceAccount + token Secret + auth-delegator CRB bootstrap
+  # (one per k8sAuth entry — the name here should match the role/auth path
+  # created by xplane-vault-auth for this cluster)
   k8sAuths:
-    - name: "vault-auth-apps"
-      namespace: "applications"
-    - name: "vault-auth-platform"
-      namespace: "platform-system"
-
-  # Connection secret configuration
-  connectionSecret:
-    enabled: true
-    name: "vault-config-connection"
-    namespace: "crossplane-system"
+    - name: dev
+      namespace: default
+    - name: cicd
+      namespace: default

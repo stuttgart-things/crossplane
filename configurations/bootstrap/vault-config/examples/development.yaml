@@ -15,7 +15,7 @@ spec:
 
   # Use latest stable versions
   csiChartVersion: "1.5.4"
-  esoChartVersion: "0.20.3"
+  esoChartVersion: "0.11.3"
 
   # Development namespaces
   namespaceCsi: "secrets-csi"
@@ -25,13 +25,3 @@ spec:
   k8sAuths:
     - name: "vault-auth-dev"
       namespace: "development"
-
-  # Development connection secret
-  connectionSecret:
-    enabled: true
-    name: "vault-config-dev-connection"
-    namespace: "development"
-
-writeConnectionSecretToRef:
-  name: vault-dev-secrets
-  namespace: development
